@@ -384,14 +384,14 @@ model DiagnosticItem {
   // For future IRT calibration
   difficultyParam Float?
 
-  status        ContentStatus @default(DRAFT)
-  createdById   String?
-  reviewedById  String?
-  reviewedAt    DateTime?
-  reviewNotes   String?       @db.Text
-  publishedAt   DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  status       ContentStatus @default(DRAFT)
+  createdById  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNotes  String?       @db.Text
+  publishedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   skillTag   SkillTag?          @relation(fields: [skillTagId], references: [id])
   createdBy  User?              @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
@@ -447,4 +447,69 @@ model DiagnosticAnswer {
 
   @@unique([attemptId, position])
   @@index([attemptId])
+}
+
+// ============================================================================
+// LEARNER MODEL — Layer 3: Knowledge Graph
+// ============================================================================
+
+enum ConceptCategory {
+  GRAMMAR
+  VOCAB
+  LISTENING
+  PHONETICS
+  DISCOURSE
+  PRAGMATICS
+}
+
+enum EdgeKind {
+  PREREQUISITE
+  RELATED
+  CONTRASTS_WITH
+  PART_OF
+}
+
+/// A learnable concept (grammar pattern, vocab cluster, listening sub-skill, ...).
+/// IDs are human-readable, dotted, lowercase snake_case (e.g. "present_perfect.with_for_since").
+/// Once assigned, a concept ID is immutable. To rename, introduce a ConceptAlias row (TBD).
+model Concept {
+  id          String          @id
+  name        String
+  description String?         @db.Text
+  cefrLevel   CefrLevel
+  category    ConceptCategory
+
+  outgoingEdges ConceptEdge[] @relation("ConceptOutgoing")
+  incomingEdges ConceptEdge[] @relation("ConceptIncoming")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cefrLevel])
+  @@index([category])
+  @@index([cefrLevel, category])
+}
+
+/// A directed edge between concepts.
+///
+/// PREREQUISITE: from = prerequisite, to = dependent. Must form a DAG (enforced
+///   by the @englishlearn/learner-model graph builder; not by the DB).
+/// RELATED, CONTRASTS_WITH: treated as symmetric by traversal code.
+/// PART_OF: from = part, to = whole.
+model ConceptEdge {
+  id     String   @id @default(cuid())
+  fromId String
+  toId   String
+  kind   EdgeKind
+  weight Float    @default(1.0)
+
+  from Concept @relation("ConceptOutgoing", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Concept @relation("ConceptIncoming", fields: [toId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId, kind])
+  @@index([fromId])
+  @@index([toId])
+  @@index([kind])
 }

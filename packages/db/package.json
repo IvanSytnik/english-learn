@@ -8,7 +8,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./queries/*": "./src/queries/*.ts"
+    "./queries/*": "./src/queries/*.ts",
+    "./generated/*": "./src/generated/*"
+
   },
   "scripts": {
     "generate": "prisma generate",
@@ -25,7 +27,8 @@
   },
   "dependencies": {
     "@prisma/client": "catalog:",
-    "bcryptjs": "catalog:"
+    "bcryptjs": "catalog:",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@englishlearn/config": "workspace:*",
