@@ -1,0 +1,73 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Single source of truth for all dependency versions across the monorepo.
+# Reference in package.json with "catalog:".
+catalog:
+  # Next.js core
+  next: "16.2.9"
+  react: "19.2.7"
+  react-dom: "19.2.7"
+  "@types/react": "19.2.17"
+  "@types/react-dom": "19.2.3"
+  "@types/node": "26.0.1"
+
+  # TypeScript / build
+  typescript: "6.0.3"
+  tsx: "4.22.4"
+
+  # Tooling
+  "@biomejs/biome": "2.5.1"
+  turbo: "2.10.0"
+
+  # DB / ORM
+  prisma: "6.16.2"
+  "@prisma/client": "6.16.2"
+
+  # Auth (v5 is still officially beta but de-facto standard for Next 16)
+  next-auth: "5.0.0-beta.31"
+  "@auth/prisma-adapter": "2.11.2"
+  bcryptjs: "3.0.3"
+  "@types/bcryptjs": "3.0.0"
+
+  # i18n
+  next-intl: "4.13.0"
+
+  # State / data
+  "@tanstack/react-query": "5.101.1"
+  zustand: "5.0.14"
+
+  # Forms / validation
+  react-hook-form: "7.80.0"
+  "@hookform/resolvers": "5.4.0"
+  zod: "4.4.3"
+
+  # UI primitives
+  tailwindcss: "4.3.1"
+  "@tailwindcss/postcss": "4.3.1"
+  clsx: "2.1.1"
+  "tailwind-merge": "3.6.0"
+  "class-variance-authority": "0.7.1"
+  "lucide-react": "1.21.0"
+
+  # Env validation
+  "@t3-oss/env-nextjs": "0.13.11"
+
+  # Testing
+  vitest: "4.1.9"
+  "@vitest/coverage-v8": "4.1.9"
+  "@vitejs/plugin-react": "6.0.3"
+  "@testing-library/react": "16.3.2"
+  "@testing-library/jest-dom": "6.9.1"
+  jsdom: "29.1.1"
+  "@playwright/test": "1.61.1"
+
+# Run native scripts of these dependencies (pnpm 10 requires explicit allowlist).
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - prisma
+  - "@biomejs/biome"
+  - "@tailwindcss/oxide"
+  - esbuild
+  - sharp

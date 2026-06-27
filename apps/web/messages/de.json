@@ -1,0 +1,66 @@
+{
+  "common": {
+    "appName": "EnglishLearn",
+    "signIn": "Anmelden",
+    "signOut": "Abmelden",
+    "signUp": "Registrieren",
+    "loading": "Laden...",
+    "submit": "Absenden",
+    "cancel": "Abbrechen"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Englisch lernen mit KI und echten Lehrern",
+      "subtitle": "Adaptive Übungen, die genau deine Schwachstellen trainieren.",
+      "cta": "Diagnose starten"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Willkommen zurück",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "noAccount": "Noch kein Konto?",
+      "signUp": "Registrieren"
+    },
+    "register": {
+      "title": "Konto erstellen",
+      "name": "Name",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Konto erstellen",
+      "hasAccount": "Bereits ein Konto?",
+      "signIn": "Anmelden"
+    }
+  },
+  "student": {
+    "dashboard": {
+      "title": "Dein Dashboard",
+      "welcome": "Hallo, {name}",
+      "nextExercise": "Weiterlernen",
+      "takeDiagnostic": "Einstufungstest machen",
+      "level": "Niveau: {level}"
+    },
+    "diagnostic": {
+      "title": "Einstufungstest",
+      "intro": "Wir stellen dir ~15-20 Fragen unterschiedlicher Schwierigkeit, um dein Niveau zu ermitteln.",
+      "start": "Starten"
+    },
+    "exercises": {
+      "title": "Übungen"
+    }
+  },
+  "admin": {
+    "nav": {
+      "content": "Inhalte",
+      "users": "Nutzer",
+      "aiReview": "KI-Review",
+      "vocab": "Wortschatz",
+      "grammar": "Grammatik",
+      "listening": "Hörverstehen",
+      "diagnostic": "Diagnose",
+      "skillTags": "Fähigkeiten"
+    }
+  }
+}

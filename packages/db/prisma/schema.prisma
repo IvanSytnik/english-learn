@@ -1,0 +1,450 @@
+// EnglishLearn database schema
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth (Auth.js v5 / NextAuth)
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  name          String?
+  image         String?
+  role          UserRole  @default(STUDENT)
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  profile            StudentProfile?
+  diagnosticAttempts DiagnosticAttempt[]
+  vocabAttempts      VocabAttempt[]
+  grammarAttempts    GrammarAttempt[]
+  listeningAttempts  ListeningAttempt[]
+  skillLevels        SkillLevel[]
+
+  // Content authorship
+  createdVocabExercises      VocabExercise[]     @relation("VocabCreatedBy")
+  reviewedVocabExercises     VocabExercise[]     @relation("VocabReviewedBy")
+  createdGrammarExercises    GrammarExercise[]   @relation("GrammarCreatedBy")
+  reviewedGrammarExercises   GrammarExercise[]   @relation("GrammarReviewedBy")
+  createdListeningExercises  ListeningExercise[] @relation("ListeningCreatedBy")
+  reviewedListeningExercises ListeningExercise[] @relation("ListeningReviewedBy")
+  createdDiagnosticItems     DiagnosticItem[]    @relation("DiagnosticCreatedBy")
+  reviewedDiagnosticItems    DiagnosticItem[]    @relation("DiagnosticReviewedBy")
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Student profile
+// ─────────────────────────────────────────────────────────────
+
+enum CefrLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+enum LearningGoal {
+  WORK
+  IMMIGRATION
+  TRAVEL
+  EXAM
+  GENERAL
+}
+
+model StudentProfile {
+  id                String        @id @default(cuid())
+  userId            String        @unique
+  nativeLanguage    String
+  selfReportedLevel CefrLevel?
+  assessedLevel     CefrLevel?
+  goal              LearningGoal?
+  dailyGoalMin      Int           @default(15)
+  streakDays        Int           @default(0)
+  lastActiveAt      DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Content lifecycle
+// ─────────────────────────────────────────────────────────────
+
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+}
+
+enum ExerciseSource {
+  CURATED
+  AI_GENERATED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Skills taxonomy
+// ─────────────────────────────────────────────────────────────
+
+enum SkillCategory {
+  GRAMMAR
+  VOCABULARY
+  LISTENING
+  READING
+  SPEAKING
+  WRITING
+  PRONUNCIATION
+}
+
+model SkillTag {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  category    SkillCategory
+  cefrLevel   CefrLevel
+  title       String
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  vocabExercises     VocabExercise[]
+  grammarExercises   GrammarExercise[]
+  listeningExercises ListeningExercise[]
+  skillLevels        SkillLevel[]
+  diagnosticItems    DiagnosticItem[]
+
+  @@index([category, cefrLevel])
+}
+
+model SkillLevel {
+  id         String    @id @default(cuid())
+  userId     String
+  skillTagId String
+  mastery    Float     @default(0)
+  attempts   Int       @default(0)
+  lastSeenAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillTag SkillTag @relation(fields: [skillTagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillTagId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Vocabulary: multiple choice
+// ─────────────────────────────────────────────────────────────
+
+model VocabExercise {
+  id           String         @id @default(cuid())
+  cefrLevel    CefrLevel
+  source       ExerciseSource @default(CURATED)
+  skillTagId   String?
+  prompt       String         @db.Text
+  targetLexeme String
+  choices      String[]
+  correctIndex Int
+  explanation  String?        @db.Text
+
+  status        ContentStatus @default(DRAFT)
+  createdById   String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  publishedAt   DateTime?
+  generatorMeta Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  skillTag   SkillTag?      @relation(fields: [skillTagId], references: [id])
+  createdBy  User?          @relation("VocabCreatedBy", fields: [createdById], references: [id])
+  reviewedBy User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id])
+  attempts   VocabAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status, createdAt])
+}
+
+model VocabAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  exerciseId    String
+  selectedIndex Int
+  isCorrect     Boolean
+  timeMs        Int?
+  createdAt     DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise VocabExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([exerciseId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Grammar: fill-in-the-blank
+// ─────────────────────────────────────────────────────────────
+
+model GrammarExercise {
+  id              String         @id @default(cuid())
+  cefrLevel       CefrLevel
+  source          ExerciseSource @default(CURATED)
+  skillTagId      String?
+  template        String         @db.Text
+  acceptedAnswers String[]
+  hint            String?
+  explanation     String?        @db.Text
+  grammarPoint    String?
+
+  status        ContentStatus @default(DRAFT)
+  createdById   String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  publishedAt   DateTime?
+  generatorMeta Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  skillTag   SkillTag?        @relation(fields: [skillTagId], references: [id])
+  createdBy  User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id])
+  reviewedBy User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id])
+  attempts   GrammarAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status, createdAt])
+}
+
+model GrammarAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  userAnswer String
+  isCorrect  Boolean
+  timeMs     Int?
+  createdAt  DateTime @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise GrammarExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([exerciseId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Listening: transcription
+// ─────────────────────────────────────────────────────────────
+
+model ListeningExercise {
+  id               String         @id @default(cuid())
+  cefrLevel        CefrLevel
+  source           ExerciseSource @default(CURATED)
+  skillTagId       String?
+  audioUrl         String
+  audioDurationSec Int
+  transcript       String         @db.Text
+  acceptedVariants String[]       @default([])
+  toleranceLevel   Int            @default(2)
+  explanation      String?        @db.Text
+
+  status        ContentStatus @default(DRAFT)
+  createdById   String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  publishedAt   DateTime?
+  generatorMeta Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  skillTag   SkillTag?          @relation(fields: [skillTagId], references: [id])
+  createdBy  User?              @relation("ListeningCreatedBy", fields: [createdById], references: [id])
+  reviewedBy User?              @relation("ListeningReviewedBy", fields: [reviewedById], references: [id])
+  attempts   ListeningAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status, createdAt])
+}
+
+model ListeningAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  userAnswer String   @db.Text
+  similarity Float
+  isCorrect  Boolean
+  playCount  Int      @default(1)
+  timeMs     Int?
+  createdAt  DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise ListeningExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([exerciseId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Diagnostic test (pseudo-CAT)
+// ─────────────────────────────────────────────────────────────
+
+enum DiagnosticItemType {
+  VOCAB
+  GRAMMAR
+  LISTENING
+}
+
+model DiagnosticItem {
+  id         String             @id @default(cuid())
+  type       DiagnosticItemType
+  cefrLevel  CefrLevel
+  skillTagId String?
+  prompt     String             @db.Text
+
+  // VOCAB
+  choices      String[] @default([])
+  correctIndex Int?
+
+  // GRAMMAR
+  template        String?
+  acceptedAnswers String[] @default([])
+
+  // LISTENING
+  audioUrl   String?
+  transcript String?
+
+  // For future IRT calibration
+  difficultyParam Float?
+
+  status        ContentStatus @default(DRAFT)
+  createdById   String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNotes   String?       @db.Text
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  skillTag   SkillTag?          @relation(fields: [skillTagId], references: [id])
+  createdBy  User?              @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
+  reviewedBy User?              @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id])
+  answers    DiagnosticAnswer[]
+
+  @@index([cefrLevel, type, status])
+  @@index([status, createdAt])
+}
+
+enum DiagnosticStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+model DiagnosticAttempt {
+  id          String           @id @default(cuid())
+  userId      String
+  status      DiagnosticStatus @default(IN_PROGRESS)
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  // Pseudo-CAT state
+  currentLevel       CefrLevel   @default(B1)
+  consecutiveCorrect Int         @default(0)
+  consecutiveWrong   Int         @default(0)
+  itemsAnswered      Int         @default(0)
+  levelTrajectory    CefrLevel[] @default([])
+
+  assessedLevel CefrLevel?
+
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers DiagnosticAnswer[]
+
+  @@index([userId])
+  @@index([status, startedAt])
+}
+
+model DiagnosticAnswer {
+  id         String    @id @default(cuid())
+  attemptId  String
+  itemId     String
+  userAnswer String    @db.Text
+  isCorrect  Boolean
+  timeMs     Int?
+  itemLevel  CefrLevel
+  position   Int
+  createdAt  DateTime  @default(now())
+
+  attempt DiagnosticAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  item    DiagnosticItem    @relation(fields: [itemId], references: [id])
+
+  @@unique([attemptId, position])
+  @@index([attemptId])
+}

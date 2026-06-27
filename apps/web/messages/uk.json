@@ -1,0 +1,66 @@
+{
+  "common": {
+    "appName": "EnglishLearn",
+    "signIn": "Увійти",
+    "signOut": "Вийти",
+    "signUp": "Реєстрація",
+    "loading": "Завантаження...",
+    "submit": "Надіслати",
+    "cancel": "Скасувати"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Вчи англійську з AI та живими репетиторами",
+      "subtitle": "Адаптивні заняття, що працюють саме над твоїми слабкими місцями.",
+      "cta": "Пройти діагностику"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "З поверненням",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Увійти",
+      "noAccount": "Немає акаунту?",
+      "signUp": "Зареєструватися"
+    },
+    "register": {
+      "title": "Створити акаунт",
+      "name": "Ім'я",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Створити акаунт",
+      "hasAccount": "Вже є акаунт?",
+      "signIn": "Увійти"
+    }
+  },
+  "student": {
+    "dashboard": {
+      "title": "Дашборд",
+      "welcome": "Привіт, {name}",
+      "nextExercise": "Продовжити",
+      "takeDiagnostic": "Пройти діагностику",
+      "level": "Рівень: {level}"
+    },
+    "diagnostic": {
+      "title": "Діагностика",
+      "intro": "Ми поставимо ~15-20 питань різної складності, щоб визначити твій рівень.",
+      "start": "Почати"
+    },
+    "exercises": {
+      "title": "Вправи"
+    }
+  },
+  "admin": {
+    "nav": {
+      "content": "Контент",
+      "users": "Користувачі",
+      "aiReview": "AI Ревью",
+      "vocab": "Лексика",
+      "grammar": "Граматика",
+      "listening": "Аудіювання",
+      "diagnostic": "Діагностика",
+      "skillTags": "Навички"
+    }
+  }
+}

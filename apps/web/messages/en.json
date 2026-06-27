@@ -1,0 +1,66 @@
+{
+  "common": {
+    "appName": "EnglishLearn",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signUp": "Sign up",
+    "loading": "Loading...",
+    "submit": "Submit",
+    "cancel": "Cancel"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Learn English with AI and real tutors",
+      "subtitle": "Adaptive lessons that focus on your weak spots, plus live tutoring when you need it.",
+      "cta": "Start free diagnostic"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up"
+    },
+    "register": {
+      "title": "Create your account",
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in"
+    }
+  },
+  "student": {
+    "dashboard": {
+      "title": "Your dashboard",
+      "welcome": "Welcome, {name}",
+      "nextExercise": "Continue learning",
+      "takeDiagnostic": "Take diagnostic test",
+      "level": "Your level: {level}"
+    },
+    "diagnostic": {
+      "title": "Diagnostic test",
+      "intro": "We will ask you ~15-20 questions of varying difficulty to determine your level.",
+      "start": "Start"
+    },
+    "exercises": {
+      "title": "Exercises"
+    }
+  },
+  "admin": {
+    "nav": {
+      "content": "Content",
+      "users": "Users",
+      "aiReview": "AI Review",
+      "vocab": "Vocabulary",
+      "grammar": "Grammar",
+      "listening": "Listening",
+      "diagnostic": "Diagnostic",
+      "skillTags": "Skill Tags"
+    }
+  }
+}
