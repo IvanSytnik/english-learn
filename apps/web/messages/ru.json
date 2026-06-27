@@ -1,0 +1,66 @@
+{
+  "common": {
+    "appName": "EnglishLearn",
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "signUp": "Регистрация",
+    "loading": "Загрузка...",
+    "submit": "Отправить",
+    "cancel": "Отмена"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Учи английский с AI и живыми репетиторами",
+      "subtitle": "Адаптивные занятия, которые работают именно над твоими слабыми местами.",
+      "cta": "Пройти диагностику"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "С возвращением",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Войти",
+      "noAccount": "Нет аккаунта?",
+      "signUp": "Зарегистрироваться"
+    },
+    "register": {
+      "title": "Создать аккаунт",
+      "name": "Имя",
+      "email": "Email",
+      "password": "Пароль",
+      "submit": "Создать аккаунт",
+      "hasAccount": "Уже есть аккаунт?",
+      "signIn": "Войти"
+    }
+  },
+  "student": {
+    "dashboard": {
+      "title": "Дашборд",
+      "welcome": "Привет, {name}",
+      "nextExercise": "Продолжить",
+      "takeDiagnostic": "Пройти диагностику",
+      "level": "Уровень: {level}"
+    },
+    "diagnostic": {
+      "title": "Диагностика",
+      "intro": "Мы зададим ~15-20 вопросов разной сложности, чтобы определить твой уровень.",
+      "start": "Начать"
+    },
+    "exercises": {
+      "title": "Упражнения"
+    }
+  },
+  "admin": {
+    "nav": {
+      "content": "Контент",
+      "users": "Пользователи",
+      "aiReview": "AI Ревью",
+      "vocab": "Лексика",
+      "grammar": "Грамматика",
+      "listening": "Аудирование",
+      "diagnostic": "Диагностика",
+      "skillTags": "Навыки"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "englishlearn",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AI-powered English learning platform",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "db:generate": "pnpm --filter @englishlearn/db generate",
+    "db:migrate": "pnpm --filter @englishlearn/db migrate",
+    "db:push": "pnpm --filter @englishlearn/db push",
+    "db:seed": "pnpm --filter @englishlearn/db seed",
+    "db:studio": "pnpm --filter @englishlearn/db studio",
+    "clean": "turbo run clean && rm -rf node_modules .turbo"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  }
+}
