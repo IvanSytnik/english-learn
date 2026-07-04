@@ -13,12 +13,14 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "biome check src",
-    "seed:concepts": "tsx seed/run.ts"
+    "seed:concepts": "tsx seed/run.ts",
+    "seed:items": "tsx seed/items/run.ts"
   },
   "dependencies": {
     "@englishlearn/db": "workspace:*",
     "server-only": "^0.0.1",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "ts-fsrs": "catalog:"
   },
   "devDependencies": {
     "@englishlearn/config": "workspace:*",
