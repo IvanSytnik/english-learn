@@ -41,6 +41,8 @@ model User {
   grammarAttempts    GrammarAttempt[]
   listeningAttempts  ListeningAttempt[]
   skillLevels        SkillLevel[]
+  conceptMasteries ConceptMastery[]
+  itemReviewStates ItemReviewState[]
 
   // Content authorship
   createdVocabExercises      VocabExercise[]     @relation("VocabCreatedBy")
@@ -142,6 +144,21 @@ enum ContentStatus {
   REJECTED
 }
 
+enum ItemKind {
+  VOCAB_WORD
+  GRAMMAR_PATTERN
+  COLLOCATION
+  IDIOM
+}
+
+/// FSRS card lifecycle state. Mirrors ts-fsrs `State` (New/Learning/Review/Relearning).
+enum FsrsCardStatus {
+  NEW
+  LEARNING
+  REVIEW
+  RELEARNING
+}
+
 enum ExerciseSource {
   CURATED
   AI_GENERATED
@@ -201,34 +218,30 @@ model SkillLevel {
 // ─────────────────────────────────────────────────────────────
 
 model VocabExercise {
-  id           String         @id @default(cuid())
-  cefrLevel    CefrLevel
-  source       ExerciseSource @default(CURATED)
-  skillTagId   String?
-  prompt       String         @db.Text
-  targetLexeme String
-  choices      String[]
-  correctIndex Int
-  explanation  String?        @db.Text
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
 
-  status        ContentStatus @default(DRAFT)
+  /// JSON payload validated by VocabContentSchema (packages/db/src/schemas/exercises/vocab.ts).
+  /// Structure: { source: { targetLexeme, exampleSentence? }, localized: { ... }, choices, correctIndex }
+  content       Json
+
+  generatorMeta Json?
   createdById   String?
   reviewedById  String?
-  reviewedAt    DateTime?
-  reviewNotes   String?       @db.Text
-  publishedAt   DateTime?
-  generatorMeta Json?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  skillTag   SkillTag?      @relation(fields: [skillTagId], references: [id])
-  createdBy  User?          @relation("VocabCreatedBy", fields: [createdById], references: [id])
-  reviewedBy User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id])
-  attempts   VocabAttempt[]
+  skillTag    SkillTag?      @relation(fields: [skillTagId], references: [id])
+  createdBy   User?          @relation("VocabCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id])
+  attempts    VocabAttempt[]
 
   @@index([cefrLevel, status])
   @@index([skillTagId])
-  @@index([status, createdAt])
+  @@index([status])
 }
 
 model VocabAttempt {
@@ -252,34 +265,30 @@ model VocabAttempt {
 // ─────────────────────────────────────────────────────────────
 
 model GrammarExercise {
-  id              String         @id @default(cuid())
-  cefrLevel       CefrLevel
-  source          ExerciseSource @default(CURATED)
-  skillTagId      String?
-  template        String         @db.Text
-  acceptedAnswers String[]
-  hint            String?
-  explanation     String?        @db.Text
-  grammarPoint    String?
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
 
-  status        ContentStatus @default(DRAFT)
+  /// JSON payload validated by GrammarContentSchema.
+  /// Structure: { source: { template, acceptedAnswers }, localized: { instructions, hint?, explanation? } }
+  content       Json
+
+  generatorMeta Json?
   createdById   String?
   reviewedById  String?
-  reviewedAt    DateTime?
-  reviewNotes   String?       @db.Text
-  publishedAt   DateTime?
-  generatorMeta Json?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  skillTag   SkillTag?        @relation(fields: [skillTagId], references: [id])
-  createdBy  User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id])
-  reviewedBy User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id])
-  attempts   GrammarAttempt[]
+  skillTag    SkillTag?        @relation(fields: [skillTagId], references: [id])
+  createdBy   User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id])
+  attempts    GrammarAttempt[]
 
   @@index([cefrLevel, status])
   @@index([skillTagId])
-  @@index([status, createdAt])
+  @@index([status])
 }
 
 model GrammarAttempt {
@@ -303,35 +312,30 @@ model GrammarAttempt {
 // ─────────────────────────────────────────────────────────────
 
 model ListeningExercise {
-  id               String         @id @default(cuid())
-  cefrLevel        CefrLevel
-  source           ExerciseSource @default(CURATED)
-  skillTagId       String?
-  audioUrl         String
-  audioDurationSec Int
-  transcript       String         @db.Text
-  acceptedVariants String[]       @default([])
-  toleranceLevel   Int            @default(2)
-  explanation      String?        @db.Text
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
 
-  status        ContentStatus @default(DRAFT)
+  /// JSON payload validated by ListeningContentSchema.
+  /// Structure: { source: { audioUrl, durationSec, transcript }, localized: { instructions, contextNote? }, questions: [...] }
+  content       Json
+
+  generatorMeta Json?
   createdById   String?
   reviewedById  String?
-  reviewedAt    DateTime?
-  reviewNotes   String?       @db.Text
-  publishedAt   DateTime?
-  generatorMeta Json?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  skillTag   SkillTag?          @relation(fields: [skillTagId], references: [id])
-  createdBy  User?              @relation("ListeningCreatedBy", fields: [createdById], references: [id])
-  reviewedBy User?              @relation("ListeningReviewedBy", fields: [reviewedById], references: [id])
-  attempts   ListeningAttempt[]
+  skillTag    SkillTag?           @relation(fields: [skillTagId], references: [id])
+  createdBy   User?               @relation("ListeningCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?               @relation("ListeningReviewedBy", fields: [reviewedById], references: [id])
+  attempts    ListeningAttempt[]
 
   @@index([cefrLevel, status])
   @@index([skillTagId])
-  @@index([status, createdAt])
+  @@index([status])
 }
 
 model ListeningAttempt {
@@ -356,50 +360,37 @@ model ListeningAttempt {
 // Diagnostic test (pseudo-CAT)
 // ─────────────────────────────────────────────────────────────
 
-enum DiagnosticItemType {
+enum DiagnosticKind {
   VOCAB
   GRAMMAR
   LISTENING
 }
 
 model DiagnosticItem {
-  id         String             @id @default(cuid())
-  type       DiagnosticItemType
-  cefrLevel  CefrLevel
-  skillTagId String?
-  prompt     String             @db.Text
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  kind          DiagnosticKind
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
 
-  // VOCAB
-  choices      String[] @default([])
-  correctIndex Int?
+  /// JSON payload validated by DiagnosticContentSchema.
+  /// Structure: { source: { stem, choices, correctIndex }, localized?: { explanation? } }
+  content       Json
 
-  // GRAMMAR
-  template        String?
-  acceptedAnswers String[] @default([])
+  generatorMeta Json?
+  createdById   String?
+  reviewedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  // LISTENING
-  audioUrl   String?
-  transcript String?
+  skillTag    SkillTag?            @relation(fields: [skillTagId], references: [id])
+  createdBy   User?                @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?                @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id])
+  answers     DiagnosticAnswer[]
 
-  // For future IRT calibration
-  difficultyParam Float?
-
-  status       ContentStatus @default(DRAFT)
-  createdById  String?
-  reviewedById String?
-  reviewedAt   DateTime?
-  reviewNotes  String?       @db.Text
-  publishedAt  DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  skillTag   SkillTag?          @relation(fields: [skillTagId], references: [id])
-  createdBy  User?              @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
-  reviewedBy User?              @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id])
-  answers    DiagnosticAnswer[]
-
-  @@index([cefrLevel, type, status])
-  @@index([status, createdAt])
+  @@index([cefrLevel, kind, status])
+  @@index([status])
 }
 
 enum DiagnosticStatus {
@@ -478,6 +469,8 @@ model Concept {
   description String?         @db.Text
   cefrLevel   CefrLevel
   category    ConceptCategory
+  masteries ConceptMastery[]
+  items Item[]
 
   outgoingEdges ConceptEdge[] @relation("ConceptOutgoing")
   incomingEdges ConceptEdge[] @relation("ConceptIncoming")
@@ -512,4 +505,112 @@ model ConceptEdge {
   @@index([fromId])
   @@index([toId])
   @@index([kind])
+}
+/// Per-user BKT+ snapshot for a single concept.
+///
+/// Source of truth on Day 7 will be LearnerEvent (append-only); this row
+/// is then a materialized projection rebuilt by replay. Until then it is
+/// updated directly by the LearnerService.
+model ConceptMastery {
+  id        String   @id @default(cuid())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  conceptId String
+  concept   Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  // BKT state — see packages/learner-model/src/core/bkt/types.ts
+  pKnown          Float
+  pLearn          Float
+  pSlip           Float
+  pGuess          Float
+  pForgetLambda   Float
+
+  /// Anchor for forgetting decay. Stored as ms epoch for parity with pure core.
+  lastUpdatedAt   BigInt
+
+  observationCount Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId])
+  @@index([conceptId])
+}
+
+/// An atomic, individually reviewable unit of knowledge.
+///
+/// Item ≠ Exercise: an Exercise is a delivery vehicle (a rendered question);
+/// an Item is the underlying fact/pattern whose memory we track via FSRS.
+/// One Item will typically be exercised by many Exercises (M:N link deferred
+/// to Week 2 — see design decisions above).
+///
+/// Seed items use stable human-readable IDs ("item.<concept>.<slug>") so the
+/// seed script can upsert idempotently. Runtime-created items get cuid().
+model Item {
+  id        String   @id @default(cuid())
+  conceptId String
+  concept   Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  kind      ItemKind
+  cefrLevel CefrLevel
+  status    ContentStatus  @default(DRAFT)
+  source    ExerciseSource @default(CURATED)
+
+  /// JSON payload validated by the per-kind schemas in
+  /// packages/db/src/schemas/items/ (VocabWordContentSchema, etc).
+  /// Structure: { source: {...}, localized: {...} }
+  content   Json
+
+  /// IRT 2PL parameters. Neutral defaults until calibration (needs ≥500
+  /// outcomes per item). Used by predictCorrect in @englishlearn/learner-model.
+  irtDiscrimination Float @default(1.0) // a
+  irtDifficulty     Float @default(0.0) // b
+
+  generatorMeta Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reviewStates ItemReviewState[]
+
+  @@index([conceptId])
+  @@index([kind, cefrLevel])
+  @@index([status])
+}
+
+/// Per-user FSRS memory state for a single Item.
+///
+/// Like ConceptMastery, this is a snapshot that will become a materialized
+/// projection of LearnerEvent once event sourcing lands (Day 7). Until then
+/// the LearnerService updates it directly.
+model ItemReviewState {
+  id     String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // FSRS card state — see packages/learner-model/src/core/fsrs/types.ts
+  stability     Float
+  difficulty    Float
+  reps          Int            @default(0)
+  lapses        Int            @default(0)
+  learningSteps Int            @default(0)
+  cardStatus    FsrsCardStatus @default(NEW)
+
+  /// When this card is next due. Unix ms (BigInt) for parity with pure core.
+  dueAt        BigInt
+  /// Last review moment. Null until first review. Unix ms.
+  lastReviewAt BigInt?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, itemId])
+  @@index([userId, dueAt])
+  @@index([itemId])
 }
