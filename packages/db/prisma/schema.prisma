@@ -43,6 +43,8 @@ model User {
   skillLevels        SkillLevel[]
   conceptMasteries ConceptMastery[]
   itemReviewStates ItemReviewState[]
+  learnerEvents LearnerEvent[]
+
 
   // Content authorship
   createdVocabExercises      VocabExercise[]     @relation("VocabCreatedBy")
@@ -613,4 +615,43 @@ model ItemReviewState {
   @@unique([userId, itemId])
   @@index([userId, dueAt])
   @@index([itemId])
+}
+
+enum LearnerEventType {
+  ITEM_ATTEMPTED
+}
+
+/// Append-only learner event log — the source of truth for the learner model.
+///
+/// ConceptMastery and ItemReviewState are materialized projections of this
+/// table; the replay job (learner-model/src/service/replay.ts) can rebuild
+/// them from scratch for any user.
+///
+/// INVARIANTS:
+///   - Rows are NEVER updated or deleted (except GDPR user erasure via the
+///     User onDelete: Cascade).
+///   - payload is validated by the per-type Zod schema in
+///     @englishlearn/db/schemas (ItemAttemptedPayloadSchema) BEFORE insert.
+///   - occurredAt is the single timestamp used for the event AND both
+///     projection updates in the same recordOutcome call — bit-exact replay
+///     depends on this.
+model LearnerEvent {
+  id     String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type LearnerEventType
+
+  /// Moment the outcome happened. Unix ms (BigInt) for parity with pure cores.
+  occurredAt BigInt
+
+  /// Per-type payload; see @englishlearn/db/schemas/learner-events.ts.
+  payload Json
+
+  /// DB insert time (audit only; never used by the model).
+  createdAt DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([type])
 }
