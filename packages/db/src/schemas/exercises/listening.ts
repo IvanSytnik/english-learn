@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * ListeningExercise content payload.
@@ -18,8 +18,8 @@ const ListeningQuestionSchema = z
   })
   .strict()
   .refine((q) => q.correctIndex < q.choices.length, {
-    message: "correctIndex must reference an existing choice",
-    path: ["correctIndex"],
+    message: 'correctIndex must reference an existing choice',
+    path: ['correctIndex'],
   });
 
 export const ListeningContentSchema = z

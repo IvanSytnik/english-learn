@@ -1,10 +1,10 @@
-import { bktStateToRow } from "../adapters/concept-mastery";
-import { fsrsStateToRow } from "../adapters/item-review-state";
-import type { BktState } from "../core/bkt/types";
-import type { FsrsCardState } from "../core/fsrs/types";
-import { applyItemAttempted } from "./apply";
-import type { LearnerModelDb } from "./db-port";
-import { parseEventRow } from "./event-store";
+import { bktStateToRow } from '../adapters/concept-mastery';
+import { fsrsStateToRow } from '../adapters/item-review-state';
+import type { BktState } from '../core/bkt/types';
+import type { FsrsCardState } from '../core/fsrs/types';
+import { applyItemAttempted } from './apply';
+import type { LearnerModelDb } from './db-port';
+import { parseEventRow } from './event-store';
 
 /**
  * Replay: rebuild a user's ConceptMastery + ItemReviewState projections
@@ -30,10 +30,7 @@ export type ReplayResult = {
   itemsWritten: number;
 };
 
-export async function replayUser(
-  db: LearnerModelDb,
-  userId: string,
-): Promise<ReplayResult> {
+export async function replayUser(db: LearnerModelDb, userId: string): Promise<ReplayResult> {
   return db.runInTx(async (tx) => {
     await tx.deleteSnapshots(userId);
 

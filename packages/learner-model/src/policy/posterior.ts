@@ -1,5 +1,5 @@
-import type { ConceptId } from "../core/graph/types";
-import type { ConceptEventCounts, DueItem } from "./types";
+import type { ConceptId } from '../core/graph/types';
+import type { ConceptEventCounts, DueItem } from './types';
 
 /**
  * Beta posterior construction for Thompson Sampling.

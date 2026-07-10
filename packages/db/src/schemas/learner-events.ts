@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Payload schemas for LearnerEvent.payload (jsonb), one per LearnerEventType.
@@ -12,7 +12,7 @@ import { z } from "zod";
  */
 
 /** Zod twin of the Prisma LearnerEventType enum (canonical). */
-export const LearnerEventTypeValue = z.enum(["ITEM_ATTEMPTED"]);
+export const LearnerEventTypeValue = z.enum(['ITEM_ATTEMPTED']);
 export type LearnerEventTypeValue = z.infer<typeof LearnerEventTypeValue>;
 
 /** Snapshot of the item's IRT 2PL params at attempt time. */
@@ -25,7 +25,7 @@ export const IrtSnapshotSchema = z
 export type IrtSnapshot = z.infer<typeof IrtSnapshotSchema>;
 
 /** FSRS rating derived from the outcome at attempt time (policy snapshot). */
-export const FsrsRatingValue = z.enum(["AGAIN", "HARD", "GOOD", "EASY"]);
+export const FsrsRatingValue = z.enum(['AGAIN', 'HARD', 'GOOD', 'EASY']);
 export type FsrsRatingValue = z.infer<typeof FsrsRatingValue>;
 
 /**

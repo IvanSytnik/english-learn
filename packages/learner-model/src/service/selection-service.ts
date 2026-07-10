@@ -1,12 +1,12 @@
-import { select } from "../policy/select";
-import { makeRng } from "../policy/rng";
+import { makeRng } from '../policy/rng';
+import { select } from '../policy/select';
 import {
   DEFAULT_POLICY_CONFIG,
   type PolicyConfig,
   type SelectionInput,
   type SelectionOutcome,
-} from "../policy/types";
-import type { LearnerModelDb } from "./db-port";
+} from '../policy/types';
+import type { LearnerModelDb } from './db-port';
 
 /**
  * SelectionService: the single read path that answers "what should this user
@@ -47,13 +47,12 @@ export function createSelectionService(db: LearnerModelDb) {
       const seed = input.seed ?? (now ^ hashString(input.userId)) >>> 0;
       const rng = makeRng(seed);
 
-      const [masteryRows, prereqRows, countRows, candidateRows] =
-        await Promise.all([
-          db.getMasterySnapshots(input.userId),
-          db.getPrereqEdges(),
-          db.getConceptEventCounts(input.userId),
-          db.getCandidateItems(input.userId),
-        ]);
+      const [masteryRows, prereqRows, countRows, candidateRows] = await Promise.all([
+        db.getMasterySnapshots(input.userId),
+        db.getPrereqEdges(),
+        db.getConceptEventCounts(input.userId),
+        db.getCandidateItems(input.userId),
+      ]);
 
       const selectionInput: SelectionInput = {
         userId: input.userId,

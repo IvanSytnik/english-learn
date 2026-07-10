@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { type Locale, SOURCE_LOCALE } from "./locale";
+import { z } from 'zod';
+import { type Locale, SOURCE_LOCALE } from './locale';
 
 /**
  * A string available in one or more interface locales.
@@ -14,7 +14,7 @@ import { type Locale, SOURCE_LOCALE } from "./locale";
  */
 export const LocalizedStringSchema = z
   .object({
-    en: z.string().trim().min(1, "English (source) text is required"),
+    en: z.string().trim().min(1, 'English (source) text is required'),
     ru: z.string().trim().min(1).optional(),
     uk: z.string().trim().min(1).optional(),
     de: z.string().trim().min(1).optional(),
@@ -30,16 +30,13 @@ export type LocalizedString = z.infer<typeof LocalizedStringSchema>;
  * Never throws. Returns empty string only if the input is malformed (would have
  * failed Zod validation upstream — defensive default).
  */
-export function localized(
-  field: LocalizedString | null | undefined,
-  locale: Locale,
-): string {
-  if (!field) return "";
+export function localized(field: LocalizedString | null | undefined, locale: Locale): string {
+  if (!field) return '';
   const requested = field[locale];
-  if (typeof requested === "string" && requested.length > 0) {
+  if (typeof requested === 'string' && requested.length > 0) {
     return requested;
   }
-  return field[SOURCE_LOCALE] ?? "";
+  return field[SOURCE_LOCALE] ?? '';
 }
 
 /**
@@ -48,7 +45,7 @@ export function localized(
  */
 export function presentLocales(field: LocalizedString): Locale[] {
   const out: Locale[] = [SOURCE_LOCALE];
-  for (const loc of ["ru", "uk", "de"] as const) {
+  for (const loc of ['ru', 'uk', 'de'] as const) {
     if (field[loc]) out.push(loc);
   }
   return out;

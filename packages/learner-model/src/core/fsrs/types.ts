@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Layer 1: Item Memory — FSRS state model.
@@ -14,17 +14,12 @@ import { z } from "zod";
  */
 
 /** Learner's answer quality on a review. Mirrors ts-fsrs Rating (1..4). */
-export const FSRS_RATINGS = ["AGAIN", "HARD", "GOOD", "EASY"] as const;
+export const FSRS_RATINGS = ['AGAIN', 'HARD', 'GOOD', 'EASY'] as const;
 export const FsrsRatingSchema = z.enum(FSRS_RATINGS);
 export type FsrsRating = z.infer<typeof FsrsRatingSchema>;
 
 /** Card lifecycle. Mirrors ts-fsrs State and the Prisma FsrsCardStatus enum. */
-export const FSRS_CARD_STATUSES = [
-  "NEW",
-  "LEARNING",
-  "REVIEW",
-  "RELEARNING",
-] as const;
+export const FSRS_CARD_STATUSES = ['NEW', 'LEARNING', 'REVIEW', 'RELEARNING'] as const;
 export const FsrsCardStatusSchema = z.enum(FSRS_CARD_STATUSES);
 export type FsrsCardStatus = z.infer<typeof FsrsCardStatusSchema>;
 

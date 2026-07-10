@@ -1,12 +1,9 @@
-import { bktStateToRow, rowToBktState } from "../adapters/concept-mastery";
-import {
-  fsrsStateToRow,
-  rowToFsrsState,
-} from "../adapters/item-review-state";
-import type { FsrsRating } from "../core/fsrs/types";
-import { applyItemAttempted } from "./apply";
-import type { LearnerModelDb } from "./db-port";
-import { buildItemAttemptedEvent } from "./event-store";
+import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
+import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
+import type { FsrsRating } from '../core/fsrs/types';
+import { applyItemAttempted } from './apply';
+import type { LearnerModelDb } from './db-port';
+import { buildItemAttemptedEvent } from './event-store';
 
 /**
  * LearnerService: the single write path into the learner model.
@@ -31,7 +28,7 @@ export type RecordOutcomeInput = {
 
 export type RecordOutcomeResult =
   | { ok: true; occurredAt: bigint; rating: FsrsRating }
-  | { ok: false; error: "ITEM_NOT_FOUND" };
+  | { ok: false; error: 'ITEM_NOT_FOUND' };
 
 /**
  * Binary outcome -> FSRS rating mapping (decision 2026-07-04, option a).
@@ -43,19 +40,17 @@ export type RecordOutcomeResult =
  * corrupt replay of historical events.
  */
 export function outcomeToRating(correct: boolean): FsrsRating {
-  return correct ? "GOOD" : "AGAIN";
+  return correct ? 'GOOD' : 'AGAIN';
 }
 
 export function createLearnerService(db: LearnerModelDb) {
   return {
-    async recordOutcome(
-      input: RecordOutcomeInput,
-    ): Promise<RecordOutcomeResult> {
+    async recordOutcome(input: RecordOutcomeInput): Promise<RecordOutcomeResult> {
       // The single "now" for this outcome — event, BKT and FSRS all use it.
       const occurredAt = input.occurredAtMs ?? BigInt(Date.now());
 
       const item = await db.getItemForOutcome(input.itemId);
-      if (!item) return { ok: false, error: "ITEM_NOT_FOUND" };
+      if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
 
       const rating = outcomeToRating(input.correct);
       const event = buildItemAttemptedEvent({
@@ -91,16 +86,8 @@ export function createLearnerService(db: LearnerModelDb) {
         );
 
         // 4. Persist projections.
-        await tx.upsertConceptMastery(
-          input.userId,
-          item.conceptId,
-          bktStateToRow(next.bkt),
-        );
-        await tx.upsertItemReviewState(
-          input.userId,
-          input.itemId,
-          fsrsStateToRow(next.fsrs),
-        );
+        await tx.upsertConceptMastery(input.userId, item.conceptId, bktStateToRow(next.bkt));
+        await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(next.fsrs));
       });
 
       return { ok: true, occurredAt, rating };

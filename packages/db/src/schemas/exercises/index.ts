@@ -1,17 +1,17 @@
 export {
-  VocabContentSchema,
-  type VocabContent,
-} from "./vocab";
-export {
-  GrammarContentSchema,
-  type GrammarContent,
-} from "./grammar";
-export {
-  ListeningContentSchema,
-  type ListeningContent,
-  type ListeningQuestion,
-} from "./listening";
-export {
-  DiagnosticContentSchema,
   type DiagnosticContent,
-} from "./diagnostic";
+  DiagnosticContentSchema,
+} from './diagnostic';
+export {
+  type GrammarContent,
+  GrammarContentSchema,
+} from './grammar';
+export {
+  type ListeningContent,
+  ListeningContentSchema,
+  type ListeningQuestion,
+} from './listening';
+export {
+  type VocabContent,
+  VocabContentSchema,
+} from './vocab';

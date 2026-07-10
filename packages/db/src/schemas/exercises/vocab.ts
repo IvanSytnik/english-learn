@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * VocabExercise content payload.
@@ -39,8 +39,8 @@ export const VocabContentSchema = z
   })
   .strict()
   .refine((c) => c.correctIndex < c.choices.length, {
-    message: "correctIndex must reference an existing choice",
-    path: ["correctIndex"],
+    message: 'correctIndex must reference an existing choice',
+    path: ['correctIndex'],
   });
 
 export type VocabContent = z.infer<typeof VocabContentSchema>;

@@ -1,17 +1,14 @@
-import type { ConceptId } from "../core/graph/types";
-import { computeUnlocked } from "./curriculum";
-import {
-  betaParamsForConcept,
-  meanDifficultyByConcept,
-} from "./posterior";
-import { sampleBeta, type Rng } from "./rng";
+import type { ConceptId } from '../core/graph/types';
+import { computeUnlocked } from './curriculum';
+import { betaParamsForConcept, meanDifficultyByConcept } from './posterior';
+import { type Rng, sampleBeta } from './rng';
 import type {
   ConceptEventCounts,
   DueItem,
   SelectionInput,
   SelectionOutcome,
   SelectionResult,
-} from "./types";
+} from './types';
 
 /**
  * The single pure selection function.
@@ -35,24 +32,17 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
   const { now, candidates, masteries, eventCounts, prereqEdges, config } = input;
 
   if (candidates.length === 0) {
-    return { ok: false, error: "NO_CANDIDATES" };
+    return { ok: false, error: 'NO_CANDIDATES' };
   }
 
   // ── Gate ──────────────────────────────────────────────────────────────────
   const candidateConceptIds = candidates.map((c) => c.conceptId);
-  const { unlocked } = computeUnlocked(
-    candidateConceptIds,
-    masteries,
-    prereqEdges,
-    config,
-  );
+  const { unlocked } = computeUnlocked(candidateConceptIds, masteries, prereqEdges, config);
 
-  const unlockedCandidates = candidates.filter((c) =>
-    unlocked.has(c.conceptId),
-  );
+  const unlockedCandidates = candidates.filter((c) => unlocked.has(c.conceptId));
   if (unlockedCandidates.length === 0) {
     // Everything is introduction-locked behind unmet prerequisites.
-    return { ok: false, error: "NO_CANDIDATES" };
+    return { ok: false, error: 'NO_CANDIDATES' };
   }
 
   // ── 1. REVIEW_DUE ───────────────────────────────────────────────────────────
@@ -67,7 +57,7 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
 
   if (dueNow.length > 0) {
     const chosen = dueNow[0] as DueItem;
-    return okResult(chosen, "REVIEW_DUE", {});
+    return okResult(chosen, 'REVIEW_DUE', {});
   }
 
   // ── 2. NEW_INTRODUCTION via Thompson Sampling over unlocked concepts ─────────
@@ -94,7 +84,7 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
 
   if (bestConcept !== null) {
     const item = pickItemInConcept(unlockedCandidates, bestConcept, now);
-    if (item) return okResult(item, "NEW_INTRODUCTION", debugScores);
+    if (item) return okResult(item, 'NEW_INTRODUCTION', debugScores);
   }
 
   // ── 3. EXPLORATION_FLOOR ─────────────────────────────────────────────────────
@@ -106,7 +96,7 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
     return byDue !== 0 ? byDue : a.itemId < b.itemId ? -1 : 1;
   })[0] as DueItem;
 
-  return okResult(floor, "EXPLORATION_FLOOR", debugScores);
+  return okResult(floor, 'EXPLORATION_FLOOR', debugScores);
 }
 
 /**
@@ -140,7 +130,7 @@ function pickItemInConcept(
 
 function okResult(
   item: DueItem,
-  reason: SelectionResult["reason"],
+  reason: SelectionResult['reason'],
   debugScores: Record<ConceptId, number>,
 ): SelectionOutcome {
   return {

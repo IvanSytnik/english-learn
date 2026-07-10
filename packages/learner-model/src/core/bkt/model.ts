@@ -1,7 +1,7 @@
-import { BKT_DEFAULTS, clampProb } from "./constants";
-import { applyForgetting } from "./forgetting";
-import { pCorrectGivenKnown, pKnownToTheta } from "./irt";
-import type { BktOutcome, BktState, IrtParams } from "./types";
+import { BKT_DEFAULTS, clampProb } from './constants';
+import { applyForgetting } from './forgetting';
+import { pCorrectGivenKnown, pKnownToTheta } from './irt';
+import type { BktOutcome, BktState, IrtParams } from './types';
 
 /**
  * Create a fresh BKT state with global defaults.
@@ -28,25 +28,15 @@ export function initBktState(at: number): BktState {
  * Without item (classic BKT):
  *   P(correct) = pKnown · (1-pSlip) + (1-pKnown) · pGuess
  */
-export function predictCorrect(
-  state: BktState,
-  now: number,
-  item?: IrtParams,
-): number {
-  const pKnownNow = applyForgetting(
-    state.pKnown,
-    state.pForgetLambda,
-    now - state.lastUpdatedAt,
-  );
+export function predictCorrect(state: BktState, now: number, item?: IrtParams): number {
+  const pKnownNow = applyForgetting(state.pKnown, state.pForgetLambda, now - state.lastUpdatedAt);
 
   const pCorrectIfKnown = item
     ? pCorrectGivenKnown(pKnownToTheta(pKnownNow), item)
     : 1 - state.pSlip;
   const pCorrectIfUnknown = state.pGuess;
 
-  return clampProb(
-    pKnownNow * pCorrectIfKnown + (1 - pKnownNow) * pCorrectIfUnknown,
-  );
+  return clampProb(pKnownNow * pCorrectIfKnown + (1 - pKnownNow) * pCorrectIfUnknown);
 }
 
 /**
@@ -73,13 +63,11 @@ export function update(state: BktState, outcome: BktOutcome): BktState {
   let posterior: number;
   if (outcome.correct) {
     const numerator = decayedPKnown * pCorrectIfKnown;
-    const denominator =
-      numerator + (1 - decayedPKnown) * pCorrectIfUnknown;
+    const denominator = numerator + (1 - decayedPKnown) * pCorrectIfUnknown;
     posterior = denominator > 0 ? numerator / denominator : decayedPKnown;
   } else {
     const numerator = decayedPKnown * (1 - pCorrectIfKnown);
-    const denominator =
-      numerator + (1 - decayedPKnown) * (1 - pCorrectIfUnknown);
+    const denominator = numerator + (1 - decayedPKnown) * (1 - pCorrectIfUnknown);
     posterior = denominator > 0 ? numerator / denominator : decayedPKnown;
   }
 
@@ -101,10 +89,7 @@ export function update(state: BktState, outcome: BktOutcome): BktState {
  * (e.g., from EventStore replay). Equivalent to sequential `update` calls
  * on a sorted input — verified by property-based test.
  */
-export function batchUpdate(
-  state: BktState,
-  outcomes: ReadonlyArray<BktOutcome>,
-): BktState {
+export function batchUpdate(state: BktState, outcomes: ReadonlyArray<BktOutcome>): BktState {
   const sorted = [...outcomes].sort((a, b) => a.timestamp - b.timestamp);
   return sorted.reduce(update, state);
 }

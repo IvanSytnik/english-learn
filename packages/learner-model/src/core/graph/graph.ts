@@ -21,63 +21,52 @@
  *     -> getWhole("vocab.travel.airport") = ["vocab.travel"]
  */
 
-import type { ConceptEdge, ConceptGraph, ConceptId, EdgeKind } from "./types";
+import type { ConceptEdge, ConceptGraph, ConceptId, EdgeKind } from './types';
 
 // -----------------------------------------------------------------------------
 // Direct neighbors (1 hop)
 // -----------------------------------------------------------------------------
 
-function outgoingOf(
-  graph: ConceptGraph,
-  id: ConceptId,
-  kind: EdgeKind,
-): readonly ConceptEdge[] {
+function outgoingOf(graph: ConceptGraph, id: ConceptId, kind: EdgeKind): readonly ConceptEdge[] {
   return (graph.outgoing.get(id) ?? []).filter((e) => e.kind === kind);
 }
 
-function incomingOf(
-  graph: ConceptGraph,
-  id: ConceptId,
-  kind: EdgeKind,
-): readonly ConceptEdge[] {
+function incomingOf(graph: ConceptGraph, id: ConceptId, kind: EdgeKind): readonly ConceptEdge[] {
   return (graph.incoming.get(id) ?? []).filter((e) => e.kind === kind);
 }
 
 /** Concepts that `id` directly requires. */
-export function getPrerequisites(
-  graph: ConceptGraph,
-  id: ConceptId,
-): ConceptId[] {
-  return incomingOf(graph, id, "PREREQUISITE").map((e) => e.from);
+export function getPrerequisites(graph: ConceptGraph, id: ConceptId): ConceptId[] {
+  return incomingOf(graph, id, 'PREREQUISITE').map((e) => e.from);
 }
 
 /** Concepts that directly require `id`. */
 export function getDependents(graph: ConceptGraph, id: ConceptId): ConceptId[] {
-  return outgoingOf(graph, id, "PREREQUISITE").map((e) => e.to);
+  return outgoingOf(graph, id, 'PREREQUISITE').map((e) => e.to);
 }
 
 /** Symmetric neighbors via RELATED edges (in OR out). */
 export function getRelated(graph: ConceptGraph, id: ConceptId): ConceptId[] {
-  const out = outgoingOf(graph, id, "RELATED").map((e) => e.to);
-  const inc = incomingOf(graph, id, "RELATED").map((e) => e.from);
+  const out = outgoingOf(graph, id, 'RELATED').map((e) => e.to);
+  const inc = incomingOf(graph, id, 'RELATED').map((e) => e.from);
   return Array.from(new Set([...out, ...inc]));
 }
 
 /** Symmetric neighbors via CONTRASTS_WITH (e.g., Present Perfect vs Past Simple). */
 export function getContrasts(graph: ConceptGraph, id: ConceptId): ConceptId[] {
-  const out = outgoingOf(graph, id, "CONTRASTS_WITH").map((e) => e.to);
-  const inc = incomingOf(graph, id, "CONTRASTS_WITH").map((e) => e.from);
+  const out = outgoingOf(graph, id, 'CONTRASTS_WITH').map((e) => e.to);
+  const inc = incomingOf(graph, id, 'CONTRASTS_WITH').map((e) => e.from);
   return Array.from(new Set([...out, ...inc]));
 }
 
 /** Sub-parts of a whole. */
 export function getParts(graph: ConceptGraph, id: ConceptId): ConceptId[] {
-  return incomingOf(graph, id, "PART_OF").map((e) => e.from);
+  return incomingOf(graph, id, 'PART_OF').map((e) => e.from);
 }
 
 /** Whole(s) that this concept is a part of. */
 export function getWhole(graph: ConceptGraph, id: ConceptId): ConceptId[] {
-  return outgoingOf(graph, id, "PART_OF").map((e) => e.to);
+  return outgoingOf(graph, id, 'PART_OF').map((e) => e.to);
 }
 
 // -----------------------------------------------------------------------------
@@ -88,18 +77,12 @@ export function getWhole(graph: ConceptGraph, id: ConceptId): ConceptId[] {
  * All concepts that `id` requires (recursively).
  * Returns in topological order (deepest prerequisites first).
  */
-export function getAllPrerequisites(
-  graph: ConceptGraph,
-  id: ConceptId,
-): ConceptId[] {
+export function getAllPrerequisites(graph: ConceptGraph, id: ConceptId): ConceptId[] {
   return reverseTopoBfs(graph, id, (node) => getPrerequisites(graph, node));
 }
 
 /** All concepts that depend on `id` (recursively). */
-export function getAllDependents(
-  graph: ConceptGraph,
-  id: ConceptId,
-): ConceptId[] {
+export function getAllDependents(graph: ConceptGraph, id: ConceptId): ConceptId[] {
   return reverseTopoBfs(graph, id, (node) => getDependents(graph, node));
 }
 
@@ -208,9 +191,7 @@ export function topologicalOrder(graph: ConceptGraph): ConceptId[] {
   }
 
   if (result.length !== graph.concepts.size) {
-    throw new Error(
-      "Topological sort failed: PREREQUISITE subgraph has a cycle",
-    );
+    throw new Error('Topological sort failed: PREREQUISITE subgraph has a cycle');
   }
   return result;
 }

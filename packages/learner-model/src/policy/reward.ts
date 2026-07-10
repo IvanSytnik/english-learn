@@ -1,4 +1,4 @@
-import type { PolicyConfig, RewardStrategy } from "./types";
+import type { PolicyConfig, RewardStrategy } from './types';
 
 /**
  * Reward computation for the bandit.
@@ -17,12 +17,9 @@ import type { PolicyConfig, RewardStrategy } from "./types";
  * Resolve the STRATEGY THAT ACTUALLY APPLIES for a concept, given how much
  * evidence it has. Below the gate, gain/hybrid degrade to bernoulli.
  */
-export function effectiveStrategy(
-  config: PolicyConfig,
-  observationCount: number,
-): RewardStrategy {
-  if (config.strategy === "bernoulli") return "bernoulli";
-  if (observationCount < config.calibrationGate) return "bernoulli";
+export function effectiveStrategy(config: PolicyConfig, observationCount: number): RewardStrategy {
+  if (config.strategy === 'bernoulli') return 'bernoulli';
+  if (observationCount < config.calibrationGate) return 'bernoulli';
   return config.strategy;
 }
 
@@ -45,11 +42,11 @@ export function rewardForOutcome(
   const bernoulli = correct ? 1 : 0;
 
   switch (strategy) {
-    case "bernoulli":
+    case 'bernoulli':
       return bernoulli;
-    case "learning_gain":
+    case 'learning_gain':
       return clamp01(pKnownAfter - pKnownBefore);
-    case "hybrid": {
+    case 'hybrid': {
       const gain = clamp01(pKnownAfter - pKnownBefore);
       const w = clamp01(hybridGainWeight);
       return clamp01(w * gain + (1 - w) * bernoulli);
@@ -60,7 +57,7 @@ export function rewardForOutcome(
 function clamp01(x: number): number {
   if (Number.isNaN(x)) {
     // Match the codebase's clampProb philosophy: surface NaN, never mask it.
-    throw new RangeError("reward is NaN");
+    throw new RangeError('reward is NaN');
   }
   if (x < 0) return 0;
   if (x > 1) return 1;
