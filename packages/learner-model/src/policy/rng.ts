@@ -106,5 +106,8 @@ export function sampleBeta(rng: Rng, alpha: number, beta: number): number {
   const y = sampleGamma(rng, beta);
   const sum = x + y;
   if (sum <= 0) return 0.5; // degenerate guard; both gammas ~0
-  return x / sum;
+  // Underflow guard: with small α/β one gamma can collapse to exactly 0 in
+  // double precision (u**(1/shape) underflows), yielding a raw ratio of exactly
+  // 0 or 1. Clamp back into the open interval (0,1) the sampler promises.
+  return clampOpenUnit(x / sum);
 }
