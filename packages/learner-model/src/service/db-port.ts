@@ -86,4 +86,40 @@ export type LearnerModelDb = {
    * projections) happens inside one of these — all or nothing.
    */
   runInTx<R>(fn: (tx: LearnerModelTx) => Promise<R>): Promise<R>;
+  
+  getMasterySnapshots(userId: string): Promise<MasterySnapshotRow[]>;
+  getPrereqEdges(): Promise<PrereqEdgeRow[]>;
+  getConceptEventCounts(userId: string): Promise<ConceptCountsRow[]>;
+  getCandidateItems(userId: string): Promise<CandidateItemRow[]>;
+  
+};
+
+export type MasterySnapshotRow = {
+  conceptId: string;
+  pKnown: number;
+  observationCount: number;
+  lastUpdatedAt: bigint;
+  pForgetLambda: number;
+};
+
+export type PrereqEdgeRow = {
+  from: string;
+  to: string;
+  kind: "PREREQUISITE" | "RELATED" | "CONTRASTS_WITH" | "PART_OF";
+};
+
+export type ConceptCountsRow = {
+  conceptId: string;
+  correct: number;
+  incorrect: number;
+};
+
+export type CandidateItemRow = {
+  itemId: string;
+  conceptId: string;
+  irtDiscrimination: number;
+  irtDifficulty: number;
+  cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  /** Next-due Unix ms, or null if no ItemReviewState row for this (user,item). */
+  dueAt: bigint | null;
 };

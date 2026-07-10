@@ -7,6 +7,11 @@ import type {
   LearnerEventRow,
   LearnerModelDb,
   LearnerModelTx,
+  CandidateItemRow, 
+  ConceptCountsRow, 
+  MasterySnapshotRow, 
+  PrereqEdgeRow,
+
 } from "./db-port";
 
 /**
@@ -132,9 +137,81 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
         },
       });
     },
+    async getMasterySnapshots(userId): Promise<MasterySnapshotRow[]> {
+  return prisma.conceptMastery.findMany({
+    where: { userId },
+    select: {
+      conceptId: true,
+      pKnown: true,
+      observationCount: true,
+      lastUpdatedAt: true,
+      pForgetLambda: true,
+    },
+  });
+},
 
+async getPrereqEdges(): Promise<PrereqEdgeRow[]> {
+  const rows = await prisma.conceptEdge.findMany({
+    where: { kind: "PREREQUISITE" },
+    select: { fromId: true, toId: true, kind: true },
+  });
+
+  return rows.map((r) => ({
+    from: r.fromId,
+    to: r.toId,
+    kind: r.kind,
+  }));
+},
+
+async getConceptEventCounts(userId): Promise<ConceptCountsRow[]> {
+  const rows = await prisma.$queryRaw<
+    { conceptId: string; correct: bigint; incorrect: bigint }[]
+  >`
+    SELECT
+      payload->>'conceptId' AS "conceptId",
+      COUNT(*) FILTER (WHERE payload->>'correct' = 'true') AS "correct",
+      COUNT(*) FILTER (WHERE payload->>'correct' = 'false') AS "incorrect"
+    FROM "LearnerEvent"
+    WHERE "userId" = ${userId}
+      AND "type" = 'ITEM_ATTEMPTED'
+    GROUP BY payload->>'conceptId'
+  `;
+
+  return rows.map((r) => ({
+    conceptId: r.conceptId,
+    correct: Number(r.correct),
+    incorrect: Number(r.incorrect),
+  }));
+},
+
+async getCandidateItems(userId): Promise<CandidateItemRow[]> {
+  return prisma.$queryRaw<
+    {
+      itemId: string;
+      conceptId: string;
+      irtDiscrimination: number;
+      irtDifficulty: number;
+      cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+      dueAt: bigint | null;
+    }[]
+  >`
+    SELECT
+      i."id" AS "itemId",
+      i."conceptId" AS "conceptId",
+      i."irtDiscrimination" AS "irtDiscrimination",
+      i."irtDifficulty" AS "irtDifficulty",
+      i."cefrLevel" AS "cefrLevel",
+      irs."dueAt" AS "dueAt"
+    FROM "Item" i
+    LEFT JOIN "ItemReviewState" irs
+      ON irs."itemId" = i."id"
+     AND irs."userId" = ${userId}
+    WHERE i."status" = 'PUBLISHED'
+  `;
+},
     runInTx(fn) {
       return prisma.$transaction((tx) => fn(txOps(tx)));
     },
+    
   };
 }

@@ -13,3 +13,5 @@
 export * from "./core/graph";
 export * from "./core/graph/types";
 export * as bkt from "./core/bkt";
+export * from "./policy";
+export { createSelectionService, type SelectionService } from "./service/selection-service";
