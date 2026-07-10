@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * DiagnosticItem content payload.
@@ -24,8 +24,8 @@ export const DiagnosticContentSchema = z
       })
       .strict()
       .refine((s) => s.correctIndex < s.choices.length, {
-        message: "correctIndex must reference an existing choice",
-        path: ["correctIndex"],
+        message: 'correctIndex must reference an existing choice',
+        path: ['correctIndex'],
       }),
     localized: z
       .object({

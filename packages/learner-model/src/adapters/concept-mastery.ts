@@ -1,4 +1,4 @@
-import { BktStateSchema, type BktState } from "../core/bkt/types";
+import { type BktState, BktStateSchema } from '../core/bkt/types';
 
 /**
  * Adapter: pure BktState <-> Prisma ConceptMastery row.

@@ -1,10 +1,7 @@
-import {
-  ItemAttemptedPayloadSchema,
-  type ItemAttemptedPayload,
-} from "@englishlearn/db/schemas";
-import type { FsrsRating } from "../core/fsrs/types";
-import type { IrtParams } from "../core/bkt/types";
-import type { LearnerEventInsert, LearnerEventRow } from "./db-port";
+import { type ItemAttemptedPayload, ItemAttemptedPayloadSchema } from '@englishlearn/db/schemas';
+import type { IrtParams } from '../core/bkt/types';
+import type { FsrsRating } from '../core/fsrs/types';
+import type { LearnerEventInsert, LearnerEventRow } from './db-port';
 
 /**
  * EventStore: the only place LearnerEvent payloads are constructed or parsed.
@@ -26,9 +23,7 @@ export type ItemOutcomeFact = {
   occurredAt: bigint;
 };
 
-export function buildItemAttemptedEvent(
-  fact: ItemOutcomeFact,
-): LearnerEventInsert {
+export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInsert {
   const payload: ItemAttemptedPayload = ItemAttemptedPayloadSchema.parse({
     itemId: fact.itemId,
     conceptId: fact.conceptId,
@@ -39,7 +34,7 @@ export function buildItemAttemptedEvent(
   });
   return {
     userId: fact.userId,
-    type: "ITEM_ATTEMPTED",
+    type: 'ITEM_ATTEMPTED',
     occurredAt: fact.occurredAt,
     payload,
   };
@@ -52,7 +47,7 @@ export type ParsedItemAttemptedEvent = {
 
 /** Parse a stored event row back into a typed fact. Throws on invalid payload. */
 export function parseEventRow(row: LearnerEventRow): ParsedItemAttemptedEvent {
-  if (row.type !== "ITEM_ATTEMPTED") {
+  if (row.type !== 'ITEM_ATTEMPTED') {
     throw new Error(`Unknown LearnerEvent type: ${String(row.type)}`);
   }
   return {

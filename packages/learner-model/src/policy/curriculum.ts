@@ -1,9 +1,5 @@
-import type { ConceptId } from "../core/graph/types";
-import type {
-  ConceptMasterySnapshot,
-  PolicyConfig,
-  PrereqEdge,
-} from "./types";
+import type { ConceptId } from '../core/graph/types';
+import type { ConceptMasterySnapshot, PolicyConfig, PrereqEdge } from './types';
 
 /**
  * Prereq-aware curriculum gating (decision 3.в, 2026-07-08).
@@ -45,7 +41,7 @@ export function computeUnlocked(
   // Direct PREREQUISITE parents of each concept (to = dependent).
   const parentsOf = new Map<ConceptId, ConceptId[]>();
   for (const e of prereqEdges) {
-    if (e.kind !== "PREREQUISITE") continue;
+    if (e.kind !== 'PREREQUISITE') continue;
     const arr = parentsOf.get(e.to) ?? [];
     arr.push(e.from);
     parentsOf.set(e.to, arr);

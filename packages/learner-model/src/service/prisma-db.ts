@@ -1,18 +1,14 @@
+import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/index.js';
 import type {
-  Prisma,
-  PrismaClient,
-} from "@englishlearn/db/generated/client/index.js";
-import type {
+  CandidateItemRow,
+  ConceptCountsRow,
   LearnerEventInsert,
   LearnerEventRow,
   LearnerModelDb,
   LearnerModelTx,
-  CandidateItemRow, 
-  ConceptCountsRow, 
-  MasterySnapshotRow, 
+  MasterySnapshotRow,
   PrereqEdgeRow,
-
-} from "./db-port";
+} from './db-port';
 
 /**
  * The single Prisma-backed implementation of LearnerModelDb.
@@ -110,7 +106,7 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
               ],
             }
           : { userId },
-        orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+        orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
         take: limit,
         select: {
           id: true,
@@ -138,35 +134,35 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
       });
     },
     async getMasterySnapshots(userId): Promise<MasterySnapshotRow[]> {
-  return prisma.conceptMastery.findMany({
-    where: { userId },
-    select: {
-      conceptId: true,
-      pKnown: true,
-      observationCount: true,
-      lastUpdatedAt: true,
-      pForgetLambda: true,
+      return prisma.conceptMastery.findMany({
+        where: { userId },
+        select: {
+          conceptId: true,
+          pKnown: true,
+          observationCount: true,
+          lastUpdatedAt: true,
+          pForgetLambda: true,
+        },
+      });
     },
-  });
-},
 
-async getPrereqEdges(): Promise<PrereqEdgeRow[]> {
-  const rows = await prisma.conceptEdge.findMany({
-    where: { kind: "PREREQUISITE" },
-    select: { fromId: true, toId: true, kind: true },
-  });
+    async getPrereqEdges(): Promise<PrereqEdgeRow[]> {
+      const rows = await prisma.conceptEdge.findMany({
+        where: { kind: 'PREREQUISITE' },
+        select: { fromId: true, toId: true, kind: true },
+      });
 
-  return rows.map((r) => ({
-    from: r.fromId,
-    to: r.toId,
-    kind: r.kind,
-  }));
-},
+      return rows.map((r) => ({
+        from: r.fromId,
+        to: r.toId,
+        kind: r.kind,
+      }));
+    },
 
-async getConceptEventCounts(userId): Promise<ConceptCountsRow[]> {
-  const rows = await prisma.$queryRaw<
-    { conceptId: string; correct: bigint; incorrect: bigint }[]
-  >`
+    async getConceptEventCounts(userId): Promise<ConceptCountsRow[]> {
+      const rows = await prisma.$queryRaw<
+        { conceptId: string; correct: bigint; incorrect: bigint }[]
+      >`
     SELECT
       payload->>'conceptId' AS "conceptId",
       COUNT(*) FILTER (WHERE payload->>'correct' = 'true') AS "correct",
@@ -177,24 +173,24 @@ async getConceptEventCounts(userId): Promise<ConceptCountsRow[]> {
     GROUP BY payload->>'conceptId'
   `;
 
-  return rows.map((r) => ({
-    conceptId: r.conceptId,
-    correct: Number(r.correct),
-    incorrect: Number(r.incorrect),
-  }));
-},
+      return rows.map((r) => ({
+        conceptId: r.conceptId,
+        correct: Number(r.correct),
+        incorrect: Number(r.incorrect),
+      }));
+    },
 
-async getCandidateItems(userId): Promise<CandidateItemRow[]> {
-  return prisma.$queryRaw<
-    {
-      itemId: string;
-      conceptId: string;
-      irtDiscrimination: number;
-      irtDifficulty: number;
-      cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
-      dueAt: bigint | null;
-    }[]
-  >`
+    async getCandidateItems(userId): Promise<CandidateItemRow[]> {
+      return prisma.$queryRaw<
+        {
+          itemId: string;
+          conceptId: string;
+          irtDiscrimination: number;
+          irtDifficulty: number;
+          cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+          dueAt: bigint | null;
+        }[]
+      >`
     SELECT
       i."id" AS "itemId",
       i."conceptId" AS "conceptId",
@@ -208,10 +204,9 @@ async getCandidateItems(userId): Promise<CandidateItemRow[]> {
      AND irs."userId" = ${userId}
     WHERE i."status" = 'PUBLISHED'
   `;
-},
+    },
     runInTx(fn) {
       return prisma.$transaction((tx) => fn(txOps(tx)));
     },
-    
   };
 }

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import fc from "fast-check";
-import { makeRng, sampleBeta } from "../rng";
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
+import { makeRng, sampleBeta } from '../rng';
 
-describe("makeRng", () => {
-  it("is deterministic: same seed => same sequence", () => {
+describe('makeRng', () => {
+  it('is deterministic: same seed => same sequence', () => {
     fc.assert(
       fc.property(fc.integer(), (seed) => {
         const a = makeRng(seed);
@@ -15,7 +15,7 @@ describe("makeRng", () => {
     );
   });
 
-  it("produces values in [0,1)", () => {
+  it('produces values in [0,1)', () => {
     const rng = makeRng(12345);
     for (let i = 0; i < 10_000; i++) {
       const v = rng.next();
@@ -24,7 +24,7 @@ describe("makeRng", () => {
     }
   });
 
-  it("different seeds diverge", () => {
+  it('different seeds diverge', () => {
     const a = makeRng(1);
     const b = makeRng(2);
     let differed = false;
@@ -35,8 +35,8 @@ describe("makeRng", () => {
   });
 });
 
-describe("sampleBeta", () => {
-  it("is deterministic under a fixed seed", () => {
+describe('sampleBeta', () => {
+  it('is deterministic under a fixed seed', () => {
     fc.assert(
       fc.property(
         fc.integer(),
@@ -51,7 +51,7 @@ describe("sampleBeta", () => {
     );
   });
 
-  it("always returns a value in (0,1)", () => {
+  it('always returns a value in (0,1)', () => {
     fc.assert(
       fc.property(
         fc.integer(),
@@ -66,7 +66,7 @@ describe("sampleBeta", () => {
     );
   });
 
-  it("empirical mean approximates alpha/(alpha+beta)", () => {
+  it('empirical mean approximates alpha/(alpha+beta)', () => {
     // Beta(2,8) has mean 0.2. Average many draws from ONE stream.
     const rng = makeRng(777);
     const N = 20_000;
@@ -77,7 +77,7 @@ describe("sampleBeta", () => {
     expect(mean).toBeLessThan(0.23);
   });
 
-  it("higher alpha shifts mean upward", () => {
+  it('higher alpha shifts mean upward', () => {
     const rng = makeRng(999);
     const N = 10_000;
     let lowSum = 0;

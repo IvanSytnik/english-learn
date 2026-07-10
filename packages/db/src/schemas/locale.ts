@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Supported interface locales.
@@ -13,14 +13,14 @@ import { z } from "zod";
  *   3. Update `next-intl` routing config.
  *   4. Backfill existing exercises (translation job).
  */
-export const SUPPORTED_LOCALES = ["en", "ru", "uk", "de"] as const;
+export const SUPPORTED_LOCALES = ['en', 'ru', 'uk', 'de'] as const;
 
 export const LocaleSchema = z.enum(SUPPORTED_LOCALES);
 
 export type Locale = z.infer<typeof LocaleSchema>;
 
 /** Source-of-truth locale. Required in every localized field. */
-export const SOURCE_LOCALE: Locale = "en";
+export const SOURCE_LOCALE: Locale = 'en';
 
 export function isLocale(value: unknown): value is Locale {
   return LocaleSchema.safeParse(value).success;

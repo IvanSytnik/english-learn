@@ -1,17 +1,8 @@
-import fc from "fast-check";
-import { describe, expect, it } from "vitest";
-import { buildGraph, GraphValidationError } from "../build";
-import {
-  getAllPrerequisites,
-  propagationWeights,
-  topologicalOrder,
-} from "../graph";
-import {
-  CEFR_LEVELS,
-  CONCEPT_CATEGORIES,
-  type Concept,
-  type ConceptEdge,
-} from "../types";
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
+import { buildGraph, GraphValidationError } from '../build';
+import { getAllPrerequisites, propagationWeights, topologicalOrder } from '../graph';
+import { CEFR_LEVELS, CONCEPT_CATEGORIES, type Concept, type ConceptEdge } from '../types';
 
 // Arbitraries -----------------------------------------------------------------
 
@@ -19,11 +10,11 @@ const arbConceptId = fc
   .array(
     fc
       .string({ minLength: 1, maxLength: 8 })
-      .map((s) => s.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+      .map((s) => s.toLowerCase().replace(/[^a-z0-9_]/g, ''))
       .filter((s) => /^[a-z][a-z0-9_]*$/.test(s)),
     { minLength: 1, maxLength: 3 },
   )
-  .map((segments) => segments.join("."))
+  .map((segments) => segments.join('.'))
   .filter((id) => id.length > 0 && id.length <= 96);
 
 const arbConcept: fc.Arbitrary<Concept> = fc.record({
@@ -63,7 +54,7 @@ const arbDag: fc.Arbitrary<{ concepts: Concept[]; edges: ConceptEdge[] }> = fc
           const k = `${from}>PREREQUISITE>${to}`;
           if (edgeKeys.has(k)) continue;
           edgeKeys.add(k);
-          edges.push({ from, to, kind: "PREREQUISITE", weight: 1 });
+          edges.push({ from, to, kind: 'PREREQUISITE', weight: 1 });
         }
         return { concepts, edges };
       }),
@@ -71,8 +62,8 @@ const arbDag: fc.Arbitrary<{ concepts: Concept[]; edges: ConceptEdge[] }> = fc
 
 // Properties ------------------------------------------------------------------
 
-describe("property: buildGraph", () => {
-  it("any DAG is accepted", () => {
+describe('property: buildGraph', () => {
+  it('any DAG is accepted', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
         const g = buildGraph({ concepts, edges });
@@ -83,7 +74,7 @@ describe("property: buildGraph", () => {
     );
   });
 
-  it("introducing a back-edge creates a cycle and is rejected", () => {
+  it('introducing a back-edge creates a cycle and is rejected', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
         if (edges.length === 0) return; // skip empty
@@ -92,20 +83,20 @@ describe("property: buildGraph", () => {
         const reverse: ConceptEdge = {
           from: e.to,
           to: e.from,
-          kind: "PREREQUISITE",
+          kind: 'PREREQUISITE',
           weight: 1,
         };
-        expect(() =>
-          buildGraph({ concepts, edges: [...edges, reverse] }),
-        ).toThrow(GraphValidationError);
+        expect(() => buildGraph({ concepts, edges: [...edges, reverse] })).toThrow(
+          GraphValidationError,
+        );
       }),
       { numRuns: 100 },
     );
   });
 });
 
-describe("property: topologicalOrder", () => {
-  it("respects PREREQUISITE order for all edges", () => {
+describe('property: topologicalOrder', () => {
+  it('respects PREREQUISITE order for all edges', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
         const g = buildGraph({ concepts, edges });
@@ -119,7 +110,7 @@ describe("property: topologicalOrder", () => {
     );
   });
 
-  it("returns every concept exactly once", () => {
+  it('returns every concept exactly once', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
         const g = buildGraph({ concepts, edges });
@@ -132,8 +123,8 @@ describe("property: topologicalOrder", () => {
   });
 });
 
-describe("property: getAllPrerequisites is closed", () => {
-  it("contains all transitive prerequisites", () => {
+describe('property: getAllPrerequisites is closed', () => {
+  it('contains all transitive prerequisites', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
         const g = buildGraph({ concepts, edges });
@@ -142,7 +133,7 @@ describe("property: getAllPrerequisites is closed", () => {
           // For every concept in closure, its direct prerequisites must also be in closure.
           for (const c of closure) {
             const direct = (g.incoming.get(c) ?? [])
-              .filter((e) => e.kind === "PREREQUISITE")
+              .filter((e) => e.kind === 'PREREQUISITE')
               .map((e) => e.from);
             for (const d of direct) {
               expect(closure.has(d)).toBe(true);
@@ -155,8 +146,8 @@ describe("property: getAllPrerequisites is closed", () => {
   });
 });
 
-describe("property: propagationWeights", () => {
-  it("weights are monotonically non-increasing with depth", () => {
+describe('property: propagationWeights', () => {
+  it('weights are monotonically non-increasing with depth', () => {
     fc.assert(
       fc.property(
         arbDag,

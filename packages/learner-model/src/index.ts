@@ -10,8 +10,8 @@
  * in week 1, day 1-2. BKT, FSRS, selection, and service layers land in later days.
  */
 
-export * from "./core/graph";
-export * from "./core/graph/types";
-export * as bkt from "./core/bkt";
-export * from "./policy";
-export { createSelectionService, type SelectionService } from "./service/selection-service";
+export * as bkt from './core/bkt';
+export * from './core/graph';
+export * from './core/graph/types';
+export * from './policy';
+export { createSelectionService, type SelectionService } from './service/selection-service';

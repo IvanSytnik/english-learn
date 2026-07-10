@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * Item content for kind = VOCAB_WORD.
@@ -15,7 +15,7 @@ export const VocabWordContentSchema = z
         headword: z.string().trim().min(1),
         /** Coarse POS tag for grouping/rendering, e.g. "noun", "verb". */
         partOfSpeech: z
-          .enum(["noun", "verb", "adjective", "adverb", "preposition", "other"])
+          .enum(['noun', 'verb', 'adjective', 'adverb', 'preposition', 'other'])
           .optional(),
         /** English example sentence using the headword. */
         exampleSentence: z.string().trim().min(1).optional(),

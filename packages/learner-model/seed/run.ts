@@ -11,9 +11,9 @@
  * A fresh client per CLI invocation is fine — HMR concerns don't apply here.
  */
 
-import { PrismaClient } from "@englishlearn/db/generated/client/index.js";
-import { buildGraph } from "../src/core/graph/build";
-import { SEED_GRAPH } from "./index";
+import { PrismaClient } from '@englishlearn/db/generated/client/index.js';
+import { buildGraph } from '../src/core/graph/build';
+import { SEED_GRAPH } from './index';
 
 const prisma = new PrismaClient();
 
@@ -71,7 +71,7 @@ async function main() {
 
 main()
   .catch((err) => {
-    console.error("[seed:concepts] failed:", err);
+    console.error('[seed:concepts] failed:', err);
     process.exit(1);
   })
   .finally(async () => {

@@ -1,4 +1,4 @@
-import type { CEFRLevel, ConceptId, EdgeKind } from "../core/graph/types";
+import type { CEFRLevel, ConceptId, EdgeKind } from '../core/graph/types';
 
 /**
  * Selection policy types.
@@ -26,7 +26,7 @@ import type { CEFRLevel, ConceptId, EdgeKind } from "../core/graph/types";
  *
  * We ship all three so flipping strategy is a config change, not a refactor.
  */
-export type RewardStrategy = "bernoulli" | "learning_gain" | "hybrid";
+export type RewardStrategy = 'bernoulli' | 'learning_gain' | 'hybrid';
 
 // -----------------------------------------------------------------------------
 // Config
@@ -57,7 +57,7 @@ export interface PolicyConfig {
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
-  strategy: "learning_gain",
+  strategy: 'learning_gain',
   prereqThreshold: 0.7,
   calibrationGate: 500,
   hybridGainWeight: 0.5,
@@ -125,9 +125,9 @@ export interface SelectionInput {
 
 /** Why the policy picked this concept — for observability / PostHog later. */
 export type SelectionReason =
-  | "REVIEW_DUE" // an already-seen item is due; scheduling wins
-  | "NEW_INTRODUCTION" // unlocked, unseen concept introduced via exploration
-  | "EXPLORATION_FLOOR"; // forced pick to prevent starvation
+  | 'REVIEW_DUE' // an already-seen item is due; scheduling wins
+  | 'NEW_INTRODUCTION' // unlocked, unseen concept introduced via exploration
+  | 'EXPLORATION_FLOOR'; // forced pick to prevent starvation
 
 export interface SelectionResult {
   readonly itemId: string;
@@ -140,4 +140,4 @@ export interface SelectionResult {
 /** No selectable candidate (empty pool, or everything locked). */
 export type SelectionOutcome =
   | { readonly ok: true; readonly result: SelectionResult }
-  | { readonly ok: false; readonly error: "NO_CANDIDATES" };
+  | { readonly ok: false; readonly error: 'NO_CANDIDATES' };

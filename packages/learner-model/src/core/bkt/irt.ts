@@ -1,5 +1,5 @@
-import { clampProb } from "./constants";
-import type { IrtParams } from "./types";
+import { clampProb } from './constants';
+import type { IrtParams } from './types';
 
 /**
  * Convert pKnown ∈ (0,1) to ability θ ∈ ℝ via logit.

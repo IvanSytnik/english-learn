@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * GrammarExercise content payload.

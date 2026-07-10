@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { LocalizedStringSchema } from "../localized-string";
+import { z } from 'zod';
+import { LocalizedStringSchema } from '../localized-string';
 
 /**
  * Item content for kind = IDIOM.

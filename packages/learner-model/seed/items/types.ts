@@ -1,4 +1,4 @@
-import type { ItemKindValue as ItemKind } from "@englishlearn/db/schemas";
+import type { ItemKindValue as ItemKind } from '@englishlearn/db/schemas';
 
 /**
  * Shape of a seed item. `content` is intentionally `unknown` here — run.ts
@@ -10,7 +10,7 @@ export type SeedItem = {
   id: string;
   conceptId: string;
   kind: ItemKind;
-  cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   content: unknown;
   /** IRT overrides; defaults a=1.0 b=0.0 apply when omitted. */
   irtDiscrimination?: number;

@@ -1,8 +1,5 @@
-import type { ConceptMasteryRow, ConceptMasteryWrite } from "../adapters/concept-mastery";
-import type {
-  ItemReviewStateRow,
-  ItemReviewStateWrite,
-} from "../adapters/item-review-state";
+import type { ConceptMasteryRow, ConceptMasteryWrite } from '../adapters/concept-mastery';
+import type { ItemReviewStateRow, ItemReviewStateWrite } from '../adapters/item-review-state';
 
 /**
  * Persistence port for the learner-model service layer.
@@ -24,7 +21,7 @@ export type ItemForOutcome = {
 
 export type LearnerEventInsert = {
   userId: string;
-  type: "ITEM_ATTEMPTED";
+  type: 'ITEM_ATTEMPTED';
   /** Unix ms. */
   occurredAt: bigint;
   /** Pre-validated by ItemAttemptedPayloadSchema — see event-store.ts. */
@@ -34,7 +31,7 @@ export type LearnerEventInsert = {
 export type LearnerEventRow = {
   id: string;
   userId: string;
-  type: "ITEM_ATTEMPTED";
+  type: 'ITEM_ATTEMPTED';
   occurredAt: bigint;
   payload: unknown;
 };
@@ -43,25 +40,15 @@ export type LearnerEventRow = {
 export type LearnerModelTx = {
   appendEvent(event: LearnerEventInsert): Promise<void>;
 
-  getConceptMastery(
-    userId: string,
-    conceptId: string,
-  ): Promise<ConceptMasteryRow | null>;
+  getConceptMastery(userId: string, conceptId: string): Promise<ConceptMasteryRow | null>;
   upsertConceptMastery(
     userId: string,
     conceptId: string,
     write: ConceptMasteryWrite,
   ): Promise<void>;
 
-  getItemReviewState(
-    userId: string,
-    itemId: string,
-  ): Promise<ItemReviewStateRow | null>;
-  upsertItemReviewState(
-    userId: string,
-    itemId: string,
-    write: ItemReviewStateWrite,
-  ): Promise<void>;
+  getItemReviewState(userId: string, itemId: string): Promise<ItemReviewStateRow | null>;
+  upsertItemReviewState(userId: string, itemId: string, write: ItemReviewStateWrite): Promise<void>;
 
   /** Replay only: wipe both projections for a user before rebuilding. */
   deleteSnapshots(userId: string): Promise<void>;
@@ -86,12 +73,11 @@ export type LearnerModelDb = {
    * projections) happens inside one of these — all or nothing.
    */
   runInTx<R>(fn: (tx: LearnerModelTx) => Promise<R>): Promise<R>;
-  
+
   getMasterySnapshots(userId: string): Promise<MasterySnapshotRow[]>;
   getPrereqEdges(): Promise<PrereqEdgeRow[]>;
   getConceptEventCounts(userId: string): Promise<ConceptCountsRow[]>;
   getCandidateItems(userId: string): Promise<CandidateItemRow[]>;
-  
 };
 
 export type MasterySnapshotRow = {
@@ -105,7 +91,7 @@ export type MasterySnapshotRow = {
 export type PrereqEdgeRow = {
   from: string;
   to: string;
-  kind: "PREREQUISITE" | "RELATED" | "CONTRASTS_WITH" | "PART_OF";
+  kind: 'PREREQUISITE' | 'RELATED' | 'CONTRASTS_WITH' | 'PART_OF';
 };
 
 export type ConceptCountsRow = {
@@ -119,7 +105,7 @@ export type CandidateItemRow = {
   conceptId: string;
   irtDiscrimination: number;
   irtDifficulty: number;
-  cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+  cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   /** Next-due Unix ms, or null if no ItemReviewState row for this (user,item). */
   dueAt: bigint | null;
 };

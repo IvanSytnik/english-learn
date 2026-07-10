@@ -10,13 +10,13 @@
  * file is the in-memory contract.
  */
 
-import { z } from "zod";
+import { z } from 'zod';
 
 // -----------------------------------------------------------------------------
 // CEFR
 // -----------------------------------------------------------------------------
 
-export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+export const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 export type CEFRLevel = (typeof CEFR_LEVELS)[number];
 
 /**
@@ -37,21 +37,16 @@ export const CEFR_RANK: Readonly<Record<CEFRLevel, number>> = Object.freeze({
 // -----------------------------------------------------------------------------
 
 export const CONCEPT_CATEGORIES = [
-  "GRAMMAR",
-  "VOCAB",
-  "LISTENING",
-  "PHONETICS",
-  "DISCOURSE",
-  "PRAGMATICS",
+  'GRAMMAR',
+  'VOCAB',
+  'LISTENING',
+  'PHONETICS',
+  'DISCOURSE',
+  'PRAGMATICS',
 ] as const;
 export type ConceptCategory = (typeof CONCEPT_CATEGORIES)[number];
 
-export const EDGE_KINDS = [
-  "PREREQUISITE",
-  "RELATED",
-  "CONTRASTS_WITH",
-  "PART_OF",
-] as const;
+export const EDGE_KINDS = ['PREREQUISITE', 'RELATED', 'CONTRASTS_WITH', 'PART_OF'] as const;
 export type EdgeKind = (typeof EDGE_KINDS)[number];
 
 // -----------------------------------------------------------------------------
@@ -83,13 +78,13 @@ export const ConceptIdSchema = z
   .max(96)
   .refine(
     (id) => {
-      const segments = id.split(".");
+      const segments = id.split('.');
       if (segments.length < 1 || segments.length > 6) return false;
       return segments.every((s) => CONCEPT_ID_SEGMENT.test(s));
     },
     {
       message:
-        "Concept ID must be 1..6 dotted lowercase snake_case segments, each [a-z][a-z0-9_]{0,31}",
+        'Concept ID must be 1..6 dotted lowercase snake_case segments, each [a-z][a-z0-9_]{0,31}',
     },
   );
 
@@ -116,7 +111,7 @@ export const ConceptEdgeSchema = z
     weight: z.number().min(0).max(1).default(1.0),
   })
   .refine((e) => e.from !== e.to, {
-    message: "Self-loops are not allowed",
+    message: 'Self-loops are not allowed',
   });
 
 export type ConceptEdge = z.infer<typeof ConceptEdgeSchema>;

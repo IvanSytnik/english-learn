@@ -1,6 +1,6 @@
-import "server-only";
+import 'server-only';
 
-import { prisma } from "../client";
+import { prisma } from '../client';
 import {
   type DiagnosticContent,
   DiagnosticContentSchema,
@@ -9,17 +9,17 @@ import {
   type ListeningContent,
   ListeningContentSchema,
   type Locale,
+  localized,
   type VocabContent,
   VocabContentSchema,
-  localized,
-} from "../schemas";
+} from '../schemas';
 
 /**
  * Convenience filter for student-facing queries: only PUBLISHED items.
  *
  * Admin/tutor surfaces should query without this filter.
  */
-const PUBLISHED = { status: "PUBLISHED" as const };
+const PUBLISHED = { status: 'PUBLISHED' as const };
 
 // ─── Vocab ──────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import { clampProb } from "./constants";
+import { clampProb } from './constants';
 
 const MS_PER_HOUR = 1000 * 60 * 60;
 
@@ -14,11 +14,7 @@ const MS_PER_HOUR = 1000 * 60 * 60;
  * We decay only the "known" mass; the unknown mass absorbs it. This is the
  * continuous-time analogue of classic BKT pForget transition.
  */
-export function applyForgetting(
-  pKnown: number,
-  lambda: number,
-  deltaMs: number,
-): number {
+export function applyForgetting(pKnown: number, lambda: number, deltaMs: number): number {
   if (deltaMs <= 0 || lambda <= 0) return clampProb(pKnown);
   const deltaHours = deltaMs / MS_PER_HOUR;
   const factor = Math.exp(-lambda * deltaHours);

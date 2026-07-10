@@ -1,8 +1,8 @@
-import type { ItemAttemptedPayload } from "@englishlearn/db/schemas";
-import { initBktState, update } from "../core/bkt/model";
-import type { BktState } from "../core/bkt/types";
-import { initCardState, reviewCard } from "../core/fsrs/wrapper";
-import type { FsrsCardState } from "../core/fsrs/types";
+import type { ItemAttemptedPayload } from '@englishlearn/db/schemas';
+import { initBktState, update } from '../core/bkt/model';
+import type { BktState } from '../core/bkt/types';
+import type { FsrsCardState } from '../core/fsrs/types';
+import { initCardState, reviewCard } from '../core/fsrs/wrapper';
 
 /**
  * The ONE pure fold step shared by the live path (recordOutcome) and replay.

@@ -1,18 +1,13 @@
 import {
   type Card,
-  type Grade,
-  Rating,
-  State,
   createEmptyCard,
   fsrs,
+  type Grade,
   generatorParameters,
-} from "ts-fsrs";
-import type {
-  FsrsCardState,
-  FsrsCardStatus,
-  FsrsRating,
-  FsrsReviewResult,
-} from "./types";
+  Rating,
+  State,
+} from 'ts-fsrs';
+import type { FsrsCardState, FsrsCardStatus, FsrsRating, FsrsReviewResult } from './types';
 
 /**
  * The ONLY module allowed to import ts-fsrs.
@@ -45,10 +40,10 @@ const RATING_TO_TSFSRS: Record<FsrsRating, Grade> = {
 };
 
 const STATE_TO_STATUS: Record<State, FsrsCardStatus> = {
-  [State.New]: "NEW",
-  [State.Learning]: "LEARNING",
-  [State.Review]: "REVIEW",
-  [State.Relearning]: "RELEARNING",
+  [State.New]: 'NEW',
+  [State.Learning]: 'LEARNING',
+  [State.Review]: 'REVIEW',
+  [State.Relearning]: 'RELEARNING',
 };
 
 const STATUS_TO_STATE: Record<FsrsCardStatus, State> = {
@@ -83,8 +78,7 @@ function stateToCard(state: FsrsCardState): Card {
     lapses: state.lapses,
     learning_steps: state.learningSteps,
     state: STATUS_TO_STATE[state.cardStatus],
-    last_review:
-      state.lastReviewAt === null ? undefined : msToDate(state.lastReviewAt),
+    last_review: state.lastReviewAt === null ? undefined : msToDate(state.lastReviewAt),
   };
 }
 
@@ -139,11 +133,8 @@ export function reviewCard(
  * Probability the item is still remembered at `nowMs` (0..1).
  * Returns null for NEW cards (no memory to decay yet).
  */
-export function retrievability(
-  state: FsrsCardState,
-  nowMs: bigint,
-): number | null {
-  if (state.cardStatus === "NEW") return null;
+export function retrievability(state: FsrsCardState, nowMs: bigint): number | null {
+  if (state.cardStatus === 'NEW') return null;
   return scheduler.get_retrievability(stateToCard(state), msToDate(nowMs), false);
 }
 

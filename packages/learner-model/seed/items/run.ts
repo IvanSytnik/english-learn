@@ -13,9 +13,9 @@
  * from HANDOFF #26 applies only inside packages/db itself).
  */
 
-import { PrismaClient } from "@englishlearn/db/generated/client/index.js";
-import { safeParseItemContent } from "@englishlearn/db/schemas";
-import { ALL_ITEMS } from "./index";
+import { PrismaClient } from '@englishlearn/db/generated/client/index.js';
+import { safeParseItemContent } from '@englishlearn/db/schemas';
+import { ALL_ITEMS } from './index';
 
 const prisma = new PrismaClient();
 
@@ -29,8 +29,8 @@ async function main() {
     if (!result.success) {
       errors.push(
         `  ✗ ${item.id} (${item.kind}): ${result.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ")}`,
+          .map((i) => `${i.path.join('.')}: ${i.message}`)
+          .join('; ')}`,
       );
     }
   }
@@ -39,7 +39,7 @@ async function main() {
     for (const e of errors) console.error(e);
     process.exit(1);
   }
-  console.log("  ✓ all payloads valid");
+  console.log('  ✓ all payloads valid');
 
   // 2. Verify referenced concepts exist (fail early with a clear message
   //    instead of an FK violation mid-run).
@@ -51,9 +51,7 @@ async function main() {
   const existingSet = new Set(existing.map((c) => c.id));
   const missing = conceptIds.filter((id) => !existingSet.has(id));
   if (missing.length > 0) {
-    console.error(
-      `Missing concepts (run \`pnpm seed:concepts\` first): ${missing.join(", ")}`,
-    );
+    console.error(`Missing concepts (run \`pnpm seed:concepts\` first): ${missing.join(', ')}`);
     process.exit(1);
   }
 
@@ -66,15 +64,13 @@ async function main() {
       conceptId: item.conceptId,
       kind: item.kind,
       cefrLevel: item.cefrLevel,
-      status: "PUBLISHED" as const,
-      source: "CURATED" as const,
+      status: 'PUBLISHED' as const,
+      source: 'CURATED' as const,
       content: item.content as object,
       ...(item.irtDiscrimination !== undefined
         ? { irtDiscrimination: item.irtDiscrimination }
         : {}),
-      ...(item.irtDifficulty !== undefined
-        ? { irtDifficulty: item.irtDifficulty }
-        : {}),
+      ...(item.irtDifficulty !== undefined ? { irtDifficulty: item.irtDifficulty } : {}),
     };
     const before = await prisma.item.findUnique({
       where: { id: item.id },
@@ -90,15 +86,15 @@ async function main() {
   }
 
   const byKind = await prisma.item.groupBy({
-    by: ["kind"],
+    by: ['kind'],
     _count: true,
   });
   console.log(`  ✓ ${created} created, ${updated} updated`);
-  console.log("  Totals by kind:");
+  console.log('  Totals by kind:');
   for (const row of byKind) {
     console.log(`    ${row.kind}: ${row._count}`);
   }
-  console.log("✓ Item seed complete.");
+  console.log('✓ Item seed complete.');
 }
 
 main()

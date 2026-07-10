@@ -22,25 +22,25 @@
 import {
   type Concept,
   type ConceptEdge,
+  ConceptEdgeSchema,
   type ConceptGraph,
   type ConceptId,
-  ConceptEdgeSchema,
   ConceptSchema,
-} from "./types";
+} from './types';
 
 export class GraphValidationError extends Error {
   constructor(
     message: string,
     public readonly code:
-      | "INVALID_CONCEPT"
-      | "INVALID_EDGE"
-      | "DUPLICATE_CONCEPT"
-      | "DUPLICATE_EDGE"
-      | "UNKNOWN_CONCEPT_REF"
-      | "PREREQUISITE_CYCLE",
+      | 'INVALID_CONCEPT'
+      | 'INVALID_EDGE'
+      | 'DUPLICATE_CONCEPT'
+      | 'DUPLICATE_EDGE'
+      | 'UNKNOWN_CONCEPT_REF'
+      | 'PREREQUISITE_CYCLE',
   ) {
     super(message);
-    this.name = "GraphValidationError";
+    this.name = 'GraphValidationError';
   }
 }
 
@@ -55,10 +55,7 @@ export function buildGraph(input: BuildGraphInput): ConceptGraph {
   for (const raw of input.concepts) {
     const parsed = ConceptSchema.parse(raw);
     if (conceptMap.has(parsed.id)) {
-      throw new GraphValidationError(
-        `Duplicate concept id: ${parsed.id}`,
-        "DUPLICATE_CONCEPT",
-      );
+      throw new GraphValidationError(`Duplicate concept id: ${parsed.id}`, 'DUPLICATE_CONCEPT');
     }
     conceptMap.set(parsed.id, parsed);
   }
@@ -75,21 +72,18 @@ export function buildGraph(input: BuildGraphInput): ConceptGraph {
     if (!conceptMap.has(parsed.from)) {
       throw new GraphValidationError(
         `Edge references unknown concept: ${parsed.from}`,
-        "UNKNOWN_CONCEPT_REF",
+        'UNKNOWN_CONCEPT_REF',
       );
     }
     if (!conceptMap.has(parsed.to)) {
       throw new GraphValidationError(
         `Edge references unknown concept: ${parsed.to}`,
-        "UNKNOWN_CONCEPT_REF",
+        'UNKNOWN_CONCEPT_REF',
       );
     }
     const key = edgeKey(parsed);
     if (seenEdges.has(key)) {
-      throw new GraphValidationError(
-        `Duplicate edge: ${key}`,
-        "DUPLICATE_EDGE",
-      );
+      throw new GraphValidationError(`Duplicate edge: ${key}`, 'DUPLICATE_EDGE');
     }
     seenEdges.add(key);
     edges.push(parsed);
@@ -139,15 +133,15 @@ function assertPrerequisiteDag(
     color.set(node, GRAY);
     const out = outgoing.get(node) ?? [];
     for (const edge of out) {
-      if (edge.kind !== "PREREQUISITE") continue;
+      if (edge.kind !== 'PREREQUISITE') continue;
       const next = edge.to;
       const c = color.get(next);
       if (c === GRAY) {
         stack.push(next);
         const cycle = [...stack];
         throw new GraphValidationError(
-          `PREREQUISITE cycle detected: ${cycle.join(" -> ")}`,
-          "PREREQUISITE_CYCLE",
+          `PREREQUISITE cycle detected: ${cycle.join(' -> ')}`,
+          'PREREQUISITE_CYCLE',
         );
       }
       if (c === WHITE) {

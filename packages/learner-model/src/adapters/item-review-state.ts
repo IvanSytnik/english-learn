@@ -1,7 +1,4 @@
-import {
-  FsrsCardStateSchema,
-  type FsrsCardState,
-} from "../core/fsrs/types";
+import { type FsrsCardState, FsrsCardStateSchema } from '../core/fsrs/types';
 
 /**
  * Adapter: pure FsrsCardState <-> Prisma ItemReviewState row.
@@ -18,7 +15,7 @@ export type ItemReviewStateRow = {
   reps: number;
   lapses: number;
   learningSteps: number;
-  cardStatus: "NEW" | "LEARNING" | "REVIEW" | "RELEARNING";
+  cardStatus: 'NEW' | 'LEARNING' | 'REVIEW' | 'RELEARNING';
   dueAt: bigint;
   lastReviewAt: bigint | null;
 };

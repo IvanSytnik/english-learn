@@ -5,23 +5,23 @@
  * and hands plain objects to `select`; nothing here does I/O.
  */
 
-export { select } from "./select";
-export { makeRng, sampleBeta, type Rng } from "./rng";
+export { computeUnlocked, type UnlockResult } from './curriculum';
 export {
-  effectiveStrategy,
-  rewardForOutcome,
-} from "./reward";
-export {
+  type BetaParams,
   betaParamsForConcept,
   meanDifficultyByConcept,
   priorMeanFromDifficulty,
-  type BetaParams,
-} from "./posterior";
-export { computeUnlocked, type UnlockResult } from "./curriculum";
+} from './posterior';
 export {
-  DEFAULT_POLICY_CONFIG,
+  effectiveStrategy,
+  rewardForOutcome,
+} from './reward';
+export { makeRng, type Rng, sampleBeta } from './rng';
+export { select } from './select';
+export {
   type ConceptEventCounts,
   type ConceptMasterySnapshot,
+  DEFAULT_POLICY_CONFIG,
   type DueItem,
   type PolicyConfig,
   type PrereqEdge,
@@ -30,4 +30,4 @@ export {
   type SelectionOutcome,
   type SelectionReason,
   type SelectionResult,
-} from "./types";
+} from './types';

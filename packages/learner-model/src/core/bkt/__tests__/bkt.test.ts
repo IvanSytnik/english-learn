@@ -1,25 +1,11 @@
-import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 
-import {
-  BKT_DEFAULTS,
-  PROB_MAX,
-  PROB_MIN,
-  clampProb,
-} from "../constants";
-import { applyForgetting } from "../forgetting";
-import {
-  pCorrectGivenKnown,
-  pKnownToTheta,
-  sigmoid,
-} from "../irt";
-import {
-  batchUpdate,
-  initBktState,
-  predictCorrect,
-  update,
-} from "../model";
-import type { BktOutcome, BktState, IrtParams } from "../types";
+import { BKT_DEFAULTS, clampProb, PROB_MAX, PROB_MIN } from '../constants';
+import { applyForgetting } from '../forgetting';
+import { pCorrectGivenKnown, pKnownToTheta, sigmoid } from '../irt';
+import { batchUpdate, initBktState, predictCorrect, update } from '../model';
+import type { BktOutcome, BktState, IrtParams } from '../types';
 
 // ---------------------------------------------------------------------------
 // Arbitraries
@@ -69,26 +55,26 @@ function makeOutcome(
 // constants / clampProb
 // ---------------------------------------------------------------------------
 
-describe("clampProb", () => {
-  it("returns the input when within bounds", () => {
+describe('clampProb', () => {
+  it('returns the input when within bounds', () => {
     expect(clampProb(0.5)).toBe(0.5);
   });
 
-  it("clamps values below PROB_MIN", () => {
+  it('clamps values below PROB_MIN', () => {
     expect(clampProb(0)).toBe(PROB_MIN);
     expect(clampProb(-1)).toBe(PROB_MIN);
   });
 
-  it("clamps values above PROB_MAX", () => {
+  it('clamps values above PROB_MAX', () => {
     expect(clampProb(1)).toBe(PROB_MAX);
     expect(clampProb(2)).toBe(PROB_MAX);
   });
 
-  it("throws on NaN", () => {
+  it('throws on NaN', () => {
     expect(() => clampProb(Number.NaN)).toThrow();
   });
 
-  it("throws on Infinity", () => {
+  it('throws on Infinity', () => {
     expect(() => clampProb(Number.POSITIVE_INFINITY)).toThrow();
     expect(() => clampProb(Number.NEGATIVE_INFINITY)).toThrow();
   });
@@ -98,12 +84,12 @@ describe("clampProb", () => {
 // IRT
 // ---------------------------------------------------------------------------
 
-describe("sigmoid", () => {
-  it("maps 0 to 0.5", () => {
+describe('sigmoid', () => {
+  it('maps 0 to 0.5', () => {
     expect(sigmoid(0)).toBeCloseTo(0.5, 10);
   });
 
-  it("is monotonically increasing", () => {
+  it('is monotonically increasing', () => {
     fc.assert(
       fc.property(
         fc.double({ min: -10, max: 10, noNaN: true, noDefaultInfinity: true }),
@@ -115,7 +101,7 @@ describe("sigmoid", () => {
     );
   });
 
-  it("stays in (0, 1) for extreme inputs", () => {
+  it('stays in (0, 1) for extreme inputs', () => {
     expect(sigmoid(1000)).toBeLessThanOrEqual(1);
     expect(sigmoid(1000)).toBeGreaterThan(0.999);
     expect(sigmoid(-1000)).toBeGreaterThanOrEqual(0);
@@ -123,12 +109,12 @@ describe("sigmoid", () => {
   });
 });
 
-describe("pKnownToTheta", () => {
-  it("maps 0.5 to ~0", () => {
+describe('pKnownToTheta', () => {
+  it('maps 0.5 to ~0', () => {
     expect(pKnownToTheta(0.5)).toBeCloseTo(0, 10);
   });
 
-  it("is monotonically increasing", () => {
+  it('is monotonically increasing', () => {
     fc.assert(
       fc.property(probArb, probArb, (p1, p2) => {
         // Skip pairs too close to be distinguishable in double precision —
@@ -137,30 +123,26 @@ describe("pKnownToTheta", () => {
         if (p1 < p2) {
           expect(pKnownToTheta(p1)).toBeLessThanOrEqual(pKnownToTheta(p2));
         }
-        }),
+      }),
     );
   });
 });
 
-describe("pCorrectGivenKnown", () => {
-  it("equals 0.5 when θ = b", () => {
+describe('pCorrectGivenKnown', () => {
+  it('equals 0.5 when θ = b', () => {
     const item: IrtParams = { a: 1, b: 0.7 };
     expect(pCorrectGivenKnown(0.7, item)).toBeCloseTo(0.5, 6);
   });
 
-  it("increases with θ", () => {
+  it('increases with θ', () => {
     const item: IrtParams = { a: 1.5, b: 0 };
-    expect(pCorrectGivenKnown(-1, item)).toBeLessThan(
-      pCorrectGivenKnown(1, item),
-    );
+    expect(pCorrectGivenKnown(-1, item)).toBeLessThan(pCorrectGivenKnown(1, item));
   });
 
-  it("higher b → lower p at fixed θ", () => {
+  it('higher b → lower p at fixed θ', () => {
     const easy: IrtParams = { a: 1, b: -1 };
     const hard: IrtParams = { a: 1, b: 2 };
-    expect(pCorrectGivenKnown(0, easy)).toBeGreaterThan(
-      pCorrectGivenKnown(0, hard),
-    );
+    expect(pCorrectGivenKnown(0, easy)).toBeGreaterThan(pCorrectGivenKnown(0, hard));
   });
 });
 
@@ -168,25 +150,25 @@ describe("pCorrectGivenKnown", () => {
 // Forgetting
 // ---------------------------------------------------------------------------
 
-describe("applyForgetting", () => {
-  it("returns input unchanged at Δt = 0", () => {
+describe('applyForgetting', () => {
+  it('returns input unchanged at Δt = 0', () => {
     expect(applyForgetting(0.7, 0.01, 0)).toBeCloseTo(0.7, 10);
   });
 
-  it("returns input unchanged for negative Δt (clock skew defense)", () => {
+  it('returns input unchanged for negative Δt (clock skew defense)', () => {
     expect(applyForgetting(0.7, 0.01, -10000)).toBeCloseTo(0.7, 10);
   });
 
-  it("returns input unchanged when λ = 0", () => {
+  it('returns input unchanged when λ = 0', () => {
     expect(applyForgetting(0.7, 0, 1000 * 60 * 60 * 1000)).toBeCloseTo(0.7, 10);
   });
 
-  it("decays toward 0 as Δt → ∞", () => {
+  it('decays toward 0 as Δt → ∞', () => {
     const decayed = applyForgetting(0.9, 0.1, 1000 * 60 * 60 * 24 * 365);
     expect(decayed).toBeCloseTo(PROB_MIN, 10);
   });
 
-  it("monotonically decreases with Δt", () => {
+  it('monotonically decreases with Δt', () => {
     const p = 0.8;
     const lambda = 0.05;
     const d1 = applyForgetting(p, lambda, 1000 * 60 * 60);
@@ -194,12 +176,12 @@ describe("applyForgetting", () => {
     expect(d1).toBeGreaterThan(d2);
   });
 
-  it("respects half-life: λ=ln(2) ≈ 0.693 → halves in 1 hour", () => {
+  it('respects half-life: λ=ln(2) ≈ 0.693 → halves in 1 hour', () => {
     const halved = applyForgetting(0.8, Math.log(2), 1000 * 60 * 60);
     expect(halved).toBeCloseTo(0.4, 3);
   });
 
-  it("always returns a clamped probability", () => {
+  it('always returns a clamped probability', () => {
     fc.assert(
       fc.property(
         probArb,
@@ -219,8 +201,8 @@ describe("applyForgetting", () => {
 // initBktState
 // ---------------------------------------------------------------------------
 
-describe("initBktState", () => {
-  it("uses global defaults", () => {
+describe('initBktState', () => {
+  it('uses global defaults', () => {
     const s = initBktState(1000);
     expect(s.pKnown).toBe(BKT_DEFAULTS.pKnownInit);
     expect(s.pLearn).toBe(BKT_DEFAULTS.pLearn);
@@ -236,8 +218,8 @@ describe("initBktState", () => {
 // predictCorrect
 // ---------------------------------------------------------------------------
 
-describe("predictCorrect", () => {
-  it("returns pKnown·(1-pSlip) + (1-pKnown)·pGuess without item", () => {
+describe('predictCorrect', () => {
+  it('returns pKnown·(1-pSlip) + (1-pKnown)·pGuess without item', () => {
     const s: BktState = {
       pKnown: 0.6,
       pLearn: 0.1,
@@ -251,7 +233,7 @@ describe("predictCorrect", () => {
     expect(predictCorrect(s, 1000)).toBeCloseTo(expected, 10);
   });
 
-  it("with item: uses IRT branch", () => {
+  it('with item: uses IRT branch', () => {
     const s: BktState = {
       pKnown: 0.8,
       pLearn: 0.1,
@@ -263,12 +245,10 @@ describe("predictCorrect", () => {
     };
     const easy: IrtParams = { a: 1, b: -5 };
     const hard: IrtParams = { a: 1, b: 5 };
-    expect(predictCorrect(s, 1000, easy)).toBeGreaterThan(
-      predictCorrect(s, 1000, hard),
-    );
+    expect(predictCorrect(s, 1000, easy)).toBeGreaterThan(predictCorrect(s, 1000, hard));
   });
 
-  it("decays pKnown before computing prediction", () => {
+  it('decays pKnown before computing prediction', () => {
     const s: BktState = {
       pKnown: 0.9,
       pLearn: 0.1,
@@ -283,14 +263,14 @@ describe("predictCorrect", () => {
     expect(stale).toBeLessThan(fresh);
   });
 
-  it("does not mutate input state", () => {
+  it('does not mutate input state', () => {
     const s = initBktState(0);
     const snapshot = { ...s };
     predictCorrect(s, 1_000_000);
     expect(s).toEqual(snapshot);
   });
 
-  it("always returns a valid probability", () => {
+  it('always returns a valid probability', () => {
     fc.assert(
       fc.property(
         stateArb,
@@ -310,8 +290,8 @@ describe("predictCorrect", () => {
 // update — monotonicity & invariants
 // ---------------------------------------------------------------------------
 
-describe("update", () => {
-  it("correct outcome increases pKnown (no forgetting)", () => {
+describe('update', () => {
+  it('correct outcome increases pKnown (no forgetting)', () => {
     const s: BktState = {
       ...initBktState(0),
       pForgetLambda: 0,
@@ -320,7 +300,7 @@ describe("update", () => {
     expect(next.pKnown).toBeGreaterThan(s.pKnown);
   });
 
-  it("incorrect outcome decreases pKnown (high prior, no forgetting)", () => {
+  it('incorrect outcome decreases pKnown (high prior, no forgetting)', () => {
     const s: BktState = {
       ...initBktState(0),
       pKnown: 0.8,
@@ -332,7 +312,7 @@ describe("update", () => {
     expect(next.pKnown).toBeLessThan(s.pKnown);
   });
 
-  it("increments observationCount", () => {
+  it('increments observationCount', () => {
     const s = initBktState(0);
     const next = update(s, makeOutcome(s, true));
     expect(next.observationCount).toBe(1);
@@ -340,20 +320,20 @@ describe("update", () => {
     expect(next2.observationCount).toBe(2);
   });
 
-  it("advances lastUpdatedAt to outcome.timestamp", () => {
+  it('advances lastUpdatedAt to outcome.timestamp', () => {
     const s = initBktState(1000);
     const next = update(s, makeOutcome(s, true, 5000));
     expect(next.lastUpdatedAt).toBe(6000);
   });
 
-  it("does not mutate input state", () => {
+  it('does not mutate input state', () => {
     const s = initBktState(0);
     const snapshot = { ...s };
     update(s, makeOutcome(s, true));
     expect(s).toEqual(snapshot);
   });
 
-  it("output pKnown is always a valid probability", () => {
+  it('output pKnown is always a valid probability', () => {
     fc.assert(
       fc.property(
         stateArb,
@@ -374,7 +354,7 @@ describe("update", () => {
     );
   });
 
-  it("many correct outcomes drive pKnown high", () => {
+  it('many correct outcomes drive pKnown high', () => {
     let s: BktState = { ...initBktState(0), pForgetLambda: 0 };
     for (let i = 0; i < 20; i++) {
       s = update(s, makeOutcome(s, true, 60_000));
@@ -382,7 +362,7 @@ describe("update", () => {
     expect(s.pKnown).toBeGreaterThan(0.9);
   });
 
-  it("many incorrect outcomes drive pKnown low", () => {
+  it('many incorrect outcomes drive pKnown low', () => {
     let s: BktState = {
       ...initBktState(0),
       pKnown: 0.5,
@@ -400,8 +380,8 @@ describe("update", () => {
 // batchUpdate
 // ---------------------------------------------------------------------------
 
-describe("batchUpdate", () => {
-  it("matches sequential update on sorted input", () => {
+describe('batchUpdate', () => {
+  it('matches sequential update on sorted input', () => {
     fc.assert(
       fc.property(
         stateArb,
@@ -432,7 +412,7 @@ describe("batchUpdate", () => {
     );
   });
 
-  it("sorts unordered outcomes by timestamp before folding", () => {
+  it('sorts unordered outcomes by timestamp before folding', () => {
     const s0 = initBktState(0);
     const o1: BktOutcome = { correct: true, timestamp: 1000 };
     const o2: BktOutcome = { correct: false, timestamp: 2000 };
@@ -445,12 +425,12 @@ describe("batchUpdate", () => {
     expect(shuffled.lastUpdatedAt).toBe(3000);
   });
 
-  it("returns state unchanged for empty outcome list", () => {
+  it('returns state unchanged for empty outcome list', () => {
     const s = initBktState(1000);
     expect(batchUpdate(s, [])).toEqual(s);
   });
 
-  it("does not mutate the input outcomes array", () => {
+  it('does not mutate the input outcomes array', () => {
     const s = initBktState(0);
     const outcomes: BktOutcome[] = [
       { correct: true, timestamp: 3000 },
