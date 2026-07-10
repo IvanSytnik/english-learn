@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "AI-powered English learning platform",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@10.18.0",
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
