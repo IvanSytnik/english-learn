@@ -45,3 +45,6 @@ playwright/.cache/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Prisma generated client (per-platform binaries)
+packages/db/src/generated/

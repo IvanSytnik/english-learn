@@ -13,7 +13,10 @@ export default async function RegisterPage() {
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={registerUser} className="space-y-4">
+          <form
+            action={registerUser as unknown as (formData: FormData) => void}
+            className="space-y-4"
+          >
             <div>
               <label htmlFor="name" className="mb-1 block text-sm font-medium">
                 {t('name')}

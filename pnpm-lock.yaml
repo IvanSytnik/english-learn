@@ -63,6 +63,9 @@ catalogs:
     clsx:
       specifier: 2.1.1
       version: 2.1.1
+    fast-check:
+      specifier: 3.23.2
+      version: 3.23.2
     jsdom:
       specifier: 29.1.1
       version: 29.1.1
@@ -96,6 +99,9 @@ catalogs:
     tailwindcss:
       specifier: 4.3.1
       version: 4.3.1
+    ts-fsrs:
+      specifier: 5.2.3
+      version: 5.2.3
     tsx:
       specifier: 4.22.4
       version: 4.22.4
@@ -270,6 +276,12 @@ importers:
       bcryptjs:
         specifier: 'catalog:'
         version: 3.0.3
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@englishlearn/config':
         specifier: workspace:*
@@ -280,6 +292,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.0.1
+      fast-check:
+        specifier: 'catalog:'
+        version: 3.23.2
       prisma:
         specifier: 'catalog:'
         version: 6.16.2(typescript@6.0.3)
@@ -289,6 +304,43 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
+
+  packages/learner-model:
+    dependencies:
+      '@englishlearn/db':
+        specifier: workspace:*
+        version: link:../db
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
+      ts-fsrs:
+        specifier: 'catalog:'
+        version: 5.2.3
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@englishlearn/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.0.1
+      fast-check:
+        specifier: ^3.23.2
+        version: 3.23.2
+      tsx:
+        specifier: 'catalog:'
+        version: 4.22.4
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4))
 
   packages/ui:
     dependencies:
@@ -2333,6 +2385,9 @@ packages:
   seq-queue@0.0.5:
     resolution: {integrity: sha512-hr3Wtp/GZIc/6DAGPDcV4/9WoZhjrkXsi5B/07QgX8tsdc6ilr7BFM6PM6rbdAX1kFSDYeZGLipIZZKyQP0O5Q==, tarball: https://registry.npmjs.org/seq-queue/-/seq-queue-0.0.5.tgz}
 
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==, tarball: https://registry.npmjs.org/server-only/-/server-only-0.0.1.tgz}
+
   sharp@0.34.5:
     resolution: {integrity: sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg==, tarball: https://registry.npmjs.org/sharp/-/sharp-0.34.5.tgz}
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
@@ -2435,6 +2490,10 @@ packages:
   tr46@6.0.0:
     resolution: {integrity: sha512-bLVMLPtstlZ4iMQHpFHTR7GAGj2jxi8Dg0s2h2MafAE4uSWF98FC/3MomU51iQAMf8/qDUbKWf5GxuvvVcXEhw==, tarball: https://registry.npmjs.org/tr46/-/tr46-6.0.0.tgz}
     engines: {node: '>=20'}
+
+  ts-fsrs@5.2.3:
+    resolution: {integrity: sha512-R3IjceC9WfnvUin6Nx+DwqEzh3Qil6Gg2yEHqvocUcC7Nbi+xDrFg/1fKaYBT0tJedDnDAguXMSX0hijhi859w==, tarball: https://registry.npmjs.org/ts-fsrs/-/ts-fsrs-5.2.3.tgz}
+    engines: {node: '>=18.0.0'}
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==, tarball: https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz}
@@ -4357,6 +4416,8 @@ snapshots:
   seq-queue@0.0.5:
     optional: true
 
+  server-only@0.0.1: {}
+
   sharp@0.34.5:
     dependencies:
       '@img/colour': 1.1.0
@@ -4462,6 +4523,8 @@ snapshots:
   tr46@6.0.0:
     dependencies:
       punycode: 2.3.1
+
+  ts-fsrs@5.2.3: {}
 
   tslib@2.8.1: {}
 
