@@ -1,30 +1,20 @@
-/**
- * Seed script. Run with: pnpm db:seed
- *
- * Seeds:
- *  - 1 admin user (admin@englishlearn.dev / password: admin1234 — CHANGE IN PROD)
- *  - 1 student user (student@englishlearn.dev / password: student1234)
- *  - Skill tags taxonomy
- *  - A handful of PUBLISHED diagnostic items across CEFR levels
- *  - A handful of PUBLISHED exercises so the dashboard isn't empty
- */
+// packages/db/src/seed.ts
+//
+// NOTE: This is a REPLACEMENT for the existing seed file.
+// Re-seeds users + exercises in the new JSON content format.
+//
+// Existing patterns kept from previous seed:
+//   - bcryptjs password hashing
+//   - PrismaClient imported directly from generated/client (CLI-safe)
+//   - Admin + student fixed accounts
+
 import { hash } from 'bcryptjs';
-import {
-  CefrLevel,
-  ContentStatus,
-  DiagnosticItemType,
-  ExerciseSource,
-  PrismaClient,
-  SkillCategory,
-  UserRole,
-} from './generated/client/index';
+import { PrismaClient } from './generated/client/index.js';
+import type { DiagnosticContent, GrammarContent, VocabContent } from './schemas';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.info('🌱 Seeding database...');
-
-  // Users ────────────────────────────────────────────────────
+async function seedUsers() {
   const adminPassword = await hash('admin1234', 10);
   const studentPassword = await hash('student1234', 10);
 
@@ -34,250 +24,247 @@ async function main() {
     create: {
       email: 'admin@englishlearn.dev',
       name: 'Admin',
-      role: UserRole.ADMIN,
+      role: 'ADMIN',
       passwordHash: adminPassword,
-      emailVerified: new Date(),
+      locale: 'en',
     },
   });
 
-  await prisma.user.upsert({
+  const student = await prisma.user.upsert({
     where: { email: 'student@englishlearn.dev' },
     update: {},
     create: {
       email: 'student@englishlearn.dev',
       name: 'Student',
-      role: UserRole.STUDENT,
+      role: 'STUDENT',
       passwordHash: studentPassword,
-      emailVerified: new Date(),
+      locale: 'ru',
       profile: {
         create: {
           nativeLanguage: 'ru',
-          selfReportedLevel: CefrLevel.B1,
-          dailyGoalMin: 15,
+          selfReportedLevel: 'B1',
+          goal: 'WORK',
         },
       },
     },
   });
 
-  // Skill tags ───────────────────────────────────────────────
-  const skillTags = [
-    {
-      slug: 'present-simple',
-      category: SkillCategory.GRAMMAR,
-      cefrLevel: CefrLevel.A1,
-      title: 'Present Simple',
-    },
-    {
-      slug: 'present-perfect',
-      category: SkillCategory.GRAMMAR,
-      cefrLevel: CefrLevel.B1,
-      title: 'Present Perfect',
-    },
-    {
-      slug: 'conditionals-2',
-      category: SkillCategory.GRAMMAR,
-      cefrLevel: CefrLevel.B2,
-      title: 'Second Conditional',
-    },
-    {
-      slug: 'everyday-vocab',
-      category: SkillCategory.VOCABULARY,
-      cefrLevel: CefrLevel.A2,
-      title: 'Everyday vocabulary',
-    },
-    {
-      slug: 'business-vocab',
-      category: SkillCategory.VOCABULARY,
-      cefrLevel: CefrLevel.B2,
-      title: 'Business vocabulary',
-    },
-    {
-      slug: 'phrasal-verbs',
-      category: SkillCategory.VOCABULARY,
-      cefrLevel: CefrLevel.B2,
-      title: 'Phrasal verbs',
-    },
-    {
-      slug: 'listening-conversations',
-      category: SkillCategory.LISTENING,
-      cefrLevel: CefrLevel.B1,
-      title: 'Everyday conversations',
-    },
-  ];
+  return { admin, student };
+}
 
-  for (const tag of skillTags) {
-    await prisma.skillTag.upsert({
-      where: { slug: tag.slug },
-      update: {},
-      create: tag,
-    });
-  }
-
-  const grammarA1 = await prisma.skillTag.findUniqueOrThrow({ where: { slug: 'present-simple' } });
-  const grammarB1 = await prisma.skillTag.findUniqueOrThrow({ where: { slug: 'present-perfect' } });
-  const vocabA2 = await prisma.skillTag.findUniqueOrThrow({ where: { slug: 'everyday-vocab' } });
-  const vocabB2 = await prisma.skillTag.findUniqueOrThrow({ where: { slug: 'business-vocab' } });
-
-  // Diagnostic items (small pool, expand later) ──────────────
-  console.info('  • Seeding diagnostic items...');
-  const diagnosticItems = [
-    // A1
+async function seedVocab(adminId: string) {
+  const samples: VocabContent[] = [
     {
-      type: DiagnosticItemType.VOCAB,
-      cefrLevel: CefrLevel.A1,
-      prompt: 'Choose the correct word: "I ___ a student."',
-      choices: ['am', 'is', 'are', 'be'],
+      source: {
+        targetLexeme: 'ephemeral',
+        exampleSentence: 'The beauty of cherry blossoms is ephemeral.',
+      },
+      localized: {
+        instructions: {
+          en: 'Choose the best definition for the word.',
+          ru: 'Выберите наиболее точное определение слова.',
+          uk: 'Оберіть найточніше визначення слова.',
+          de: 'Wählen Sie die beste Definition für das Wort.',
+        },
+        prompt: {
+          en: 'What does "ephemeral" mean?',
+          ru: 'Что означает слово "ephemeral"?',
+          uk: 'Що означає слово "ephemeral"?',
+          de: 'Was bedeutet "ephemeral"?',
+        },
+        explanation: {
+          en: '"Ephemeral" describes something that lasts for a very short time.',
+          ru: '"Ephemeral" описывает то, что длится очень короткое время.',
+        },
+        exampleTranslation: {
+          en: 'The beauty of cherry blossoms is ephemeral.',
+          ru: 'Красота вишнёвого цвета мимолётна.',
+        },
+      },
+      choices: ['lasting briefly', 'permanent', 'expensive', 'ancient'],
       correctIndex: 0,
-      skillTagId: grammarA1.id,
     },
-    // A2
     {
-      type: DiagnosticItemType.GRAMMAR,
-      cefrLevel: CefrLevel.A2,
-      prompt: 'Fill the blank: "She ___ to school every day."',
-      template: 'She ___ to school every day.',
-      acceptedAnswers: ['goes', 'walks'],
-      skillTagId: grammarA1.id,
-    },
-    // B1
-    {
-      type: DiagnosticItemType.VOCAB,
-      cefrLevel: CefrLevel.B1,
-      prompt: 'Choose the best meaning of "to give up".',
-      choices: ['to start', 'to quit', 'to win', 'to repeat'],
-      correctIndex: 1,
-      skillTagId: vocabA2.id,
-    },
-    // B1
-    {
-      type: DiagnosticItemType.GRAMMAR,
-      cefrLevel: CefrLevel.B1,
-      prompt: 'Fill the blank: "I ___ here since 2020."',
-      template: 'I ___ here since 2020.',
-      acceptedAnswers: ['have lived', 'have been living'],
-      skillTagId: grammarB1.id,
-    },
-    // B2
-    {
-      type: DiagnosticItemType.VOCAB,
-      cefrLevel: CefrLevel.B2,
-      prompt: 'Pick the synonym of "to mitigate".',
-      choices: ['to worsen', 'to lessen', 'to ignore', 'to multiply'],
-      correctIndex: 1,
-      skillTagId: vocabB2.id,
-    },
-    // C1
-    {
-      type: DiagnosticItemType.GRAMMAR,
-      cefrLevel: CefrLevel.C1,
-      prompt: 'Fill the blank: "Had I ___ earlier, I would have caught the train."',
-      template: 'Had I ___ earlier, I would have caught the train.',
-      acceptedAnswers: ['left', 'departed'],
+      source: { targetLexeme: 'concise' },
+      localized: {
+        instructions: {
+          en: 'Choose the best definition.',
+          ru: 'Выберите лучшее определение.',
+        },
+        prompt: {
+          en: 'What does "concise" mean?',
+          ru: 'Что означает "concise"?',
+        },
+      },
+      choices: ['brief and clear', 'long and detailed', 'complicated', 'loud'],
+      correctIndex: 0,
     },
   ];
 
-  for (const item of diagnosticItems) {
-    const exists = await prisma.diagnosticItem.findFirst({
-      where: { prompt: item.prompt },
+  for (const content of samples) {
+    await prisma.vocabExercise.create({
+      data: {
+        cefrLevel: 'B1',
+        source: 'CURATED',
+        status: 'PUBLISHED',
+        content: content as object,
+        createdById: adminId,
+        reviewedById: adminId,
+      },
     });
-    if (!exists) {
-      await prisma.diagnosticItem.create({
-        data: {
-          ...item,
-          status: ContentStatus.PUBLISHED,
-          publishedAt: new Date(),
-          createdById: admin.id,
-          reviewedById: admin.id,
-          reviewedAt: new Date(),
-        },
-      });
-    }
   }
+}
 
-  // Sample exercises ─────────────────────────────────────────
-  console.info('  • Seeding sample exercises...');
-  const vocabSamples = [
+async function seedGrammar(adminId: string) {
+  const samples: GrammarContent[] = [
     {
-      cefrLevel: CefrLevel.B1,
-      prompt: 'What does "to postpone" mean?',
-      targetLexeme: 'postpone',
-      choices: ['to cancel', 'to delay', 'to repeat', 'to finish'],
-      correctIndex: 1,
-      explanation: '"To postpone" means to delay an event to a later time.',
-      skillTagId: vocabA2.id,
+      source: {
+        template: 'I ___ to school every day.',
+        acceptedAnswers: ['go', 'walk'],
+      },
+      localized: {
+        instructions: {
+          en: 'Fill in the blank with the correct verb form.',
+          ru: 'Заполните пропуск глаголом в правильной форме.',
+          uk: 'Заповніть пропуск дієсловом у правильній формі.',
+          de: 'Füllen Sie die Lücke mit der richtigen Verbform aus.',
+        },
+        hint: {
+          en: 'Use Present Simple — habitual action.',
+          ru: 'Используйте Present Simple — привычное действие.',
+        },
+        explanation: {
+          en: 'Present Simple is used for habits and routines.',
+          ru: 'Present Simple используется для привычек и регулярных действий.',
+        },
+      },
     },
     {
-      cefrLevel: CefrLevel.B2,
-      prompt: 'Choose the synonym of "to allocate".',
-      targetLexeme: 'allocate',
-      choices: ['to spend', 'to assign', 'to refuse', 'to collect'],
-      correctIndex: 1,
-      explanation: '"To allocate" means to distribute resources for a particular purpose.',
-      skillTagId: vocabB2.id,
+      source: {
+        template: 'She ___ been to Paris three times.',
+        acceptedAnswers: ['has'],
+      },
+      localized: {
+        instructions: {
+          en: 'Choose the correct auxiliary verb.',
+          ru: 'Выберите правильный вспомогательный глагол.',
+        },
+        explanation: {
+          en: "Present Perfect with 3rd person singular requires 'has'.",
+          ru: "Present Perfect с 3-м лицом единственного числа требует 'has'.",
+        },
+      },
     },
   ];
 
-  for (const sample of vocabSamples) {
-    const exists = await prisma.vocabExercise.findFirst({ where: { prompt: sample.prompt } });
-    if (!exists) {
-      await prisma.vocabExercise.create({
-        data: {
-          ...sample,
-          source: ExerciseSource.CURATED,
-          status: ContentStatus.PUBLISHED,
-          publishedAt: new Date(),
-          createdById: admin.id,
-          reviewedById: admin.id,
-          reviewedAt: new Date(),
-        },
-      });
-    }
+  for (const content of samples) {
+    await prisma.grammarExercise.create({
+      data: {
+        cefrLevel: 'B1',
+        source: 'CURATED',
+        status: 'PUBLISHED',
+        content: content as object,
+        createdById: adminId,
+        reviewedById: adminId,
+      },
+    });
   }
+}
 
-  const grammarSamples = [
+async function seedDiagnostic(adminId: string) {
+  const samples: Array<{
+    kind: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
+    level: string;
+    content: DiagnosticContent;
+  }> = [
     {
-      cefrLevel: CefrLevel.A2,
-      template: 'She usually ___ (drink) coffee in the morning.',
-      acceptedAnswers: ['drinks'],
-      hint: 'Third person singular, present simple.',
-      explanation: 'In the present simple, add -s for he/she/it.',
-      grammarPoint: 'present-simple-3rd-person',
-      skillTagId: grammarA1.id,
+      kind: 'GRAMMAR',
+      level: 'A2',
+      content: {
+        source: {
+          stem: 'I ___ a student.',
+          choices: ['am', 'is', 'are', 'be'],
+          correctIndex: 0,
+        },
+        localized: {
+          explanation: {
+            en: "1st person singular uses 'am'.",
+            ru: "1-е лицо единственного числа использует 'am'.",
+          },
+        },
+      },
     },
     {
-      cefrLevel: CefrLevel.B1,
-      template: 'I ___ (live) in Berlin for five years.',
-      acceptedAnswers: ['have lived', 'have been living'],
-      hint: 'Present perfect or present perfect continuous.',
-      explanation: 'Use present perfect for actions starting in the past and continuing now.',
-      grammarPoint: 'present-perfect',
-      skillTagId: grammarB1.id,
+      kind: 'GRAMMAR',
+      level: 'B1',
+      content: {
+        source: {
+          stem: 'If I ___ rich, I would travel the world.',
+          choices: ['was', 'were', 'am', 'be'],
+          correctIndex: 1,
+        },
+        localized: {
+          explanation: {
+            en: "Second conditional uses 'were' for all persons.",
+            ru: "Второе условное использует 'were' для всех лиц.",
+          },
+        },
+      },
+    },
+    {
+      kind: 'VOCAB',
+      level: 'B2',
+      content: {
+        source: {
+          stem: "The professor's explanation was so ___ that nobody understood.",
+          choices: ['lucid', 'convoluted', 'concise', 'simple'],
+          correctIndex: 1,
+        },
+        localized: {
+          explanation: {
+            en: "'Convoluted' means complicated and hard to follow.",
+            ru: "'Convoluted' означает запутанный и трудный для понимания.",
+          },
+        },
+      },
     },
   ];
 
-  for (const sample of grammarSamples) {
-    const exists = await prisma.grammarExercise.findFirst({ where: { template: sample.template } });
-    if (!exists) {
-      await prisma.grammarExercise.create({
-        data: {
-          ...sample,
-          source: ExerciseSource.CURATED,
-          status: ContentStatus.PUBLISHED,
-          publishedAt: new Date(),
-          createdById: admin.id,
-          reviewedById: admin.id,
-          reviewedAt: new Date(),
-        },
-      });
-    }
+  for (const s of samples) {
+    await prisma.diagnosticItem.create({
+      data: {
+        cefrLevel: s.level as 'A2' | 'B1' | 'B2',
+        kind: s.kind,
+        source: 'CURATED',
+        status: 'PUBLISHED',
+        content: s.content as object,
+        createdById: adminId,
+        reviewedById: adminId,
+      },
+    });
   }
+}
 
-  console.info('✅ Seed complete.');
+async function main() {
+  console.log('→ Seeding users…');
+  const { admin } = await seedUsers();
+  console.log(`  ✓ admin: ${admin.email}`);
+
+  console.log('→ Seeding vocab exercises…');
+  await seedVocab(admin.id);
+
+  console.log('→ Seeding grammar exercises…');
+  await seedGrammar(admin.id);
+
+  console.log('→ Seeding diagnostic items…');
+  await seedDiagnostic(admin.id);
+
+  console.log('✓ Seed complete.');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((err) => {
+    console.error(err);
     process.exit(1);
   })
   .finally(async () => {

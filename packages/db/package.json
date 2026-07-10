@@ -8,7 +8,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./queries/*": "./src/queries/*.ts"
+    "./queries/*": "./src/queries/*.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./schemas/exercises": "./src/schemas/exercises/index.ts",
+    "./generated/*": "./src/generated/*"
   },
   "scripts": {
     "generate": "prisma generate",
@@ -17,6 +20,7 @@
     "push": "prisma db push",
     "studio": "prisma studio",
     "seed": "tsx src/seed.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf src/generated .turbo node_modules"
   },
@@ -25,14 +29,18 @@
   },
   "dependencies": {
     "@prisma/client": "catalog:",
-    "bcryptjs": "catalog:"
+    "bcryptjs": "catalog:",
+    "server-only": "^0.0.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@englishlearn/config": "workspace:*",
     "@types/bcryptjs": "catalog:",
     "@types/node": "catalog:",
+    "fast-check": "catalog:",
     "prisma": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

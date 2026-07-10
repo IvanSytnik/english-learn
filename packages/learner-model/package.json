@@ -1,0 +1,33 @@
+{
+  "name": "@englishlearn/learner-model",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./core/graph": "./src/core/graph/index.ts",
+    "./seed": "./seed/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "seed:concepts": "tsx seed/run.ts",
+    "seed:items": "tsx seed/items/run.ts"
+  },
+  "dependencies": {
+    "@englishlearn/db": "workspace:*",
+    "server-only": "^0.0.1",
+    "zod": "catalog:",
+    "ts-fsrs": "catalog:"
+  },
+  "devDependencies": {
+    "@englishlearn/config": "workspace:*",
+    "@types/node": "catalog:",
+    "fast-check": "^3.23.2",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

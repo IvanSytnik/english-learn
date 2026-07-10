@@ -1,0 +1,141 @@
+// ============================================================================
+// PRISMA SCHEMA PATCH — Exercise content i18n migration
+// ============================================================================
+//
+// Apply these changes to `packages/db/prisma/schema.prisma`.
+// Replace the existing VocabExercise / GrammarExercise / ListeningExercise /
+// DiagnosticItem model bodies with the versions below.
+//
+// What changes:
+//   - All flat content columns (prompt, targetLexeme, choices, correctIndex,
+//     explanation, template, acceptedAnswers, hint, audioUrl, durationSec,
+//     transcript, payload, etc.) collapse into a single `content Json` column.
+//   - Metadata columns (cefrLevel, status, source, skillTagId, authorship,
+//     createdAt) are kept as columns — they are queryable, not content.
+//   - Attempt models are unchanged.
+//
+// ============================================================================
+
+model VocabExercise {
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
+
+  /// JSON payload validated by VocabContentSchema (packages/db/src/schemas/exercises/vocab.ts).
+  /// Structure: { source: { targetLexeme, exampleSentence? }, localized: { ... }, choices, correctIndex }
+  content       Json
+
+  generatorMeta Json?
+  createdById   String?
+  reviewedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  skillTag    SkillTag?      @relation(fields: [skillTagId], references: [id])
+  createdBy   User?          @relation("VocabCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id])
+  attempts    VocabAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status])
+}
+
+model GrammarExercise {
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
+
+  /// JSON payload validated by GrammarContentSchema.
+  /// Structure: { source: { template, acceptedAnswers }, localized: { instructions, hint?, explanation? } }
+  content       Json
+
+  generatorMeta Json?
+  createdById   String?
+  reviewedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  skillTag    SkillTag?        @relation(fields: [skillTagId], references: [id])
+  createdBy   User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id])
+  attempts    GrammarAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status])
+}
+
+model ListeningExercise {
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
+
+  /// JSON payload validated by ListeningContentSchema.
+  /// Structure: { source: { audioUrl, durationSec, transcript }, localized: { instructions, contextNote? }, questions: [...] }
+  content       Json
+
+  generatorMeta Json?
+  createdById   String?
+  reviewedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  skillTag    SkillTag?           @relation(fields: [skillTagId], references: [id])
+  createdBy   User?               @relation("ListeningCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?               @relation("ListeningReviewedBy", fields: [reviewedById], references: [id])
+  attempts    ListeningAttempt[]
+
+  @@index([cefrLevel, status])
+  @@index([skillTagId])
+  @@index([status])
+}
+
+model DiagnosticItem {
+  id            String         @id @default(cuid())
+  cefrLevel     CefrLevel
+  kind          DiagnosticKind
+  source        ExerciseSource @default(CURATED)
+  status        ContentStatus  @default(DRAFT)
+  skillTagId    String?
+
+  /// JSON payload validated by DiagnosticContentSchema.
+  /// Structure: { source: { stem, choices, correctIndex }, localized?: { explanation? } }
+  content       Json
+
+  generatorMeta Json?
+  createdById   String?
+  reviewedById  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  skillTag    SkillTag?            @relation(fields: [skillTagId], references: [id])
+  createdBy   User?                @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
+  reviewedBy  User?                @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id])
+  answers     DiagnosticAnswer[]
+
+  @@index([cefrLevel, kind, status])
+  @@index([status])
+}
+
+// ─── Enum reminder (no change, just for reference) ───────────────────────────
+//
+// enum ContentStatus {
+//   DRAFT
+//   REVIEW
+//   PUBLISHED
+//   ARCHIVED
+//   REJECTED
+// }
+//
+// enum DiagnosticKind {
+//   VOCAB_MULTIPLE_CHOICE
+//   GRAMMAR_FILL_BLANK
+//   LISTENING_TRANSCRIPTION
+// }
