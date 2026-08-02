@@ -2,7 +2,7 @@ import { bktStateToRow } from '../adapters/concept-mastery';
 import { fsrsStateToRow } from '../adapters/item-review-state';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
-import { applyItemAttempted } from './apply';
+import { applyItemAttempted, applyLearnerBootstrapped } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { parseEventRow } from './event-store';
 
@@ -45,17 +45,31 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
       if (page.length === 0) break;
 
       for (const row of page) {
-        const { payload, occurredAt } = parseEventRow(row);
-        const next = applyItemAttempted(
-          {
-            bkt: bktByConcept.get(payload.conceptId) ?? null,
-            fsrs: fsrsByItem.get(payload.itemId) ?? null,
-          },
-          payload,
-          occurredAt,
-        );
-        bktByConcept.set(payload.conceptId, next.bkt);
-        fsrsByItem.set(payload.itemId, next.fsrs);
+        const parsed = parseEventRow(row);
+
+        if (parsed.type === 'ITEM_ATTEMPTED') {
+          const { payload, occurredAt } = parsed;
+          const next = applyItemAttempted(
+            {
+              bkt: bktByConcept.get(payload.conceptId) ?? null,
+              fsrs: fsrsByItem.get(payload.itemId) ?? null,
+            },
+            payload,
+            occurredAt,
+          );
+          bktByConcept.set(payload.conceptId, next.bkt);
+          fsrsByItem.set(payload.itemId, next.fsrs);
+        } else {
+          // LEARNER_BOOTSTRAPPED: seeds N concept BKT states directly — no
+          // FSRS layer, no items exist yet at bootstrap time. Strictly-once
+          // guard in bootstrap-service guarantees this is always the user's
+          // first event, so it never overwrites practice-derived state.
+          const states = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
+          for (const s of states) {
+            bktByConcept.set(s.conceptId, s.bkt);
+          }
+        }
+
         eventsProcessed += 1;
       }
 
