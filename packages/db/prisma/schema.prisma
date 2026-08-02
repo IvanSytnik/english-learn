@@ -381,6 +381,12 @@ model DiagnosticItem {
   /// Structure: { source: { stem, choices, correctIndex }, localized?: { explanation? } }
   content       Json
 
+  /// IRT 2PL parameters. Neutral defaults until calibration (needs ≥500
+  /// diagnostic outcomes per item). Consumed only by the future irt2pl
+  /// ThetaEstimator; the accuracy-based estimator ignores them.
+  irtDiscrimination Float @default(1.0) // a
+  irtDifficulty     Float @default(0.0) // b
+
   generatorMeta Json?
   createdById   String?
   reviewedById  String?
@@ -620,6 +626,7 @@ model ItemReviewState {
 
 enum LearnerEventType {
   ITEM_ATTEMPTED
+  LEARNER_BOOTSTRAPPED
 }
 
 /// Append-only learner event log — the source of truth for the learner model.

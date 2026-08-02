@@ -1,4 +1,9 @@
-import { type ItemAttemptedPayload, ItemAttemptedPayloadSchema } from '@englishlearn/db/schemas';
+import {
+  type ItemAttemptedPayload,
+  ItemAttemptedPayloadSchema,
+  type LearnerBootstrappedPayload,
+  LearnerBootstrappedPayloadSchema,
+} from '@englishlearn/db/schemas';
 import type { IrtParams } from '../core/bkt/types';
 import type { FsrsRating } from '../core/fsrs/types';
 import type { LearnerEventInsert, LearnerEventRow } from './db-port';
@@ -7,7 +12,7 @@ import type { LearnerEventInsert, LearnerEventRow } from './db-port';
  * EventStore: the only place LearnerEvent payloads are constructed or parsed.
  *
  * Guarantees:
- *   - every payload written to the DB passed ItemAttemptedPayloadSchema,
+ *   - every payload written to the DB passed its per-type Zod schema,
  *   - every payload read during replay passes it again (fail-fast on drift).
  */
 
@@ -40,18 +45,61 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
   };
 }
 
+/**
+ * Build a LEARNER_BOOTSTRAPPED event.
+ *
+ * The payload is pre-computed by the diagnostic module (buildBootstrapSnapshots)
+ * and passed through here for schema validation + envelope construction, so the
+ * self-contained-snapshot invariant holds symmetrically with ITEM_ATTEMPTED.
+ */
+export function buildLearnerBootstrappedEvent(args: {
+  userId: string;
+  occurredAt: bigint;
+  payload: LearnerBootstrappedPayload;
+}): LearnerEventInsert {
+  const payload = LearnerBootstrappedPayloadSchema.parse(args.payload);
+  return {
+    userId: args.userId,
+    type: 'LEARNER_BOOTSTRAPPED',
+    occurredAt: args.occurredAt,
+    payload,
+  };
+}
+
 export type ParsedItemAttemptedEvent = {
+  type: 'ITEM_ATTEMPTED';
   occurredAt: bigint;
   payload: ItemAttemptedPayload;
 };
 
-/** Parse a stored event row back into a typed fact. Throws on invalid payload. */
-export function parseEventRow(row: LearnerEventRow): ParsedItemAttemptedEvent {
-  if (row.type !== 'ITEM_ATTEMPTED') {
-    throw new Error(`Unknown LearnerEvent type: ${String(row.type)}`);
+export type ParsedLearnerBootstrappedEvent = {
+  type: 'LEARNER_BOOTSTRAPPED';
+  occurredAt: bigint;
+  payload: LearnerBootstrappedPayload;
+};
+
+export type ParsedLearnerEvent = ParsedItemAttemptedEvent | ParsedLearnerBootstrappedEvent;
+
+/**
+ * Parse a stored event row into a typed, discriminated fact. Throws on invalid
+ * payload or unknown type. The discriminated union lets the replay fold switch
+ * exhaustively over event types.
+ */
+export function parseEventRow(row: LearnerEventRow): ParsedLearnerEvent {
+  switch (row.type) {
+    case 'ITEM_ATTEMPTED':
+      return {
+        type: 'ITEM_ATTEMPTED',
+        occurredAt: row.occurredAt,
+        payload: ItemAttemptedPayloadSchema.parse(row.payload),
+      };
+    case 'LEARNER_BOOTSTRAPPED':
+      return {
+        type: 'LEARNER_BOOTSTRAPPED',
+        occurredAt: row.occurredAt,
+        payload: LearnerBootstrappedPayloadSchema.parse(row.payload),
+      };
+    default:
+      throw new Error(`Unknown LearnerEvent type: ${String(row.type)}`);
   }
-  return {
-    occurredAt: row.occurredAt,
-    payload: ItemAttemptedPayloadSchema.parse(row.payload),
-  };
 }
