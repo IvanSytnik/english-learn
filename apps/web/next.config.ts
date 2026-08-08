@@ -1,3 +1,4 @@
+import path from 'node:path';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
@@ -6,12 +7,12 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: {
-    typedRoutes: true,
-  },
-  transpilePackages: ['@englishlearn/db', '@englishlearn/ai', '@englishlearn/ui'],
+  typedRoutes: true,
+  transpilePackages: ['@englishlearn/ai', '@englishlearn/ui'],
+  // Monorepo root, so file tracing doesn't stop at apps/web
+  outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
   // Prisma compatibility on serverless
-  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  serverExternalPackages: ['@prisma/client', 'bcryptjs', '@englishlearn/db'],
 };
 
 export default withNextIntl(nextConfig);
