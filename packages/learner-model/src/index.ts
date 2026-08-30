@@ -15,3 +15,39 @@ export * from './core/graph';
 export * from './core/graph/types';
 export * from './policy';
 export { createSelectionService, type SelectionService } from './service/selection-service';
+
+// Diagnostic v2: bootstrap pipeline (pure) + write-path service.
+export {
+  accuracyBasedEstimator,
+  buildBootstrapSnapshots,
+  categoryToAxis,
+  mapAccuracyToPKnown,
+  MAPPING_V1,
+  FORMULA_VERSION,
+  type ThetaEstimator,
+  type AxisEstimate,
+  type BootstrapConcept,
+  type ConceptCategoryValue,
+  type DiagnosticAnswerFact,
+  type MappingConstants,
+  type BootstrapInput,
+  type BootstrapOutput,
+} from './diagnostic';
+
+export {
+  createBootstrapService,
+  type BootstrapService,
+  type BootstrapInputData,
+  type BootstrapResult,
+  type BootstrapServiceDeps,
+} from './service/bootstrap-service';
+
+export { applyLearnerBootstrapped, type BootstrapConceptState } from './service/apply';
+
+export {
+  buildLearnerBootstrappedEvent,
+  parseEventRow,
+  type ParsedLearnerEvent,
+  type ParsedItemAttemptedEvent,
+  type ParsedLearnerBootstrappedEvent,
+} from './service/event-store';

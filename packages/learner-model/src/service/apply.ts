@@ -1,4 +1,4 @@
-import type { ItemAttemptedPayload } from '@englishlearn/db/schemas';
+import type { ItemAttemptedPayload, LearnerBootstrappedPayload } from '@englishlearn/db/schemas';
 import { initBktState, update } from '../core/bkt/model';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
@@ -39,4 +39,49 @@ export function applyItemAttempted(
   const { state: fsrs } = reviewCard(fsrsBefore, payload.rating, occurredAt);
 
   return { bkt, fsrs };
+}
+
+/** One concept's initial BKT state produced by a bootstrap fold. */
+export type BootstrapConceptState = {
+  conceptId: string;
+  bkt: BktState;
+};
+
+/**
+ * Fold a LEARNER_BOOTSTRAPPED event into a set of initial ConceptMastery
+ * states.
+ *
+ * Unlike applyItemAttempted this touches ONLY the BKT layer, and produces N
+ * states (one per snapshot in the payload) rather than a single pair — there
+ * are no items, hence no FSRS state, at bootstrap time.
+ *
+ * The snapshot is taken verbatim from the frozen payload; the mapping formula
+ * is NOT re-run here (it already ran in the diagnostic module before the event
+ * was written). This is what makes replay reproducible across formula versions:
+ * we persist the frozen result, we don't recompute it. The only value fold sets
+ * is lastUpdatedAt = occurredAt, so forgetting decay is anchored correctly.
+ *
+ * Precondition (enforced by bootstrap-service, not here): this is the user's
+ * FIRST event, so every concept in the payload has no prior BktState. Fold is
+ * pure and does not read existing state — a stray second bootstrap would blindly
+ * overwrite, which is exactly why the service guards strictly-once.
+ */
+export function applyLearnerBootstrapped(
+  payload: LearnerBootstrappedPayload,
+  occurredAt: bigint,
+): BootstrapConceptState[] {
+  const atMs = Number(occurredAt);
+
+  return payload.snapshots.map((s) => ({
+    conceptId: s.conceptId,
+    bkt: {
+      pKnown: s.pKnown,
+      pLearn: s.pLearn,
+      pSlip: s.pSlip,
+      pGuess: s.pGuess,
+      pForgetLambda: s.pForgetLambda,
+      lastUpdatedAt: atMs,
+      observationCount: 0,
+    },
+  }));
 }

@@ -41,6 +41,10 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
       });
     },
 
+    async countEvents(userId: string): Promise<number> {
+      return tx.learnerEvent.count({ where: { userId } });
+    },
+
     async getConceptMastery(userId, conceptId) {
       const row = await tx.conceptMastery.findUnique({
         where: { userId_conceptId: { userId, conceptId } },
