@@ -21,17 +21,17 @@ export type ItemForOutcome = {
 
 export type LearnerEventInsert = {
   userId: string;
-  type: 'ITEM_ATTEMPTED';
+  type: 'ITEM_ATTEMPTED' | 'LEARNER_BOOTSTRAPPED';
   /** Unix ms. */
   occurredAt: bigint;
-  /** Pre-validated by ItemAttemptedPayloadSchema — see event-store.ts. */
+  /** Pre-validated by the per-type payload schema — see event-store.ts. */
   payload: unknown;
 };
 
 export type LearnerEventRow = {
   id: string;
   userId: string;
-  type: 'ITEM_ATTEMPTED';
+  type: 'ITEM_ATTEMPTED' | 'LEARNER_BOOTSTRAPPED';
   occurredAt: bigint;
   payload: unknown;
 };
@@ -39,6 +39,13 @@ export type LearnerEventRow = {
 /** Operations available inside a transaction. */
 export type LearnerModelTx = {
   appendEvent(event: LearnerEventInsert): Promise<void>;
+
+  /**
+   * Number of events already recorded for this user. Used by the bootstrap
+   * strictly-once guard (decision 7.a): bootstrap is only valid as the user's
+   * first event. Counted inside the tx so concurrent diagnostics can't race.
+   */
+  countEvents(userId: string): Promise<number>;
 
   getConceptMastery(userId: string, conceptId: string): Promise<ConceptMasteryRow | null>;
   upsertConceptMastery(
