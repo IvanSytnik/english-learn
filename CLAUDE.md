@@ -87,3 +87,4 @@ The current diagnostic is a pseudo-CAT (simple 2-right-levels-up / 2-wrong-level
 - `next-auth` v5 is still beta but is the de-facto standard in use here.
 - Tailwind v4 is CSS-first config (`@theme` in `globals.css`) — there is no `tailwind.config.ts`.
 - Working language convention (per HANDOFF.md): chat in Russian, but all code/docs/UI/commit messages are in English — don't mix.
+- Read `docs/` for project context: HANDOFF (current state), ARCHITECTURE, CONVENTIONS, PRODUCT, STACK.
