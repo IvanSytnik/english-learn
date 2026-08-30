@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "pnpm --filter @englishlearn/db generate && next build",    "start": "next start",
+    "build": "pnpm --filter @englishlearn/db generate && next build",
+    "start": "next start",
     "lint": "biome lint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
