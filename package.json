@@ -29,5 +29,14 @@
     "@biomejs/biome": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "sharp"
+    ]
   }
 }
