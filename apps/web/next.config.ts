@@ -11,8 +11,11 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@englishlearn/ai', '@englishlearn/ui'],
   // Monorepo root, so file tracing doesn't stop at apps/web
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
+  outputFileTracingIncludes: {
+    '/**/*': ['../../packages/db/src/generated/client/**/*'],
+  },
   // Prisma compatibility on serverless
-  serverExternalPackages: ['@prisma/client', 'bcryptjs', '@englishlearn/db'],
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
 };
 
 export default withNextIntl(nextConfig);
