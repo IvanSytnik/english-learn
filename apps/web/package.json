@@ -21,6 +21,7 @@
     "@englishlearn/db": "workspace:*",
     "@englishlearn/ui": "workspace:*",
     "@hookform/resolvers": "catalog:",
+    "@prisma/client": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
     "@tanstack/react-query": "catalog:",
     "bcryptjs": "catalog:",
@@ -51,6 +52,7 @@
     "@vitejs/plugin-react": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "jsdom": "catalog:",
+    "prisma": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
