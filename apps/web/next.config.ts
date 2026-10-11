@@ -13,11 +13,13 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@englishlearn/ai', '@englishlearn/ui'],
   // Monorepo root, so file tracing doesn't stop at apps/web
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
+  // The generated client loads query_compiler_bg.wasm via fs at runtime, which
+  // file tracing can't see — ship the generated directory explicitly.
   outputFileTracingIncludes: {
     '/**/*': ['../../packages/db/src/generated/client/**/*'],
   },
-  // Prisma compatibility on serverless
-  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  // @prisma/client and pg are already in Next's default server externals.
+  serverExternalPackages: ['bcryptjs'],
 };
 
 export default withNextIntl(nextConfig);
