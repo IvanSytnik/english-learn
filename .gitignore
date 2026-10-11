@@ -48,3 +48,8 @@ next-env.d.ts
 
 # Prisma generated client (per-platform binaries)
 packages/db/src/generated/
+
+# Local AI tooling
+.claude/
+skills-lock.json
+.impeccable/
