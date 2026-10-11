@@ -16,7 +16,8 @@
       "!**/coverage",
       "!**/playwright-report",
       "!**/src/generated",
-      "!**/messages"
+      "!**/messages",
+      "!.claude"
     ]
   },
   "formatter": {
@@ -64,7 +65,8 @@
   },
   "css": {
     "parser": {
-      "cssModules": true
+      "cssModules": true,
+      "tailwindDirectives": true
     }
   },
   "assist": {
