@@ -37,7 +37,7 @@ Vitest does **not** type-check `__tests__` files — a green test run is not the
 
 ## Monorepo layout
 
-- `apps/web` — the only app. Route groups under `app/[locale]/`: `(marketing)`, `(auth)`, `(student)`, `(admin)`. `proxy.ts` (Next 16's replacement for `middleware.ts`) enforces RBAC via the `authorized` callback — no separate admin app; one auth, one Prisma client, one deploy.
+- `apps/web` — the only app. Route groups under `app/[locale]/`: `(marketing)`, `(auth)`, `(student)`; admin pages live in a real `admin/` segment (URLs are `/admin/*`) so the proxy prefix check applies. `proxy.ts` (Next 16's replacement for `middleware.ts`) enforces RBAC via the `authorized` callback — no separate admin app; one auth, one Prisma client, one deploy.
   - **`apps/web/src/` is dead scaffolding** — every directory in it is empty (0 files). The real source tree is `apps/web/app/`, `apps/web/components/`, `apps/web/lib/`, `apps/web/i18n/`. Don't be misled by the near-duplicate tree; don't add files under `src/`.
 - `packages/db` — Prisma schema (`prisma/schema.prisma`), generated client (custom output path `src/generated/client` — don't relocate without updating imports), queries, Zod schemas for JSON content, seed script.
 - `packages/learner-model` — the core domain logic (see Architecture below). This is where most non-UI feature work happens.

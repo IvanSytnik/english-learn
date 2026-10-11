@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authConfig } from '@/lib/auth.config';
+import { authConfig, stripLocale } from '@/lib/auth.config';
 
 describe('authConfig.authorized', () => {
   const make = (
@@ -31,5 +31,40 @@ describe('authConfig.authorized', () => {
 
   it('allows admins on /admin', () => {
     expect(make({ user: { id: '1', role: 'ADMIN' } }, '/admin/content/vocab')).toBe(true);
+  });
+
+  it('allows guests on localized public pages', () => {
+    expect(make(null, '/ru')).toBe(true);
+    expect(make(null, '/ru/login')).toBe(true);
+    expect(make(null, '/de/register')).toBe(true);
+  });
+
+  it('blocks guests from localized protected pages', () => {
+    expect(make(null, '/uk/dashboard')).toBe(false);
+  });
+
+  it('blocks students from localized /admin', () => {
+    expect(make({ user: { id: '1', role: 'STUDENT' } }, '/ru/admin/users')).toBe(false);
+  });
+
+  it('allows admins on localized /admin', () => {
+    expect(make({ user: { id: '1', role: 'ADMIN' } }, '/ru/admin/users')).toBe(true);
+  });
+
+  it('does not treat look-alike prefixes as public or admin', () => {
+    expect(make(null, '/login-history')).toBe(false);
+    expect(make({ user: { id: '1', role: 'STUDENT' } }, '/administrator')).toBe(true);
+  });
+});
+
+describe('stripLocale', () => {
+  it('strips a known locale prefix', () => {
+    expect(stripLocale('/ru/admin/users')).toBe('/admin/users');
+    expect(stripLocale('/de')).toBe('/');
+  });
+
+  it('leaves unprefixed and look-alike paths alone', () => {
+    expect(stripLocale('/admin')).toBe('/admin');
+    expect(stripLocale('/russia')).toBe('/russia');
   });
 });

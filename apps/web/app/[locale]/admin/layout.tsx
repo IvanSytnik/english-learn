@@ -1,13 +1,12 @@
-import { redirect } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
-import { Link } from '@/i18n/navigation';
+import { Link, redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') {
-    redirect('/login');
+    redirect({ href: '/login', locale: await getLocale() });
   }
 
   const t = await getTranslations('admin.nav');

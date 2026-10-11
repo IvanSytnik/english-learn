@@ -1,4 +1,13 @@
 import type { NextAuthConfig } from 'next-auth';
+import { routing } from '../i18n/routing';
+
+// `localePrefix: 'as-needed'` means paths may or may not start with a locale.
+const LOCALE_PREFIX = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`);
+
+/** `/ru/admin/users` → `/admin/users`, `/ru` → `/`. */
+export function stripLocale(pathname: string): string {
+  return pathname.replace(LOCALE_PREFIX, '') || '/';
+}
 
 /**
  * Edge-safe Auth.js config (used in proxy.ts).
@@ -12,23 +21,25 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const path = nextUrl.pathname;
+      const path = stripLocale(nextUrl.pathname);
 
       const isPublic =
         path === '/' ||
-        path.startsWith('/login') ||
-        path.startsWith('/register') ||
+        path === '/login' ||
+        path.startsWith('/login/') ||
+        path === '/register' ||
+        path.startsWith('/register/') ||
         path.startsWith('/api/auth');
 
       if (isPublic) return true;
       if (!isLoggedIn) return false;
 
       // Admin routes require ADMIN role.
-      if (path.startsWith('/admin')) {
+      if (path === '/admin' || path.startsWith('/admin/')) {
         return auth.user.role === 'ADMIN';
       }
       // Tutor routes require TUTOR or ADMIN.
-      if (path.startsWith('/tutor')) {
+      if (path === '/tutor' || path.startsWith('/tutor/')) {
         return auth.user.role === 'TUTOR' || auth.user.role === 'ADMIN';
       }
       return true;

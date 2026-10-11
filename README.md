@@ -141,7 +141,7 @@ englishlearn/
 │       │   │   ├── (marketing)/       # public landing
 │       │   │   ├── (auth)/            # login, register (+ server action)
 │       │   │   ├── (student)/         # dashboard, diagnostic, exercises
-│       │   │   └── (admin)/           # content moderation, users, ai-review
+│       │   │   └── admin/             # /admin/* — content moderation, users, ai-review
 │       │   └── api/auth/[...nextauth]/
 │       ├── i18n/                      # routing, request config, navigation
 │       ├── lib/                       # auth.ts, auth.config.ts, env.ts
@@ -369,7 +369,7 @@ The configuration is split in two on purpose:
 - `lib/auth.config.ts` — edge-safe. No adapter, no providers, just the `authorized`, `jwt` and `session` callbacks. This is what `proxy.ts` imports, so route protection runs without pulling Prisma into the edge bundle.
 - `lib/auth.ts` — the full instance with the Prisma adapter and the credentials provider, used by the route handler and server-side code.
 
-Authorization is role-based (`STUDENT`, `TUTOR`, `ADMIN`) and enforced by path prefix in the `authorized` callback: `/`, `/login`, `/register` and `/api/auth` are public; `/admin` requires `ADMIN`; `/tutor` requires `TUTOR` or `ADMIN`; everything else requires a session. The role is written into the JWT on sign-in and surfaced on the session, with the `next-auth` module augmented in `types/next-auth.d.ts` so `session.user.role` is typed.
+Authorization is role-based (`STUDENT`, `TUTOR`, `ADMIN`) and enforced by path prefix in the `authorized` callback (the locale prefix, e.g. `/ru`, is stripped first): `/`, `/login`, `/register` and `/api/auth` are public; `/admin` requires `ADMIN`; `/tutor` requires `TUTOR` or `ADMIN`; everything else requires a session. The role is written into the JWT on sign-in and surfaced on the session, with the `next-auth` module augmented in `types/next-auth.d.ts` so `session.user.role` is typed.
 
 ---
 
