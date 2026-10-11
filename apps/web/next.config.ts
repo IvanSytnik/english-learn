@@ -1,5 +1,7 @@
 import path from 'node:path';
 import createNextIntlPlugin from 'next-intl/plugin';
+// Fail the build early on missing/invalid env vars.
+import './lib/env';
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 

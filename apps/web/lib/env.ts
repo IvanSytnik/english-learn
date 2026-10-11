@@ -1,9 +1,17 @@
 import { createEnv } from '@t3-oss/env-nextjs';
 import { z } from 'zod';
 
+/**
+ * Validated at build time via the import in next.config.ts, so a Vercel deploy
+ * with missing secrets fails the build instead of the first request.
+ * Set SKIP_ENV_VALIDATION=1 to bypass (CI, Docker image builds).
+ */
 export const env = createEnv({
   server: {
+    // Pooled URL (Neon `-pooler` host) — used by the runtime Prisma client.
     DATABASE_URL: z.string().url(),
+    // Direct (non-pooler) URL — used only by the Prisma CLI for migrations.
+    DIRECT_URL: z.string().url().optional(),
     AUTH_SECRET: z.string().min(16),
     AUTH_URL: z.string().url().optional(),
     AUTH_GOOGLE_ID: z.string().optional(),
@@ -15,4 +23,5 @@ export const env = createEnv({
   client: {},
   experimental__runtimeEnv: {},
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  emptyStringAsUndefined: true,
 });

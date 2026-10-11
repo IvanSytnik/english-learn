@@ -22,9 +22,8 @@
         "DATABASE_URL",
         "DIRECT_URL",
         "AUTH_SECRET",
-        "AUTH_TRUST_HOST",
-        "HEALTH_TOKEN"
-      ]    
+        "SKIP_ENV_VALIDATION"
+      ]
     },
     "dev": {
       "cache": false,
