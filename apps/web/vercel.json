@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm build --filter=@englishlearn/web",
+  "ignoreCommand": "npx turbo-ignore@2.10.0 @englishlearn/web",
+  "regions": ["fra1"]
+}
