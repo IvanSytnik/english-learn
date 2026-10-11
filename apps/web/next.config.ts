@@ -13,10 +13,16 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@englishlearn/ai', '@englishlearn/ui'],
   // Monorepo root, so file tracing doesn't stop at apps/web
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
-  // The generated client loads query_compiler_bg.wasm via fs at runtime, which
-  // file tracing can't see — ship the generated directory explicitly.
-  outputFileTracingIncludes: {
-    '/**/*': ['../../packages/db/src/generated/client/**/*'],
+  // No outputFileTracingIncludes for Prisma: the prisma-client generator imports
+  // the query compiler as a JS module, so normal tracing picks it up.
+  // Tracing @prisma/client/runtime pulls every provider's wasm (~57 MiB); we
+  // only need the Postgres query compiler (engineType "client" never loads
+  // query_engine_bg.*).
+  outputFileTracingExcludes: {
+    '/**/*': [
+      '../../node_modules/.pnpm/**/@prisma/client/runtime/query_engine_bg.*',
+      '../../node_modules/.pnpm/**/@prisma/client/runtime/query_compiler_bg.{cockroachdb,mysql,sqlite,sqlserver}.*',
+    ],
   },
   // @prisma/client and pg are already in Next's default server externals.
   serverExternalPackages: ['bcryptjs'],
