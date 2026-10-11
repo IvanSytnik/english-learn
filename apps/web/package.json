@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "check:bundle": "tsx scripts/check-vercel-bundle.ts",
     "clean": "rm -rf .next .turbo node_modules"
   },
   "dependencies": {
@@ -57,6 +58,7 @@
     "jsdom": "catalog:",
     "prisma": "catalog:",
     "tailwindcss": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
