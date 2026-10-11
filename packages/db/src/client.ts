@@ -1,6 +1,6 @@
 import 'server-only';
 import { createPrismaClient } from './create-client';
-import type { PrismaClient } from './generated/client/index';
+import type { PrismaClient } from './generated/client/client';
 
 /**
  * Singleton Prisma client.

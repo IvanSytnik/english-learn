@@ -1,5 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { type Prisma, PrismaClient } from './generated/client/index';
+import { type Prisma, PrismaClient } from './generated/client/client';
 
 type CreatePrismaClientOptions = Omit<
   Prisma.PrismaClientOptions,

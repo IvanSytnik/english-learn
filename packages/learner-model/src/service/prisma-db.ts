@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/index.js';
+import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import type {
   CandidateItemRow,
   ConceptCountsRow,

@@ -1,3 +1,3 @@
 export { prisma } from './client';
-export * from './generated/client/index';
+export * from './generated/client/client';
 export * from './schemas';

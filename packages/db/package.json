@@ -20,13 +20,13 @@
     "migrate:deploy": "prisma migrate deploy",
     "push": "prisma db push",
     "studio": "prisma studio",
-    "seed": "tsx src/seed.ts",
+    "seed": "tsx --env-file-if-exists=.env src/seed.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf src/generated .turbo node_modules"
   },
   "prisma": {
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx --env-file-if-exists=.env src/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "catalog:",

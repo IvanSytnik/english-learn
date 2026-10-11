@@ -2,10 +2,16 @@
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider   = "prisma-client-js"
-  output     = "../src/generated/client"
-  // Rust-free: TS/wasm query compiler + driver adapter (see src/create-client.ts).
-  engineType = "client"
+  // `prisma-client` (not `prisma-client-js`): emits TS sources that import the
+  // query compiler as a JS module (wasm inlined as base64). prisma-client-js
+  // read the .wasm from disk via a __dirname/cwd fallback that breaks once
+  // Turbopack bundles it on Vercel.
+  provider            = "prisma-client"
+  output              = "../src/generated/client"
+  // Rust-free: wasm query compiler + driver adapter (see src/create-client.ts).
+  engineType          = "client"
+  moduleFormat        = "esm"
+  importFileExtension = ""
 }
 
 datasource db {
