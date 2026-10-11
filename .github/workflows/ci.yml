@@ -51,8 +51,8 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
-      - name: Push schema to test DB
-        run: pnpm --filter @englishlearn/db push
+      - name: Apply migrations to test DB
+        run: pnpm --filter @englishlearn/db migrate:deploy
 
       - name: Lint
         run: pnpm lint
@@ -100,7 +100,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm --filter @englishlearn/db push
+      - run: pnpm --filter @englishlearn/db migrate:deploy
       - run: pnpm --filter @englishlearn/db seed
 
       - name: Install Playwright browsers
