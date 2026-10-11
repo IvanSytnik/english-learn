@@ -21,9 +21,11 @@
 // an advisory lock behind. The deletes are ordered by FK dependency and the
 // script is idempotent — re-running it is the recovery path.
 
-import { PrismaClient } from '../src/generated/client';
+import { createPrismaClient } from '../src/create-client';
 
-const prisma = new PrismaClient({ log: ['error'] });
+// Validate first so a missing/bad URL gets the explicit refusal below.
+targetHost();
+const prisma = createPrismaClient(process.env.DATABASE_URL, { log: ['error'] });
 
 /** Deletion order: children before parents. */
 const STEPS = [

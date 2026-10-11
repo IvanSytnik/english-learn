@@ -5,14 +5,14 @@
 //
 // Existing patterns kept from previous seed:
 //   - bcryptjs password hashing
-//   - PrismaClient imported directly from generated/client (CLI-safe)
+//   - client built via createPrismaClient (CLI-safe: no server-only)
 //   - Admin + student fixed accounts
 
 import { hash } from 'bcryptjs';
-import { PrismaClient } from './generated/client/index.js';
+import { createPrismaClient } from './create-client';
 import type { DiagnosticContent, GrammarContent, VocabContent } from './schemas';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 
 async function seedUsers() {
   const adminPassword = await hash('admin1234', 10);

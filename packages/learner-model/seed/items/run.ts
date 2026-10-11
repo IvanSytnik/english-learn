@@ -8,16 +8,16 @@
  * against the kind-matched Zod schema BEFORE any DB write — a malformed
  * seed item aborts the whole run with a readable error.
  *
- * PrismaClient is imported by package name — that works here because
+ * The client factory is imported by package name — that works here because
  * learner-model is a DIFFERENT package from db (the self-import pitfall
  * from HANDOFF #26 applies only inside packages/db itself).
  */
 
-import { PrismaClient } from '@englishlearn/db/generated/client/index.js';
+import { createPrismaClient } from '@englishlearn/db/create-client';
 import { safeParseItemContent } from '@englishlearn/db/schemas';
 import { ALL_ITEMS } from './index';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 
 async function main() {
   console.log(`→ Validating ${ALL_ITEMS.length} seed items…`);

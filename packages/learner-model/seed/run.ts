@@ -5,17 +5,17 @@
  * Run from packages/learner-model:
  *   pnpm seed:concepts
  *
- * Note: we instantiate PrismaClient directly here (instead of importing the
- * `prisma` singleton from @englishlearn/db) because that module is marked
+ * Note: we build a client via createPrismaClient here (instead of importing
+ * the `prisma` singleton from @englishlearn/db) because that module is marked
  * "server-only" for Next.js safety, which blocks plain Node CLI execution.
  * A fresh client per CLI invocation is fine — HMR concerns don't apply here.
  */
 
-import { PrismaClient } from '@englishlearn/db/generated/client/index.js';
+import { createPrismaClient } from '@englishlearn/db/create-client';
 import { buildGraph } from '../src/core/graph/build';
 import { SEED_GRAPH } from './index';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(process.env.DATABASE_URL);
 
 async function main() {
   // 1. Validate the graph in memory first. If this throws, nothing hits the DB.
