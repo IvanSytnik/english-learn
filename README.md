@@ -4,7 +4,7 @@ Adaptive English learning platform built around an explicit, testable model of w
 
 Most language apps schedule content with a single heuristic — a review queue, or a fixed syllabus. EnglishLearn separates the problem into three layers (prerequisite graph, per-concept mastery, per-item memory) and puts a bandit policy on top to decide what to show next. The learner model is implemented as a standalone, side-effect-free package with property-based tests, independent of the web app.
 
-**Status:** pre-release (MVP-0.5). The learner model, database schema, authentication and i18n routing are implemented and tested. The web application is a functional scaffold: routes, auth and locale handling work, but the adaptive exercise UI is not yet wired to the selection policy. Nothing has been released to end users. Sections below mark what is implemented and what is not.
+**Status:** pre-launch (MVP-1 in progress). The learner model, database schema, authentication and i18n routing are implemented and tested. The web app is deployed to Vercel and the production deployment is live — health check, registration and login work — but it is not publicly launched and has no users. The adaptive exercise UI is not yet wired to the selection policy. Sections below mark what is implemented and what is not.
 
 ---
 
@@ -55,7 +55,7 @@ Versions are pinned centrally in `pnpm-workspace.yaml` via pnpm catalogs and ref
 | Framework | Next.js 16.2.9, React 19.2.7 | App Router, server components, `proxy.ts` (Next 16 replacement for middleware) |
 | Language | TypeScript 6.0.3 | `moduleResolution: "Bundler"`, strict, `noUncheckedIndexedAccess` |
 | Database | PostgreSQL (Neon) | Primary datastore |
-| ORM | Prisma 6.16.2 | Schema, migrations, generated client with `rhel-openssl-3.0.x` target for serverless |
+| ORM | Prisma 6.16.2 + `@prisma/adapter-pg` | Schema and migrations; Rust-free client (`prisma-client` generator, `engineType = "client"`) over node-postgres |
 | Auth | Auth.js v5 (`next-auth@5.0.0-beta.31`) | JWT sessions, credentials provider, Prisma adapter |
 | Validation | Zod 4.4 | Content payloads, event payloads, credentials, env parsing |
 | Spaced repetition | `ts-fsrs` 5.2.3 | FSRS scheduling, imported by exactly one wrapper module |
@@ -67,7 +67,7 @@ Versions are pinned centrally in `pnpm-workspace.yaml` via pnpm catalogs and ref
 | Testing | Vitest 4.1.9, fast-check 3.23.2, Playwright 1.61 | Unit, property-based and end-to-end tests |
 | Tooling | Turborepo 2.10, pnpm 10 (catalogs), Biome 2.5 | Task orchestration, dependency pinning, lint + format |
 | CI | GitHub Actions | Lint, typecheck, test, build, and a separate Playwright job against a Postgres service container |
-| Runtime | Node.js ≥ 22 | Enforced via `engines` and `.nvmrc` |
+| Runtime | Node.js 22.x | `engines` in the root and `apps/web` `package.json` (Vercel reads the latter), plus `.nvmrc` |
 
 ---
 
@@ -142,12 +142,14 @@ englishlearn/
 │       │   │   ├── (auth)/            # login, register (+ server action)
 │       │   │   ├── (student)/         # dashboard, diagnostic, exercises
 │       │   │   └── admin/             # /admin/* — content moderation, users, ai-review
-│       │   └── api/auth/[...nextauth]/
+│       │   └── api/                   # auth/[...nextauth], health
 │       ├── i18n/                      # routing, request config, navigation
 │       ├── lib/                       # auth.ts, auth.config.ts, env.ts
 │       ├── messages/                  # en.json, ru.json, uk.json, de.json
+│       ├── scripts/                   # check-vercel-bundle.ts (pnpm check:bundle)
 │       ├── tests/                     # unit (vitest) + e2e (playwright)
-│       └── proxy.ts                   # Next 16 middleware replacement
+│       ├── proxy.ts                   # Next 16 middleware replacement
+│       └── vercel.json                # Vercel project config (Root Directory = apps/web)
 ├── packages/
 │   ├── db/
 │   │   ├── prisma/                    # schema.prisma + 7 migrations
@@ -168,13 +170,12 @@ englishlearn/
 │   └── config/                        # shared tsconfig presets
 ├── .github/workflows/ci.yml
 ├── turbo.json
-├── pnpm-workspace.yaml                # dependency catalog
-└── vercel.json
+└── pnpm-workspace.yaml                # dependency catalog
 ```
 
 Key boundaries:
 
-- **`packages/db`** is the only place Prisma is instantiated. It also owns the Zod schemas that validate every JSON column before it reaches the database.
+- **`packages/db`** is the only place Prisma is instantiated: every client — the Next.js singleton, seeds and scripts — is built by `createPrismaClient(url)` from `@englishlearn/db/create-client`, which wires in the driver adapter. It also owns the Zod schemas that validate every JSON column before it reaches the database.
 - **`packages/learner-model`** contains no I/O in `core/`, `policy/`, `diagnostic/` or `adapters/`. Database access is isolated behind a `LearnerModelDb` port with a single Prisma implementation, which is what makes the service layer testable with an in-memory fake.
 - **`packages/config`** holds four tsconfig presets (`base`, `library`, `nextjs`, `react-library`) that every workspace extends.
 
@@ -233,10 +234,10 @@ printf 'DATABASE_URL="..."\nDIRECT_URL="..."\n' > packages/db/.env
 | Variable | Required | Description |
 | --- | ---: | --- |
 | `DATABASE_URL` | Yes | Postgres connection string. On Neon this is the **pooled** endpoint, used at runtime. |
-| `DIRECT_URL` | Yes | Direct (non-pooled) connection, declared as `directUrl` in the Prisma datasource. Required for migrations and DDL — a connection pooler can silently drop schema changes. |
+| `DIRECT_URL` | For the Prisma CLI | Direct (non-pooled) connection, declared as `directUrl` in the Prisma datasource. Required for Prisma CLI commands and migrations (a connection pooler can silently drop schema changes); not used at runtime. |
 | `AUTH_SECRET` | Yes | Auth.js signing secret. Generate with `openssl rand -base64 32`. |
 | `AUTH_URL` | No | Auto-detected on Vercel; set explicitly when self-hosting. |
-| `AUTH_TRUST_HOST` | No | Set behind a reverse proxy or on a serverless host. |
+| `AUTH_TRUST_HOST` | No | Set to `true` when running `next start` locally or self-hosting; not needed on Vercel (Auth.js trusts the host automatically there). |
 | `AUTH_GOOGLE_ID` | No | Reserved. Google OAuth is not wired — only the credentials provider is registered. |
 | `AUTH_GOOGLE_SECRET` | No | Reserved, as above. |
 | `ANTHROPIC_API_KEY` | No | Reserved for the AI layer; not consumed by any code yet. |
@@ -295,7 +296,7 @@ pnpm check        # Biome lint + format, applying fixes
 | `pnpm test:e2e` | Playwright end-to-end tests |
 | `pnpm db:generate` | Generate the Prisma client |
 | `pnpm db:migrate` | `prisma migrate dev` |
-| `pnpm db:push` | `prisma db push` (used by CI against a throwaway database) |
+| `pnpm db:push` | `prisma db push` (local prototyping only; CI applies migrations) |
 | `pnpm db:seed` | Seed users, skill tags and exercises |
 | `pnpm db:studio` | Prisma Studio |
 | `pnpm clean` | Remove build artifacts and `node_modules` |
@@ -339,12 +340,25 @@ The database port abstraction is what makes the service layer testable without a
 
 `.github/workflows/ci.yml` runs on pushes and pull requests to `main`. Two jobs, both against a `postgres:16` service container with a health check:
 
-1. **`ci`** — install, generate Prisma client, push schema, lint, typecheck, unit tests, build.
+1. **`ci`** — install, generate Prisma client, apply migrations (`migrate deploy`), lint, typecheck, unit tests, build.
 2. **`e2e`** — depends on `ci`; seeds the database, installs Chromium, runs Playwright, uploads the report as an artifact with 7-day retention.
 
 ### Deployment configuration
 
-`vercel.json` configures a monorepo build (install and build both run from the workspace root with a `--filter` on the web app) and an `ignoreCommand` that skips deploys when neither `apps/web` nor `packages` changed. `next.config.ts` sets `outputFileTracingRoot` to the monorepo root and explicitly traces the generated Prisma client, and marks `@prisma/client` and `bcryptjs` as external server packages for the serverless runtime. The Prisma generator emits an `rhel-openssl-3.0.x` binary target alongside the native one.
+`apps/web/vercel.json` (the Vercel project's Root Directory is `apps/web`) configures a monorepo build — install and build both run from the workspace root with a `--filter` on the web app — pins functions to the `fra1` region next to Neon, and uses `npx turbo-ignore@2.10.0 @englishlearn/web` as the `ignoreCommand`, so a deploy is skipped when nothing in the web app's dependency graph changed since the last successful deployment.
+
+Prisma runs Rust-free: the `prisma-client` generator with `engineType = "client"` emits TypeScript sources that import the query compiler as a JS module (wasm inlined as base64), and queries go through `@prisma/adapter-pg`. There is no native engine binary to ship and no filesystem lookup for the bundler to break. `next.config.ts` sets `outputFileTracingRoot` to the monorepo root and uses `outputFileTracingExcludes` to drop the non-Postgres compilers and unused engine wasm that tracing `@prisma/client/runtime` would otherwise pull in.
+
+Before pushing changes that affect packaging (Prisma, `next.config.ts`, dependencies), verify the function bundle locally:
+
+```bash
+cd apps/web
+vercel pull --yes --environment=production
+SKIP_ENV_VALIDATION=1 vercel build --prod --yes
+pnpm --filter @englishlearn/web check:bundle
+```
+
+`check:bundle` reads the built `register` and `api/health` functions and fails if the query compiler the client will load at runtime is not shipped.
 
 ---
 

@@ -39,13 +39,12 @@ Vitest does **not** type-check `__tests__` files — a green test run is not the
 
 - `apps/web` — the only app. Route groups under `app/[locale]/`: `(marketing)`, `(auth)`, `(student)`; admin pages live in a real `admin/` segment (URLs are `/admin/*`) so the proxy prefix check applies. `proxy.ts` (Next 16's replacement for `middleware.ts`) enforces RBAC via the `authorized` callback — no separate admin app; one auth, one Prisma client, one deploy.
   - **`apps/web/src/` is dead scaffolding** — every directory in it is empty (0 files). The real source tree is `apps/web/app/`, `apps/web/components/`, `apps/web/lib/`, `apps/web/i18n/`. Don't be misled by the near-duplicate tree; don't add files under `src/`.
-- `packages/db` — Prisma schema (`prisma/schema.prisma`), generated client (custom output path `src/generated/client` — don't relocate without updating imports), queries, Zod schemas for JSON content, seed script.
+- `packages/db` — Prisma schema (`prisma/schema.prisma`), generated client (`prisma-client` generator, `engineType = "client"`, output `src/generated/client`, entrypoint `generated/client/client` — don't relocate without updating imports), the client factory `createPrismaClient(url)` (`@englishlearn/db/create-client`, the **only** place a `PrismaClient` is constructed; it wires in `@prisma/adapter-pg`), queries, Zod schemas for JSON content, seed script.
 - `packages/learner-model` — the core domain logic (see Architecture below). This is where most non-UI feature work happens.
 - `packages/ai` — Claude/OpenAI prompt templates and structured-output schemas. Provider clients are not wired up yet (stub only, tracked as open question).
 - `packages/ui` — shared React components (Tailwind).
 - `packages/config` — shared `tsconfig` bases.
 - Root `learner-model/` (no `packages/` prefix) and `packages/content/` are empty placeholder directories, not real packages — ignore them.
-- `englishlearn-diagnostic-v2/` (untracked, repo root) — a staged, not-yet-applied patch set for the current "Diagnostic v2" migration (see below). Its `README.md` documents the exact file-by-file apply order (schema patch → migration → Zod schema swap → db-port → diagnostic module → service replacements → bootstrap-service → barrel exports). Treat files under here as instructions/diffs to apply into `packages/db` and `packages/learner-model`, not as already-live code.
 
 ## Architecture: the Learner State Model
 
@@ -75,9 +74,9 @@ Curriculum gating: introducing a *new* concept requires all direct `PREREQUISITE
 
 Every content model (`VocabExercise`, `GrammarExercise`, `ListeningExercise`, etc.) has a `status`: `DRAFT → REVIEW → PUBLISHED → ARCHIVED` (or `REJECTED`). AI-generated content always starts as `DRAFT`; publishing is an explicit admin action. Student-facing code **must** go through `@englishlearn/db/queries/exercises` (the `publishedExercises` wrapper), never the raw `prisma` client, to avoid leaking unpublished content. Admin code may use the raw client.
 
-### Diagnostic (in transition)
+### Diagnostic
 
-The current diagnostic is a pseudo-CAT (simple 2-right-levels-up / 2-wrong-levels-down branching, no IRT calibration) tracked via `DiagnosticAttempt`/`DiagnosticAnswer`. `englishlearn-diagnostic-v2/` (see above) is a staged migration that adds a `LEARNER_BOOTSTRAPPED` event type to initialize `ConceptMastery` from diagnostic results (θ → conservative capped `p_known`, capped at 0.6, `observationCount = 0` so BKT still treats it as unobserved). Same single-write-path invariant applies: bootstrap only writes via the event fold, never a direct `ConceptMastery` UPDATE, and is strictly-once per user (guarded by an event count check inside the same transaction).
+The diagnostic UI is still a stub; its data model is the pseudo-CAT (simple 2-right-levels-up / 2-wrong-levels-down branching, no IRT calibration) tracked via `DiagnosticAttempt`/`DiagnosticAnswer`. Diagnostic v2 is applied (migration `20260711_diagnostic_v2_bootstrap`, `service/bootstrap-service.ts`): it adds a `LEARNER_BOOTSTRAPPED` event type to initialize `ConceptMastery` from diagnostic results (θ → conservative capped `p_known`, capped at 0.6, `observationCount = 0` so BKT still treats it as unobserved). Same single-write-path invariant applies: bootstrap only writes via the event fold, never a direct `ConceptMastery` UPDATE, and is strictly-once per user (guarded by an event count check inside the same transaction).
 
 ## Watch out
 
@@ -86,5 +85,6 @@ The current diagnostic is a pseudo-CAT (simple 2-right-levels-up / 2-wrong-level
 - Relative imports must **not** use `.js` suffixes — this breaks Turbopack under `moduleResolution: "Bundler"`.
 - `next-auth` v5 is still beta but is the de-facto standard in use here.
 - Tailwind v4 is CSS-first config (`@theme` in `globals.css`) — there is no `tailwind.config.ts`.
-- Working language convention (per HANDOFF.md): chat in Russian, but all code/docs/UI/commit messages are in English — don't mix.
-- Read `docs/` for project context: HANDOFF (current state), ARCHITECTURE, CONVENTIONS, PRODUCT, STACK.
+- Working language convention (per `docs/HANDOFF.md`): chat in Russian, but all code/docs/UI/commit messages are in English — don't mix.
+- `docs/HANDOFF.md` is the single source of truth for current state, open questions and TODO — read it first. Also in `docs/`: ARCHITECTURE, CONVENTIONS, PRODUCT, STACK.
+- Before pushing packaging changes (Prisma, `next.config.ts`, deps), run `SKIP_ENV_VALIDATION=1 vercel build --prod --yes` in `apps/web`, then `pnpm --filter @englishlearn/web check:bundle`. The bundler rewrites `__dirname`, so anything that locates files relative to it breaks on Vercel.
