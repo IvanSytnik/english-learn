@@ -1,5 +1,6 @@
 import 'server-only';
-import { PrismaClient } from './generated/client/index';
+import { createPrismaClient } from './create-client';
+import type { PrismaClient } from './generated/client/index';
 
 /**
  * Singleton Prisma client.
@@ -12,7 +13,7 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
+  createPrismaClient(process.env.DATABASE_URL, {
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 

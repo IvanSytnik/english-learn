@@ -2,10 +2,10 @@
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/client"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
-
+  provider   = "prisma-client-js"
+  output     = "../src/generated/client"
+  // Rust-free: TS/wasm query compiler + driver adapter (see src/create-client.ts).
+  engineType = "client"
 }
 
 datasource db {

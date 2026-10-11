@@ -24,6 +24,10 @@ catalog:
   # DB / ORM
   prisma: "6.16.2"
   "@prisma/client": "6.16.2"
+  # Driver adapter must match the Prisma version exactly
+  "@prisma/adapter-pg": "6.16.2"
+  pg: "8.23.1"
+  "@types/pg": "8.23.1"
   ts-fsrs: "5.2.3"
 
 
