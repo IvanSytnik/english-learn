@@ -22,6 +22,11 @@ function inSection(path: string, sections: string[]): boolean {
   return sections.some((section) => path === section || path.startsWith(`${section}/`));
 }
 
+/** True when `pathname` starts with a locale segment (`/ru`, `/en/...`). */
+export function hasLocalePrefix(pathname: string): boolean {
+  return LOCALE_PREFIX.test(pathname);
+}
+
 /** `/ru/admin/users` → `{ locale: 'ru', path: '/admin/users' }`; unprefixed → default locale. */
 export function splitLocale(pathname: string): { locale: string; path: string } {
   const match = LOCALE_PREFIX.exec(pathname);

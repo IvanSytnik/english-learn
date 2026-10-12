@@ -3,8 +3,15 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { registerUser } from './actions';
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const t = await getTranslations('auth.register');
+  const params = await searchParams;
+  // Validated by the action (isSafeCallbackPath), not here.
+  const callbackUrl = typeof params.callbackUrl === 'string' ? params.callbackUrl : undefined;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md items-center justify-center p-6">
@@ -17,6 +24,7 @@ export default async function RegisterPage() {
             action={registerUser as unknown as (formData: FormData) => void}
             className="space-y-4"
           >
+            {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
             <div>
               <label htmlFor="name" className="mb-1 block text-sm font-medium">
                 {t('name')}
@@ -47,7 +55,10 @@ export default async function RegisterPage() {
             </Button>
             <p className="text-center text-sm text-gray-600">
               {t('hasAccount')}{' '}
-              <Link href="/login" className="font-medium text-blue-600 hover:underline">
+              <Link
+                href={callbackUrl ? { pathname: '/login', query: { callbackUrl } } : '/login'}
+                className="font-medium text-blue-600 hover:underline"
+              >
                 {t('signIn')}
               </Link>
             </p>

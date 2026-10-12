@@ -17,7 +17,8 @@ export default async function DashboardPage() {
 
   async function logout() {
     'use server';
-    await signOut({ redirectTo: '/' });
+    await signOut({ redirect: false });
+    redirect({ href: '/', locale: await getLocale() });
   }
 
   return (

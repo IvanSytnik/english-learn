@@ -22,7 +22,11 @@
       "password": "Passwort",
       "submit": "Anmelden",
       "noAccount": "Noch kein Konto?",
-      "signUp": "Registrieren"
+      "signUp": "Registrieren",
+      "errors": {
+        "invalidCredentials": "E-Mail oder Passwort ist falsch.",
+        "generic": "Anmeldung fehlgeschlagen. Bitte versuche es erneut."
+      }
     },
     "register": {
       "title": "Konto erstellen",

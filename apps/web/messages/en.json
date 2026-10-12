@@ -22,7 +22,11 @@
       "password": "Password",
       "submit": "Sign in",
       "noAccount": "Don't have an account?",
-      "signUp": "Sign up"
+      "signUp": "Sign up",
+      "errors": {
+        "invalidCredentials": "Incorrect email or password.",
+        "generic": "Sign-in failed. Please try again."
+      }
     },
     "register": {
       "title": "Create your account",

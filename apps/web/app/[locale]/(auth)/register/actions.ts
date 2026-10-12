@@ -2,9 +2,9 @@
 
 import { prisma } from '@englishlearn/db';
 import { hash } from 'bcryptjs';
-import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { signIn } from '@/lib/auth';
+import { redirectAfterAuth } from '@/lib/auth-redirect';
 
 const registerSchema = z.object({
   name: z.string().min(1).max(80),
@@ -36,5 +36,5 @@ export async function registerUser(formData: FormData): Promise<RegisterResult> 
   });
 
   await signIn('credentials', { email, password, redirect: false });
-  redirect('/dashboard');
+  return redirectAfterAuth(formData.get('callbackUrl'));
 }
