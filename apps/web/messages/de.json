@@ -69,7 +69,9 @@
       "start": "Starten"
     },
     "exercises": {
-      "title": "Übungen"
+      "title": "Übungen",
+      "comingSoon": "Übungen kommen bald. Mach zuerst den Einstufungstest, damit wir sie an dein Niveau anpassen können.",
+      "startDiagnostic": "Einstufungstest machen"
     }
   },
   "admin": {

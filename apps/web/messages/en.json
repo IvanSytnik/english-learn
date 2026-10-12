@@ -69,7 +69,9 @@
       "start": "Start"
     },
     "exercises": {
-      "title": "Exercises"
+      "title": "Exercises",
+      "comingSoon": "Exercises are coming soon. Start with the diagnostic test so we can tailor them to your level.",
+      "startDiagnostic": "Take the diagnostic test"
     }
   },
   "admin": {
