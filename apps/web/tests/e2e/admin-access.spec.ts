@@ -21,4 +21,45 @@ test.describe('admin access', () => {
     expect(res?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
   });
+
+  test('admin on /ru/admin → /ru/admin/users', async ({ page }) => {
+    await login(page, ADMIN);
+    await page.goto('/ru/admin');
+    await expect(page).toHaveURL(/\/ru\/admin\/users$/);
+    await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
+  });
+
+  test('admin on /admin → /admin/users (default locale stays unprefixed)', async ({ page }) => {
+    await login(page, ADMIN);
+    await page.goto('/admin');
+    await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/admin\/users$/);
+  });
+
+  test('admin on /ru/admin/content → /ru/admin/content/vocab', async ({ page }) => {
+    await login(page, ADMIN);
+    await page.goto('/ru/admin/content');
+    await expect(page).toHaveURL(/\/ru\/admin\/content\/vocab$/);
+  });
+
+  test('guest on /ru/admin gets a 404, no redirect', async ({ page }) => {
+    const res = await page.goto('/ru/admin');
+    expect(res?.status()).toBe(404);
+    await expect(page).toHaveURL(/\/ru\/admin$/);
+    await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
+  });
+
+  test('student on /ru/admin gets a 404, no redirect', async ({ page }) => {
+    await login(page, STUDENT);
+    const res = await page.goto('/ru/admin');
+    expect(res?.status()).toBe(404);
+    await expect(page).toHaveURL(/\/ru\/admin$/);
+    await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
+  });
+
+  test('student on /ru/admin/content gets a 404, no redirect', async ({ page }) => {
+    await login(page, STUDENT);
+    const res = await page.goto('/ru/admin/content');
+    expect(res?.status()).toBe(404);
+    await expect(page).toHaveURL(/\/ru\/admin\/content$/);
+  });
 });
