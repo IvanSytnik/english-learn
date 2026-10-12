@@ -1,6 +1,8 @@
+import { NextResponse } from 'next/server';
 import NextAuth from 'next-auth';
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
+import { resolveAccess } from './lib/access';
 import { authConfig } from './lib/auth.config';
 
 const intl = createIntlMiddleware(routing);
@@ -9,14 +11,23 @@ const { auth } = NextAuth(authConfig);
 
 /**
  * Next.js 16: `proxy.ts` replaces `middleware.ts`.
- * Runs first to handle i18n locale, then Auth.js authorization.
+ * Session gate first (guests → localized login, signed-in users off
+ * /login and /register), then next-intl for everything that is allowed.
+ * Role checks are not done here — see lib/authz.ts.
  */
 export default auth((req) => {
-  // Skip auth/intl on api/auth and static assets — matcher already filters most.
+  const decision = resolveAccess(req.nextUrl.pathname, req.auth, req.nextUrl.search);
+  if (decision !== 'allow') {
+    return NextResponse.redirect(new URL(decision.redirect, req.nextUrl), 307);
+  }
   return intl(req);
 });
 
 export const config = {
-  // Match all paths except API routes, _next internals, and files with extensions.
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
+  // Everything except API routes, Next internals and real static assets.
+  // Only known asset extensions are skipped: a dot elsewhere in a path
+  // (e.g. /admin/users/jane.doe) must still go through the proxy.
+  matcher: [
+    '/((?!api|_next|_vercel|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|css|js|map|txt|xml|webmanifest|woff|woff2)$).*)',
+  ],
 };
