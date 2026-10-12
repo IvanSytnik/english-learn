@@ -62,5 +62,10 @@
       "diagnostic": "Diagnose",
       "skillTags": "Fähigkeiten"
     }
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht.",
+    "home": "Zur Startseite"
   }
 }

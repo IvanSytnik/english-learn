@@ -102,6 +102,9 @@ catalogs:
     react-hook-form:
       specifier: 7.80.0
       version: 7.80.0
+    server-only:
+      specifier: 0.0.1
+      version: 0.0.1
     tailwind-merge:
       specifier: 3.6.0
       version: 3.6.0
@@ -200,6 +203,9 @@ importers:
       react-hook-form:
         specifier: 'catalog:'
         version: 7.80.0(react@19.2.7)
+      server-only:
+        specifier: 'catalog:'
+        version: 0.0.1
       tailwind-merge:
         specifier: 'catalog:'
         version: 3.6.0

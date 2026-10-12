@@ -60,6 +60,9 @@ catalog:
   # Env validation
   "@t3-oss/env-nextjs": "0.13.11"
 
+  # Build-time guard against importing server modules into client components
+  server-only: "0.0.1"
+
   # Testing
   vitest: "4.1.9"
   "@vitest/coverage-v8": "4.1.9"

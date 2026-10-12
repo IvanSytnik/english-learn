@@ -1,4 +1,8 @@
-export default function AiReviewPage() {
+import { requireRole } from '@/lib/authz';
+
+export default async function AiReviewPage() {
+  await requireRole('ADMIN');
+
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">AI-generated content review</h1>

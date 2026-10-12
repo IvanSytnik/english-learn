@@ -1,6 +1,9 @@
 import { prisma } from '@englishlearn/db';
+import { requireRole } from '@/lib/authz';
 
 export default async function UsersAdminPage() {
+  await requireRole('ADMIN');
+
   const users = await prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
     take: 50,
