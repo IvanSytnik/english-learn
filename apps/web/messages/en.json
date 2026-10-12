@@ -35,7 +35,24 @@
       "password": "Password",
       "submit": "Create account",
       "hasAccount": "Already have an account?",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "errors": {
+        "emailTaken": "An account with this email already exists.",
+        "generic": "Sign-up failed. Please try again.",
+        "name": {
+          "REQUIRED": "Enter your name.",
+          "TOO_LONG": "Name must be at most 80 characters."
+        },
+        "email": {
+          "REQUIRED": "Enter your email.",
+          "INVALID": "Enter a valid email address."
+        },
+        "password": {
+          "REQUIRED": "Enter a password.",
+          "TOO_SHORT": "Password must be at least 8 characters.",
+          "TOO_LONG": "Password must be at most 120 characters."
+        }
+      }
     }
   },
   "student": {

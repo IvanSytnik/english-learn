@@ -1,7 +1,6 @@
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@englishlearn/ui';
+import { Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
-import { registerUser } from './actions';
+import { RegisterForm } from './register-form';
 
 export default async function RegisterPage({
   searchParams,
@@ -9,9 +8,7 @@ export default async function RegisterPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const t = await getTranslations('auth.register');
-  const params = await searchParams;
-  // Validated by the action (isSafeCallbackPath), not here.
-  const callbackUrl = typeof params.callbackUrl === 'string' ? params.callbackUrl : undefined;
+  const { callbackUrl } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md items-center justify-center p-6">
@@ -20,49 +17,8 @@ export default async function RegisterPage({
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            action={registerUser as unknown as (formData: FormData) => void}
-            className="space-y-4"
-          >
-            {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
-            <div>
-              <label htmlFor="name" className="mb-1 block text-sm font-medium">
-                {t('name')}
-              </label>
-              <Input id="name" name="name" required autoComplete="name" />
-            </div>
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium">
-                {t('email')}
-              </label>
-              <Input id="email" name="email" type="email" required autoComplete="email" />
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium">
-                {t('password')}
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              {t('submit')}
-            </Button>
-            <p className="text-center text-sm text-gray-600">
-              {t('hasAccount')}{' '}
-              <Link
-                href={callbackUrl ? { pathname: '/login', query: { callbackUrl } } : '/login'}
-                className="font-medium text-blue-600 hover:underline"
-              >
-                {t('signIn')}
-              </Link>
-            </p>
-          </form>
+          {/* Validated by the action (isSafeCallbackPath), not here. */}
+          <RegisterForm callbackUrl={typeof callbackUrl === 'string' ? callbackUrl : undefined} />
         </CardContent>
       </Card>
     </main>

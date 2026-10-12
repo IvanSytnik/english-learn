@@ -35,7 +35,24 @@
       "password": "Passwort",
       "submit": "Konto erstellen",
       "hasAccount": "Bereits ein Konto?",
-      "signIn": "Anmelden"
+      "signIn": "Anmelden",
+      "errors": {
+        "emailTaken": "Für diese E-Mail-Adresse existiert bereits ein Konto.",
+        "generic": "Registrierung fehlgeschlagen. Bitte versuche es erneut.",
+        "name": {
+          "REQUIRED": "Gib deinen Namen ein.",
+          "TOO_LONG": "Der Name darf höchstens 80 Zeichen lang sein."
+        },
+        "email": {
+          "REQUIRED": "Gib deine E-Mail-Adresse ein.",
+          "INVALID": "Gib eine gültige E-Mail-Adresse ein."
+        },
+        "password": {
+          "REQUIRED": "Gib ein Passwort ein.",
+          "TOO_SHORT": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+          "TOO_LONG": "Das Passwort darf höchstens 120 Zeichen lang sein."
+        }
+      }
     }
   },
   "student": {
