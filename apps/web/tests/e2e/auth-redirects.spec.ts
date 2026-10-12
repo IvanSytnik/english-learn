@@ -1,4 +1,4 @@
-import { type BrowserContext, expect, type Page, test } from '@playwright/test';
+import { type BrowserContext, expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, login, STUDENT, submitLogin } from './helpers/auth';
 
 async function setLocaleCookie(context: BrowserContext, locale: string) {
