@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import NextAuth from 'next-auth';
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
-import { resolveAccess } from './lib/access';
+import { collapseSlashes, resolveAccess } from './lib/access';
 import { authConfig } from './lib/auth.config';
 
 const intl = createIntlMiddleware(routing);
@@ -16,6 +16,15 @@ const { auth } = NextAuth(authConfig);
  * Role checks are not done here — see lib/authz.ts.
  */
 export default auth((req) => {
+  // `/ru//admin` must not slip past prefix checks; resolveAccess only sees collapsed paths.
+  // (Next's router already 308s these today; this keeps the invariant if that changes.)
+  const collapsed = collapseSlashes(req.nextUrl.pathname);
+  if (collapsed !== req.nextUrl.pathname) {
+    const url = req.nextUrl.clone();
+    url.pathname = collapsed;
+    return NextResponse.redirect(url, 308);
+  }
+
   const decision = resolveAccess(req.nextUrl.pathname, req.auth, req.nextUrl.search);
   if (decision !== 'allow') {
     return NextResponse.redirect(new URL(decision.redirect, req.nextUrl), 307);

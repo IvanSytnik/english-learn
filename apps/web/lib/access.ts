@@ -22,6 +22,11 @@ function inSection(path: string, sections: string[]): boolean {
   return sections.some((section) => path === section || path.startsWith(`${section}/`));
 }
 
+/** `/ru//admin///users` → `/ru/admin/users`. The proxy redirects to this before any access check. */
+export function collapseSlashes(pathname: string): string {
+  return pathname.replace(/\/{2,}/g, '/');
+}
+
 /** True when `pathname` starts with a locale segment (`/ru`, `/en/...`). */
 export function hasLocalePrefix(pathname: string): boolean {
   return LOCALE_PREFIX.test(pathname);

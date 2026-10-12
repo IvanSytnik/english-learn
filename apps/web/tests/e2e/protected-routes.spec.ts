@@ -56,12 +56,48 @@ test.describe('guests', () => {
     await expect(page).toHaveURL(/\/ru\/admin\/users$/);
   });
 
+  test('/ru//admin/users → 308 to /ru/admin/users → 404, not login', async ({ page, request }) => {
+    const res = await request.get('/ru//admin/users', { maxRedirects: 0 });
+    expect(res.status()).toBe(308);
+    expect(locationOf(res.headers())).toBe('/ru/admin/users');
+
+    const nav = await page.goto('/ru//admin/users');
+    expect(nav?.status()).toBe(404);
+    await expect(page).toHaveURL(/\/ru\/admin\/users$/);
+  });
+
+  test('/ru//dashboard → 308 → /ru/login with a collapsed callbackUrl', async ({
+    page,
+    request,
+  }) => {
+    const { hops } = await followRedirects(request, '/ru//dashboard');
+    expect(hops).toEqual([
+      '/ru//dashboard',
+      '/ru/dashboard',
+      '/ru/login?callbackUrl=%2Fru%2Fdashboard',
+    ]);
+
+    await page.goto('/ru//dashboard');
+    await expect(page).toHaveURL(/\/ru\/login\?callbackUrl=%2Fru%2Fdashboard$/);
+  });
+
   test('/api/health → 200 without a session', async ({ request }) => {
     const res = await request.get('/api/health', { maxRedirects: 0 });
     expect(res.status()).toBe(200);
   });
 
-  for (const path of ['/', '/ru', '/login', '/ru/login', '/register', '/dashboard', '/ru/tutor']) {
+  for (const path of [
+    '/',
+    '/ru',
+    '/login',
+    '/ru/login',
+    '/register',
+    '/dashboard',
+    '/ru/tutor',
+    '/ru//',
+    '/ru//login',
+    '/ru//admin/users',
+  ]) {
     test(`no redirect loop from ${path}`, async ({ request }) => {
       const { status } = await followRedirects(request, path);
       expect(status).toBeLessThan(500);

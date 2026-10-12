@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type AccessSession, resolveAccess, splitLocale } from '@/lib/access';
+import { type AccessSession, collapseSlashes, resolveAccess, splitLocale } from '@/lib/access';
 
 type Who = 'guest' | 'STUDENT' | 'TUTOR' | 'ADMIN';
 
@@ -104,5 +104,28 @@ describe('splitLocale', () => {
     ['/', 'en', '/'],
   ])('%s → %s + %s', (pathname, locale, path) => {
     expect(splitLocale(pathname)).toEqual({ locale, path });
+  });
+});
+
+describe('collapseSlashes', () => {
+  it.each([
+    ['/', '/'],
+    ['//', '/'],
+    ['/ru//admin/users', '/ru/admin/users'],
+    ['//ru/dashboard', '/ru/dashboard'],
+    ['/ru///dashboard//x', '/ru/dashboard/x'],
+    ['/ru/dashboard/', '/ru/dashboard/'],
+    ['/ru/admin/users', '/ru/admin/users'],
+    ['/admin/users/jane.doe', '/admin/users/jane.doe'],
+  ])('%s → %s', (input, expected) => {
+    expect(collapseSlashes(input)).toBe(expected);
+  });
+
+  // Why the proxy collapses first: raw `//` hides the section from the prefix checks.
+  it('a raw /ru//dashboard escapes the session gate; the collapsed path does not', () => {
+    expect(resolveAccess('/ru//dashboard', null)).toBe('allow');
+    expect(resolveAccess(collapseSlashes('/ru//dashboard'), null)).toEqual({
+      redirect: '/ru/login?callbackUrl=%2Fru%2Fdashboard',
+    });
   });
 });
