@@ -59,7 +59,14 @@ export async function registerUser(
 
     const passwordHash = await hash(password, 10);
     await prisma.user.create({
-      data: { name, email, passwordHash },
+      data: {
+        name,
+        email,
+        passwordHash,
+        // Explicit so a future tutor sign-up cannot inherit a student profile by default.
+        role: 'STUDENT',
+        profile: { create: {} },
+      },
     });
 
     await signIn('credentials', { email, password, redirect: false });

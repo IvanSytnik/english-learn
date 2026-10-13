@@ -1,3 +1,5 @@
+import { prisma } from '@englishlearn/db';
+import { ensureStudentProfile } from '@englishlearn/db/queries/student-profile';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
@@ -6,6 +8,7 @@ import { auth } from '@/lib/auth';
 export default async function DiagnosticPage() {
   const session = await auth();
   if (!session?.user) return redirect({ href: '/login', locale: await getLocale() });
+  if (session.user.role === 'STUDENT') await ensureStudentProfile(prisma, session.user.id);
 
   const t = await getTranslations('student.diagnostic');
 
