@@ -49,7 +49,7 @@ Multilingual by design: EN/RU/UK/DE via next-intl. Content is authored in EN fir
 ## Evidence on Hand
 
 - `docs/landing-copy.en.md` — drafted EN landing copy (hero, problem/shift, value props), explicit source of truth for landing messaging.
-- Seed/demo accounts exist (`admin@englishlearn.dev`, `student@englishlearn.dev` per `docs/HANDOFF.md`) for demoing flows — not real user evidence.
+- Seed/demo accounts exist (`admin@englishlearn.dev`, `student@englishlearn.dev`) for demoing flows — not real user evidence.
 - No customer testimonials, case studies, press mentions, or usage benchmarks exist yet. Future work must not fabricate them; the landing copy explicitly calls for `[TODO]` placeholders instead.
 
 ## Product Principles

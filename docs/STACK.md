@@ -5,7 +5,6 @@
 > 🟡 `planned` — решение принято, ещё не внедрено
 > ⚪ `not wired` — присутствует в зависимостях/плане, но не подключено
 >
-> Last synced with HANDOFF: 2026-08-02 (v11). Source of truth — этот файл в репо, не Claude Project.
 
 ---
 
