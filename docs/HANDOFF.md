@@ -1,8 +1,8 @@
 # EnglishLearn — Handoff
 
-**Last updated:** 2026-10-12
-**Status:** MVP-1 шаг 1 (deploy) закрыт 2026-10-11. **2026-10-12 — гигиена + auth hardening:** Tailwind в `packages/ui`, CI (runner pin, actions на Node 24, Playwright-артефакт), чистка истории (AI-трейлер, фрагмент Neon-хоста), RBAC переделан (`requireRole`/`authorizeAction`, proxy реально гейтит сессию, 404 на `/admin/*` для не-админов), локаль и `callbackUrl` сохраняются через логин/регистрацию/логаут, неверный пароль → локализованная ошибка вместо error page. **Вечер 2026-10-12:** ошибки формы регистрации, нормализация `//`, редиректы индексов `/admin`, 404 для не-локалей + `robots.ts` + иконка, заглушка `/exercises` → локализованный следующий шаг. `StudentProfile` при регистрации — первым делом 2026-10-13 (решение в §7). Прод живой: `english-learn-web-two.vercel.app`.
-Typecheck 5/5, **413/413 unit tests** (learner-model 158 · web 208 · db 44 · ui 3), **e2e 58/58** (последний полный прогон 2026-10-12, свежий сервер).
+**Last updated:** 2026-10-13
+**Status:** MVP-1 шаг 1 (deploy) закрыт 2026-10-11. **2026-10-12 — гигиена + auth hardening:** Tailwind в `packages/ui`, CI (runner pin, actions на Node 24, Playwright-артефакт), чистка истории (AI-трейлер, фрагмент Neon-хоста), RBAC переделан (`requireRole`/`authorizeAction`, proxy реально гейтит сессию, 404 на `/admin/*` для не-админов), локаль и `callbackUrl` сохраняются через логин/регистрацию/логаут, неверный пароль → локализованная ошибка вместо error page. **Вечер 2026-10-12:** ошибки формы регистрации, нормализация `//`, редиректы индексов `/admin`, 404 для не-локалей + `robots.ts` + иконка, заглушка `/exercises` → локализованный следующий шаг. **2026-10-13:** D (`StudentProfile`) закрыт — `nativeLanguage` nullable (миграция применена на dev, CI, prod), профиль создаётся при регистрации + `ensureStudentProfile` на `/diagnostic`. Прод живой: `english-learn-web-two.vercel.app`.
+Typecheck 5/5, **416/416 unit tests** (learner-model 158 · web 210 · db 45 · ui 3), **e2e 58/58** (последний полный прогон 2026-10-13, свежий сервер).
 **Next:** см. §9 «Дальше».
 
 > Документ — единый источник правды. Заменяет HANDOFF (10) и (11) — их убрать из Project knowledge.
@@ -86,16 +86,16 @@ packages/learner-model/src/
 
 ## 4. Schemas + Data в Neon
 
-Без изменений схемы с 2026-08-02 (миграция `20260711_diagnostic_v2_bootstrap` — последняя).
+Последняя миграция — `20261013163605_student_profile_native_language_optional` (`nativeLanguage` → `String?`, 2026-10-13).
 - Auth: `User`(+role STUDENT/TUTOR/ADMIN), `Account`, `Session`, `VerificationToken`
-- `StudentProfile` (**при регистрации НЕ создаётся** — D, первым делом 2026-10-13; `nativeLanguage String` обязательное без default → станет `String?`, см. §7), `SkillTag`, `SkillLevel`
+- `StudentProfile` (создаётся при регистрации; `nativeLanguage String?` — спрашивается в онбординге, см. §7), `SkillTag`, `SkillLevel`
 - `Vocab/Grammar/ListeningExercise` (+Attempts) — lifecycle DRAFT→REVIEW→PUBLISHED→ARCHIVED→REJECTED
 - `DiagnosticItem` (+irtDiscrimination/irtDifficulty) + `DiagnosticAttempt` + `DiagnosticAnswer`
 - `Concept`(15) + `ConceptEdge`(10) + `ConceptMastery`
 - `Item`(60, все PUBLISHED) + `ItemReviewState`
 - `LearnerEvent` — `ITEM_ATTEMPTED | LEARNER_BOOTSTRAPPED`
 
-Прод-БД: контент есть, в августе вычищена от юзеров (`prod-cleanup.ts`); 2026-10-11 зарегистрирован один тестовый юзер (smoke).
+Прод-БД: контент есть, в августе вычищена от юзеров (`prod-cleanup.ts`); 3 тестовых юзера (собственные smoke-регистрации Ivan, 2026-10-11..13); профили досоздаются лениво через `/diagnostic`.
 Цепочка миграций **проверена с нуля** на `postgres:16` в CI (`migrate deploy`).
 
 Seed users (dev/CI): `admin@englishlearn.dev` / `admin1234`, `student@englishlearn.dev` / `student1234`
@@ -227,7 +227,7 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 68. `signIn('credentials', …)` бросает `CredentialsSignin` даже с `redirect: false` → ловить `AuthError`, иначе пользователь видит «This page couldn’t load»
 69. Если в `proxy.ts` в `auth()` передан handler, Auth.js **игнорирует** `false` из `authorized` → RBAC в proxy не работал ни дня, а тесты чистой функции были зелёными. Решение доступа теперь в `lib/access.ts`, proxy возвращает redirect сам
 70. Старый matcher `/((?!api|_next|_vercel|.*\\..*).*)` пропускал мимо proxy **любой** путь с точкой (`/ru/exercises/jane.doe`) → обход гейта. Сейчас исключаются только реальные расширения статики (регистр важен)
-71. ✅ RESOLVED (`af89559`) — `[locale]` принимал любой сегмент: `/robots.txt`, `/favicon.ico`, `/missing.png` отдавали 200 с HTML лендинга (matcher пропускает эти расширения мимо proxy, `i18n/request.ts` молча падал на `en`)
+71. ✅ RESOLVED (`76f2fd9`) — `[locale]` принимал любой сегмент: `/robots.txt`, `/favicon.ico`, `/missing.png` отдавали 200 с HTML лендинга (matcher пропускает эти расширения мимо proxy, `i18n/request.ts` молча падал на `en`)
 72. e2e против `next dev` флакает (компиляция маршрутов по требованию, в т.ч. внутри server action) → `AFTER_SUBMIT` 15 с в `tests/e2e/helpers/auth.ts`; правильное решение — e2e на `next build && next start` (§10)
 73. Переписывание истории: локальные ветки держат старые объекты → удалить ветки, `git reflog expire --expire=now --all`, `git gc --prune=now`
 74. zsh: никаких inline `# комментариев` во вставляемых командах
@@ -237,8 +237,13 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 76. Next сам отвечает 308 на `//` ещё до proxy → ветка нормализации в `proxy.ts` — страховка; доказана unit-тестом (сырой `/ru//dashboard` проходит мимо гейта `resolveAccess`), e2e её не доказывает (проходит и без ветки)
 77. `notFound()` в `[locale]/layout.tsx` НЕ ловится `[locale]/not-found.tsx` (тот лежит ниже этого layout) → нужен корневой `app/not-found.tsx`, иначе дефолтная английская 404 Next
 78. Клиентский `minLength` на поле блокирует отправку формы → серверное сообщение валидации нельзя ни увидеть, ни протестировать; убирать, если сервер отдаёт локализованную ошибку
-79. Пропущенный деплой `d625d6b` (грабли 65) — единичный потерянный вебхук, не системная проблема. У Vercel GitHub app висит запрос на расширение прав — принять
+79. Пропущенный деплой `c943264` (в Vercel — под старым хэшем `d625d6b`; грабли 65) — единичный потерянный вебхук, не системная проблема. У Vercel GitHub app висит запрос на расширение прав — принять
 80. Проверять «хвосты» через `git grep`, не `grep -r` — последний цепляет build-кеши (`.next`, `.turbo`, `node_modules`)
+
+### StudentProfile (2026-10-13)
+81. `vercel pull` отдаёт Sensitive env vars как литерал `"[SENSITIVE]"` → прод-миграции идут по direct (не `-pooler`) строке из Neon Console, введённой через `read -rs PROD_DIRECT` отдельной командой, никогда не вставлять inline (`?` в URL — zsh падает с «no matches found», и строка утекает в history)
+82. В прод `_prisma_migrations` есть откаченные orphan-строки (`20260705045244_add_learner_event`, `20260706071803_add_learner_event`) от июльских попыток — безвредны, `migrate deploy` их игнорирует; если `migrate status` покажет их как «not found locally» — это ожидаемо
+83. Чтение прод-данных: `prisma db execute` не показывает результат SELECT → одноразовый запрос через node + `pg`, запускать из `packages/db` (из корня репо `pg` не резолвится)
 
 ---
 
@@ -268,7 +273,7 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 - Вариант A для локали: путь без префикса + cookie `NEXT_LOCALE=ru` → 307 на `/ru/...` (дефолт next-intl), а не «всегда en»
 
 ### Решения 2026-10-12 (вечер)
-- **StudentProfile (1.а):** создаётся атомарно при регистрации (nested create в том же `prisma.user.create`, только роль STUDENT) + страховка `ensureStudentProfile(userId)` через upsert для существующих юзеров без профиля
+- **StudentProfile (1.а):** создаётся атомарно при регистрации (nested create в том же `prisma.user.create`, только роль STUDENT) + страховка `ensureStudentProfile(db, userId)` в `packages/db/src/queries/student-profile.ts`: `createMany` + `skipDuplicates` (`INSERT ... ON CONFLICT DO NOTHING`, race-free, не upsert), клиент передаётся параметром; вызывается в `diagnostic/page.tsx` только для роли STUDENT. Покрывает существующих юзеров без профиля и будущие sign-up через Auth.js adapter (OAuth)
 - **`nativeLanguage` (вариант 1):** становится nullable аддитивной миграцией (DROP NOT NULL). Родной язык спрашивается в онбординге перед диагностикой и **никогда не угадывается** по локали UI (UI-язык ≠ родной; `User.locale` при регистрации не заполняется и всегда `en`)
 - **`/exercises`:** заглушка ведёт на диагностику — это шаг активации, а не тупик
 
@@ -309,21 +314,22 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
   - Prisma Rust-free (8 коммитов): adapter-pg, фабрика, удаление tracing-костылей, pin catalog, генератор `prisma-client`, `outputFileTracingExcludes`, engines в `apps/web`, `check:bundle`
   - Прод smoke: health ok (fra1, warm ~5 мс), 4 локали 200, `/admin/users` → 307 с сохранением локали, регистрация + логин → dashboard ✅ (307 давал guard в layout, не proxy — см. грабли 69)
 - **2026-10-12 — гигиена + auth hardening** (см. лог сессии в конце)
-  - `263d654` Tailwind `@source` для `packages/ui` · `d1d9c38` e2e-guard стилей · `862ae6c` runner `ubuntu-24.04` + actions на Node 24 · `24d99fe` Playwright html-отчёт и трейсы в артефактах
-  - `2ee439b` `requireRole`/`authorizeAction` + guard-тест + локализованный 404 · `d625d6b` proxy гейтит сессию, `callbackUrl`, узкий matcher · `07db173` локаль и `callbackUrl` через логин/регистрацию/логаут, ошибка логина, guard против `next/navigation`
+  - `baca0f4` Tailwind `@source` для `packages/ui` · `75e90f0` e2e-guard стилей · `210c1eb` runner `ubuntu-24.04` + actions на Node 24 · `5a72dc5` Playwright html-отчёт и трейсы в артефактах
+  - `447da4e` `requireRole`/`authorizeAction` + guard-тест + локализованный 404 · `c943264` proxy гейтит сессию, `callbackUrl`, узкий matcher · `fb38cc6` локаль и `callbackUrl` через логин/регистрацию/логаут, ошибка логина, guard против `next/navigation`
 - **2026-10-12 вечер — хвосты auth/i18n** (см. лог сессии в конце)
-  - `a50a90f` ошибки формы регистрации (`useActionState`, `VALIDATION`/`EMAIL_TAKEN`/`AUTH_FAILED`, 4 локали) + e2e · `7946a75` нормализация `//` в proxy · `4a797ff` `/admin` → `/admin/users`, `/admin/content` → `/admin/content/vocab`
-  - `af89559` `hasLocale` → `notFound()` в `[locale]/layout`, корневой `not-found.tsx`, `robots.ts`, `icon.svg` · `9ab8e6b` экспорт `buttonVariants` из `packages/ui` · `455a865` `/exercises` → локализованный следующий шаг (CTA на диагностику)
+  - `9102f87` ошибки формы регистрации (`useActionState`, `VALIDATION`/`EMAIL_TAKEN`/`AUTH_FAILED`, 4 локали) + e2e · `284a661` нормализация `//` в proxy · `c9dbf21` `/admin` → `/admin/users`, `/admin/content` → `/admin/content/vocab`
+  - `76f2fd9` `hasLocale` → `notFound()` в `[locale]/layout`, корневой `not-found.tsx`, `robots.ts`, `icon.svg` · `fee33cc` экспорт `buttonVariants` из `packages/ui` · `a2a72fc` `/exercises` → локализованный следующий шаг (CTA на диагностику)
+- **2026-10-13 — D: `StudentProfile` при регистрации** (см. лог сессии в конце)
+  - `185d030` feat(db) nullable `nativeLanguage` (миграция на dev, CI, prod) · `161b5c9` feat(auth) профиль при регистрации + `ensureStudentProfile`
 
 ### ➡️ Дальше (по порядку)
-1. **D — `StudentProfile` при регистрации** (первым делом 2026-10-13; процедура в §10 Infra / DB)
-2. **e2e на `next build && next start`** (грабли 72 — флаки первой компиляции маршрута повторились 2026-10-12)
-3. **Дизайн-решения** (§8 #5, всё ещё открыты) — 3 вопроса из сессии 2026-09-24
-4. **MVP-1 шаг 2: Adaptive exercise UI** поверх `selectNext` — `apps/web` впервые получает зависимость `@englishlearn/learner-model`; `exercises/page.tsx` и `diagnostic/page.tsx` из заглушек → реальные; заодно integration-тест bootstrap→selection (грабля 37) и решение #4
-5. Онбординг: выбор родного языка перед диагностикой
-6. Progress dashboard с семантическими CEFR-уровнями
-7. Сквозной флоу Guest → registration (+`StudentProfile`) → onboarding → diagnostic → exercises
-8. Расширить контент-пул (60/15 исчерпается быстро)
+1. **e2e на `next build && next start`** (грабли 72 — флаки первой компиляции маршрута повторились 2026-10-12)
+2. **Дизайн-решения** (§8 #5, всё ещё открыты) — 3 вопроса из сессии 2026-09-24
+3. **MVP-1 шаг 2: Adaptive exercise UI** поверх `selectNext` — `apps/web` впервые получает зависимость `@englishlearn/learner-model`; `exercises/page.tsx` и `diagnostic/page.tsx` из заглушек → реальные; заодно integration-тест bootstrap→selection (грабля 37) и решение #4
+4. Онбординг: выбор родного языка перед диагностикой
+5. Progress dashboard с семантическими CEFR-уровнями
+6. Сквозной флоу Guest → registration (+`StudentProfile`) → onboarding → diagnostic → exercises
+7. Расширить контент-пул (60/15 исчерпается быстро)
 
 ### ⏸️ Отложено
 - AI Tutor context builder (блок #1), eval harness — после MVP-1
@@ -335,7 +341,6 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 ## 10. TODO (техдолг)
 
 ### Auth / UX
-- [ ] `StudentProfile` не создаётся при регистрации → D (процедура в Infra / DB)
 - [ ] Онбординг: выбор родного языка перед диагностикой (`nativeLanguage`, решение §7)
 - [ ] Тайминг-перечисление аккаунтов на логине: для неизвестного email нет `bcrypt.compare` → ответ быстрее; фиктивное сравнение
 - [ ] Admin UI только на английском — решить: задокументированное исключение или i18n
@@ -351,7 +356,7 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 - [ ] commit-msg hook, вырезающий AI-трейлеры, — локальный (`.git/hooks`), переустанавливать на новых клонах
 
 ### Infra / DB
-- [ ] **D первым делом 2026-10-13** — `nativeLanguage` → `String?`. Процедура: `migrate diff` против dev `DIRECT_URL` → применить к Neon development → CI `migrate deploy` → код → push → прод `migrate deploy` запускает **Ivan вручную** → смоук регистрации на прод-алиасе
+- [ ] **Процедура миграций (expand → code):** (1) аддитивная миграция на dev (`migrate diff` против dev `DIRECT_URL`) → (2) commit + push только schema/migration, CI `migrate deploy` с нуля → (3) прод `migrate deploy` запускает **Ivan вручную** (грабли 81) → (4) только потом push кода, который от неё зависит
 - [ ] Preview env: `DATABASE_URL` для Preview (Neon development); разделить `DIRECT_URL` Prod/Preview
 - [ ] `enableChannelBinding: true` в `create-client.ts` + повторный smoke
 - [ ] `sslmode=verify-full` явно в Vercel `DATABASE_URL` (до pg v9)
@@ -379,24 +384,27 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 - [ ] Ротация пароля Neon (фрагменты хостов из истории вычищены 2026-10-12)
 - [ ] Удалить из индекса `.bak`, `.patch`, `conspet_block.prisma` (перепроверить, что ещё отслеживаются)
 
+### Закрыто 2026-10-13
+- [x] D — `nativeLanguage` → `String?` (`185d030`, миграция на dev, CI, prod), `StudentProfile` при регистрации + `ensureStudentProfile` на `/diagnostic` (`161b5c9`)
+
 ### Закрыто 2026-10-12 (вечер)
-- [x] Ошибки регистрации: `as unknown as` убран, `useActionState`, локализованные ошибки полей / «email занят» в 4 локалях, имя и email сохраняются, пароль нет + e2e (`a50a90f`)
-- [x] Нормализация `//` → 308 до `resolveAccess` (`7946a75`)
-- [x] `/admin` → `/admin/users`, `/admin/content` → `/admin/content/vocab` (`4a797ff`)
-- [x] Не-локаль в `[locale]` → 404, корневой `not-found.tsx`, `robots.ts`, `icon.svg` (`af89559`; грабли 71)
-- [x] Заглушка `/exercises` → локализованный следующий шаг без жаргона (`455a865`); экспорт `buttonVariants` из `packages/ui` (`9ab8e6b`)
-- [x] Пропущенный деплой `d625d6b` — разобран: единичный потерянный вебхук (грабли 79)
+- [x] Ошибки регистрации: `as unknown as` убран, `useActionState`, локализованные ошибки полей / «email занят» в 4 локалях, имя и email сохраняются, пароль нет + e2e (`9102f87`)
+- [x] Нормализация `//` → 308 до `resolveAccess` (`284a661`)
+- [x] `/admin` → `/admin/users`, `/admin/content` → `/admin/content/vocab` (`c9dbf21`)
+- [x] Не-локаль в `[locale]` → 404, корневой `not-found.tsx`, `robots.ts`, `icon.svg` (`76f2fd9`; грабли 71)
+- [x] Заглушка `/exercises` → локализованный следующий шаг без жаргона (`a2a72fc`); экспорт `buttonVariants` из `packages/ui` (`fee33cc`)
+- [x] Пропущенный деплой `c943264` — разобран: единичный потерянный вебхук (грабли 79)
 
 ### Закрыто 2026-10-12
-- [x] Tailwind не видел классы `packages/ui` → `@source` (`263d654`) + e2e-guard стилей (`d1d9c38`)
-- [x] GitHub Actions: runner `ubuntu-24.04` + actions на Node 24 (`862ae6c`)
-- [x] CI: Playwright html-отчёт и трейсы загружаются в артефакты (`24d99fe`)
+- [x] Tailwind не видел классы `packages/ui` → `@source` (`baca0f4`) + e2e-guard стилей (`75e90f0`)
+- [x] GitHub Actions: runner `ubuntu-24.04` + actions на Node 24 (`210c1eb`)
+- [x] CI: Playwright html-отчёт и трейсы загружаются в артефакты (`5a72dc5`)
 - [x] `AUTH_TRUST_HOST` удалён из Vercel env
 - [x] История: фрагмент Neon-хоста в старых HANDOFF-файлах заменён, AI-трейлер убран из коммита от 2026-08-08 (хэши переписаны)
-- [x] HANDOFF-файлы с пробелами/скобками → `docs/HANDOFF.md` (`301f835`, закоммичено 2026-10-11)
-- [x] RBAC: proxy реально гейтит сессию; `requireRole` в каждой admin page/layout; не-админ на `/admin/*` → 404; `/admin/users` под студентом проверен e2e (`2ee439b`, `d625d6b`)
-- [x] Локаль после логина: `/ru/login` → `/ru/dashboard`; `callbackUrl` сохраняется; логаут → `/{locale}` (`07db173`)
-- [x] Неверный пароль → локализованная ошибка вместо «This page couldn’t load» (`07db173`)
+- [x] HANDOFF-файлы с пробелами/скобками → `docs/HANDOFF.md` (`9af1af7`, закоммичено 2026-10-11)
+- [x] RBAC: proxy реально гейтит сессию; `requireRole` в каждой admin page/layout; не-админ на `/admin/*` → 404; `/admin/users` под студентом проверен e2e (`447da4e`, `c943264`)
+- [x] Локаль после логина: `/ru/login` → `/ru/dashboard`; `callbackUrl` сохраняется; логаут → `/{locale}` (`fb38cc6`)
+- [x] Неверный пароль → локализованная ошибка вместо «This page couldn’t load» (`fb38cc6`)
 
 ### Закрыто 2026-10-11
 - [x] `directUrl` в datasource — (2026-08-02)
@@ -424,7 +432,7 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 ---
 
 ### Лог сессии 2026-10-11
-1. **Ревизия** (Claude Code, read-only): после последнего коммита от 2026-09-04 (сейчас `cb21404 docs: rewrite README`; хэш изменился при переписывании истории 2026-10-12) коммитов нет, но 5 недель работы лежали незакоммиченными; CI красный с 2026-08-30 (P1012 `DIRECT_URL`); learner-model не подключён к `apps/web`
+1. **Ревизия** (Claude Code, read-only): после последнего коммита от 2026-09-04 (сейчас `a071acd docs: rewrite README`; хэш изменился при переписывании истории 2026-10-12) коммитов нет, но 5 недель работы лежали незакоммиченными; CI красный с 2026-08-30 (P1012 `DIRECT_URL`); learner-model не подключён к `apps/web`
 2. **9 коммитов** рабочего дерева с поштучным ревью. Аудит server actions: в админке actions нет → новый инвариант
 3. **CI:** `DIRECT_URL` + `db push` → `migrate deploy`. Цепочка миграций проверена с нуля на `postgres:16`
 4. **Git → HTTPS через `gh`** (пароль от SSH-ключа утерян). **Vercel CLI** установлен, проект прояснён: один проект, `web-two` = алиас; найдено: Node 24, регион iad1, `DATABASE_URL` только в Production, корневой `vercel.json` не читался
@@ -437,11 +445,18 @@ vercel logs <deployment-url> --json | python3 -c '...'   # grep на macOS ло�
 1. **Гигиена:** Tailwind `@source` для `packages/ui` + e2e-guard стилей; CI — pin `ubuntu-24.04`, actions на Node 24, Playwright html-отчёт/трейсы в артефактах; `AUTH_TRUST_HOST` удалён из Vercel; история переписана (AI-трейлер, фрагмент Neon-хоста) → хэши всех коммитов начиная с 2026-08-08 сменились
 2. **Аудит RBAC/locale** (Claude Code, read-only): RBAC в proxy не работал вовсе (грабли 69), matcher пропускал пути с точкой (грабли 70), единственный барьер — layout; потеря локали после логина объяснена внутренним fetch server action (грабли 67)
 3. **3 коммита с поштучным ревью и паузой на «ok»:** `requireRole`/`authorizeAction` + guard-тест + локализованный 404 → proxy гейтит сессию (`resolveAccess`, `isSafeCallbackPath`, узкий matcher) → локаль и `callbackUrl` через логин/регистрацию/логаут, ошибка логина, guard против `next/navigation`. Каждый гейт доказан «сломать → тест падает → вернуть → проходит»
-4. **Push:** Vercel молча пропустил деплой `d625d6b` (грабли 65) — позже разобрано: единичный потерянный вебхук (грабли 79)
+4. **Push:** Vercel молча пропустил деплой `c943264` (грабли 65) — позже разобрано: единичный потерянный вебхук (грабли 79)
 
 ### Лог сессии 2026-10-12 (вечер)
-1. `423bf10` — убран неиспользуемый импорт в e2e auth-редиректов
+1. `2c8c72a` — убран неиспользуемый импорт в e2e auth-редиректов
 2. **6 коммитов с diff, паузой на «ok» и полным прогоном CI-команд** (lint, typecheck, unit, весь Playwright; последние два — один общий прогон): ошибки регистрации → `//` → индексы `/admin` → 404 для не-локалей + robots + иконка → экспорт `buttonVariants` → `/exercises`
 3. **Доказательства «сломать → тест падает → вернуть»:** дубликат email (подмена action на «всегда ok»), `hasLocale` (без проверки `/missing.png` и `/favicon.ico` → 200). Честно зафиксировано, где e2e НЕ доказывает: ветка `//` в proxy (грабли 76), guard в `admin/page.tsx` (404 даёт `requireRole` в layout)
 4. **D (`StudentProfile`) остановлен до кода:** `nativeLanguage` обязательное без default → решение §7, перенесено на 2026-10-13
 5. Полный e2e на свежем сервере: 58/58. Флак первой компиляции маршрута повторился (`exercises.spec.ts`) → `AFTER_SUBMIT`; системно — e2e на `next start`
+
+### Лог сессии 2026-10-13
+1. **Миграция (expand):** `185d030` — `nativeLanguage` → `String?` аддитивной миграцией; применена на dev, CI (`migrate deploy` с нуля), prod (Ivan вручную, direct URL через `read -rs` — грабли 81). В прод `_prisma_migrations` найдены июльские orphan-строки (грабли 82)
+2. **Код:** `161b5c9` — nested `profile: { create: {} }` + явный `role: 'STUDENT'` в регистрации; `ensureStudentProfile` (`createMany` + `skipDuplicates`, а не upsert, как было записано в §7) в `packages/db/src/queries`, вызов на `/diagnostic` только для STUDENT. Read-only инспекция → diff → пауза на «ok»
+3. **Доказательства «сломать → тест падает → вернуть»:** без nested create падает `register-action.test.ts`, без `skipDuplicates` падает тест в `packages/db`. Честно: ни один e2e не открывает `/diagnostic`, `ensureStudentProfile` против реальной БД не прогонялся
+4. Полный прогон: lint (57 warnings, без изменений), typecheck 5/5, unit 416/416, e2e 58/58 на свежем сервере без флаков, `vercel build` + `check:bundle` PASS
+5. Хэши в §9/§10 (и ссылки в §6 и логах) сверены с `git log` — история переписывалась после вечерней сессии 2026-10-12
