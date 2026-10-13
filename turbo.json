@@ -44,6 +44,7 @@
       "outputs": ["coverage/**"]
     },
     "test:e2e": {
+      "cache": false,
       "dependsOn": ["^build"],
       "outputs": ["playwright-report/**", "test-results/**"]
     },

@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = Number(process.env.PORT) || 3000;
+// Dedicated port so a `pnpm dev` on 3000 is never picked up instead of the production build.
+const PORT = 3100;
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -20,10 +21,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  // Always a production build: `next dev` compiles routes on demand, which made e2e flaky.
   webServer: {
-    command: 'pnpm dev',
+    command: `pnpm build && pnpm start -p ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    reuseExistingServer: false,
+    timeout: 240_000,
+    // `next start` runs with NODE_ENV=production, where Auth.js rejects localhost as an untrusted host.
+    env: { AUTH_TRUST_HOST: 'true' },
   },
 });
