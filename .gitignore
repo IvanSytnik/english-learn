@@ -53,3 +53,11 @@ packages/db/src/generated/
 .claude/
 skills-lock.json
 .impeccable/
+
+# local dev notes
+CLAUDE.md
+AGENTS.md
+HANDOFF.md
+PROJECT_MEMORY.md
+AUDIT_REPORT.md
+.claude/
