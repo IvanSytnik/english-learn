@@ -130,7 +130,7 @@ enum LearningGoal {
 model StudentProfile {
   id                String        @id @default(cuid())
   userId            String        @unique
-  nativeLanguage    String
+  nativeLanguage    String?
   selfReportedLevel CefrLevel?
   assessedLevel     CefrLevel?
   goal              LearningGoal?
