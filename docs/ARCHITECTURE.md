@@ -1,6 +1,6 @@
 High-level Architecture
 
-[заполняется итеративно — Claude обновляет по мере развития]
+[Living document — updated as the system evolves]
 
 Modules
 web (Next.js app для учеников/учителей)
