@@ -44,7 +44,7 @@ export type RecordOutcomeResult =
       occurredAt: bigint;
       rating: FsrsRating;
       conceptId: string;
-      /** pKnown just before the outcome, forgetting applied up to occurredAt. */
+      /** Stored pKnown just before the outcome (no time decay — §8 #10). */
       pKnownBefore: number;
       /** Stored (un-decayed) pKnown after the outcome. */
       pKnownAfter: number;

@@ -1,5 +1,4 @@
 import type { ItemAttemptedPayload, LearnerBootstrappedPayload } from '@englishlearn/db/schemas';
-import { applyForgetting } from '../core/bkt/forgetting';
 import { initBktState, update } from '../core/bkt/model';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
@@ -30,7 +29,7 @@ export type LearnerStatePair = {
  * caller (post-answer feedback). Never persisted; replay ignores them.
  */
 export type ItemAttemptedFold = LearnerStatePair & {
-  /** pKnown just before this outcome, with forgetting applied up to occurredAt. */
+  /** Stored pKnown just before this outcome — the prior update() starts from. */
   pKnownBefore: number;
   /** Interval FSRS granted, in days (0 for an intra-day learning step). */
   scheduledDays: number;
@@ -44,12 +43,7 @@ export function applyItemAttempted(
   const atMs = Number(occurredAt);
 
   const bktBefore = prev.bkt ?? initBktState(atMs);
-  // Same decay update() applies internally — the value the posterior starts from.
-  const pKnownBefore = applyForgetting(
-    bktBefore.pKnown,
-    bktBefore.pForgetLambda,
-    atMs - bktBefore.lastUpdatedAt,
-  );
+  const pKnownBefore = bktBefore.pKnown;
   const bkt = update(bktBefore, {
     correct: payload.correct,
     timestamp: atMs,

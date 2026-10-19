@@ -23,6 +23,9 @@ export function initBktState(at: number): BktState {
 /**
  * Predict P(correct) for an upcoming attempt, AFTER applying forgetting.
  *
+ * Read-time forecast only — never feeds back into stored state (update()
+ * does not decay; §8 #10). No production caller today.
+ *
  * With item (IRT-augmented):
  *   P(correct) = pKnown · σ(a(θ-b)) + (1-pKnown) · pGuess
  * Without item (classic BKT):
@@ -43,32 +46,34 @@ export function predictCorrect(state: BktState, now: number, item?: IrtParams): 
  * BKT update step. Returns a NEW state — input is not mutated.
  *
  * Algorithm:
- *  1. Apply forgetting: pKnown@outcome.timestamp = pKnown · exp(-λΔt).
- *  2. Bayes posterior P(known | outcome) using observation model.
- *  3. Learning transition: pKnown' = posterior + (1 - posterior) · pLearn.
+ *  1. Bayes posterior P(known | outcome) using observation model.
+ *  2. Learning transition: pKnown' = posterior + (1 - posterior) · pLearn.
+ *
+ * NO time decay here (decision 2026-10-20, HANDOFF §8 #10). Decaying the
+ * prior toward 0 before every update (half-life ~69 h) capped day-spaced
+ * practice at pKnown ≈ 0.18 — spaced learners could never reach the 0.70
+ * gate while crammers could. Stored pKnown is conceptual acquisition; memory
+ * decay is FSRS's job (scheduling + the isFading overlay). Forgetting stays
+ * available only as a read-time forecast in predictCorrect.
  */
 export function update(state: BktState, outcome: BktOutcome): BktState {
-  const decayedPKnown = applyForgetting(
-    state.pKnown,
-    state.pForgetLambda,
-    outcome.timestamp - state.lastUpdatedAt,
-  );
+  const prior = state.pKnown;
 
   const pCorrectIfKnown = outcome.item
-    ? pCorrectGivenKnown(pKnownToTheta(decayedPKnown), outcome.item)
+    ? pCorrectGivenKnown(pKnownToTheta(prior), outcome.item)
     : 1 - state.pSlip;
   const pCorrectIfUnknown = state.pGuess;
 
   // Bayes posterior given the observation.
   let posterior: number;
   if (outcome.correct) {
-    const numerator = decayedPKnown * pCorrectIfKnown;
-    const denominator = numerator + (1 - decayedPKnown) * pCorrectIfUnknown;
-    posterior = denominator > 0 ? numerator / denominator : decayedPKnown;
+    const numerator = prior * pCorrectIfKnown;
+    const denominator = numerator + (1 - prior) * pCorrectIfUnknown;
+    posterior = denominator > 0 ? numerator / denominator : prior;
   } else {
-    const numerator = decayedPKnown * (1 - pCorrectIfKnown);
-    const denominator = numerator + (1 - decayedPKnown) * (1 - pCorrectIfUnknown);
-    posterior = denominator > 0 ? numerator / denominator : decayedPKnown;
+    const numerator = prior * (1 - pCorrectIfKnown);
+    const denominator = numerator + (1 - prior) * (1 - pCorrectIfUnknown);
+    posterior = denominator > 0 ? numerator / denominator : prior;
   }
 
   // Learning transition.

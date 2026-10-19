@@ -17,7 +17,10 @@ export const BKT_DEFAULTS = {
   pSlip: 0.1,
   /** Probability of correct answer when concept is NOT known. */
   pGuess: 0.25,
-  /** Forgetting rate λ per hour (exponential decay). λ=0.01/h ≈ half-life ~69h. */
+  /**
+   * Forgetting rate λ per hour (exponential decay). λ=0.01/h ≈ half-life ~69h.
+   * Read-time only (predictCorrect); update() does not decay (§8 #10).
+   */
   pForgetLambda: 0.01,
 } as const;
 

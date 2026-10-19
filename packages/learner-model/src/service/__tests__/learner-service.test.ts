@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { ConceptMasteryRow } from '../../adapters/concept-mastery';
 import type { ItemReviewStateRow } from '../../adapters/item-review-state';
 import { BKT_DEFAULTS } from '../../core/bkt/constants';
-import { applyForgetting } from '../../core/bkt/forgetting';
 import type { ItemForOutcome, LearnerEventRow, LearnerModelDb, LearnerModelTx } from '../db-port';
 import { createLearnerService, outcomeToRating } from '../learner-service';
 import { replayUser } from '../replay';
@@ -105,7 +104,6 @@ const ITEMS: Record<string, ItemForOutcome> = {
 const USER = 'user_1';
 const T0 = 1_750_000_000_000n;
 const DAY_MS = 86_400_000n;
-const MINUTE_MS = 60_000n;
 
 describe('outcomeToRating', () => {
   it('maps correct -> GOOD, incorrect -> AGAIN', () => {
@@ -178,22 +176,20 @@ describe('LearnerService.recordOutcome', () => {
     expect(first.scheduledDays).toBe(0);
     expect(first.cardStatus).toBe('LEARNING');
 
-    // 30 days later on a sibling item: pKnownBefore is the decayed stored value.
+    // 30 days later on a sibling item: pKnownBefore is exactly the stored
+    // value (no time decay, §8 #10) and a correct answer can only raise it.
     const stored = masteries.get(`${USER}:past_simple`);
     if (!stored) throw new Error('mastery missing');
-    const later = T0 + 30n * DAY_MS;
     const second = await service.recordOutcome({
       userId: USER,
       itemId: 'item.past_simple.irregular_go',
       correct: true,
-      occurredAtMs: later,
+      occurredAtMs: T0 + 30n * DAY_MS,
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
-    expect(second.pKnownBefore).toBe(
-      applyForgetting(stored.pKnown, stored.pForgetLambda, Number(later - stored.lastUpdatedAt)),
-    );
-    expect(second.pKnownBefore).toBeLessThan(stored.pKnown);
+    expect(second.pKnownBefore).toBe(stored.pKnown);
+    expect(second.pKnownAfter).toBeGreaterThan(second.pKnownBefore);
     expect(second.pKnownAfter).toBe(masteries.get(`${USER}:past_simple`)?.pKnown);
   });
 
@@ -277,14 +273,13 @@ describe('LearnerService.recordOutcome', () => {
     const itemId = 'item.past_simple.regular_ed';
     const key = `${USER}:past_simple`;
 
-    // Climb: correct answers until the concept is at least SOLID. Minute
-    // spacing (one session): with the placeholder forgetting rate, day-spaced
-    // practice plateaus near pKnown 0.18 (HANDOFF §8 #10) — this test is about
-    // the fold mechanics, not calibration.
+    // Climb with a realistic 3x/week rhythm (1–3 days between answers). Before
+    // §8 #10 this plateaued near pKnown 0.18 and never left EMERGING.
+    const gapsDays = [1n, 2n, 3n];
     const seen: string[] = [];
     let t = T0;
     for (let i = 0; i < 12 && masteries.get(key)?.displayStage !== 'HIGH_SOLID'; i++) {
-      t += MINUTE_MS;
+      t += (gapsDays[i % gapsDays.length] as bigint) * DAY_MS;
       await service.recordOutcome({ userId: USER, itemId, correct: true, occurredAtMs: t });
       seen.push(masteries.get(key)?.displayStage ?? 'missing');
     }
@@ -300,7 +295,7 @@ describe('LearnerService.recordOutcome', () => {
 
     // Then a few misses — hysteresis decides; replay must land on the same stage.
     for (let i = 0; i < 3; i++) {
-      t += MINUTE_MS;
+      t += 2n * DAY_MS;
       await service.recordOutcome({ userId: USER, itemId, correct: false, occurredAtMs: t });
     }
     const live = masteries.get(key);

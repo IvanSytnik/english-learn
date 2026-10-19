@@ -354,6 +354,36 @@ describe('update', () => {
     );
   });
 
+  it('ignores elapsed time: the same outcome after any gap gives the same pKnown (§8 #10)', () => {
+    fc.assert(
+      fc.property(
+        fc.double({ min: 0.01, max: 0.99, noNaN: true }),
+        fc.boolean(),
+        fc.integer({ min: 0, max: 365 * 24 * 60 * 60 * 1000 }),
+        (pKnown, correct, gapMs) => {
+          const s: BktState = { ...initBktState(0), pKnown, pForgetLambda: 0.01 };
+          const now = update(s, { correct, timestamp: 0 });
+          const later = update(s, { correct, timestamp: gapMs });
+          expect(later.pKnown).toBe(now.pKnown);
+        },
+      ),
+    );
+  });
+
+  it('day-spaced correct answers reach the 0.70 gate (default params, §8 #10)', () => {
+    // With an IRT item, as every production outcome has: the IRT branch is
+    // where the old decay pinned pKnown near 0.18.
+    const item = { a: 1, b: 0 };
+    let s: BktState = initBktState(0);
+    let answers = 0;
+    while (s.pKnown < 0.7 && answers < 20) {
+      answers += 1;
+      s = update(s, { correct: true, timestamp: answers * 2 * 86_400_000, item });
+    }
+    expect(s.pKnown).toBeGreaterThanOrEqual(0.7);
+    expect(answers).toBeLessThanOrEqual(10);
+  });
+
   it('many correct outcomes drive pKnown high', () => {
     let s: BktState = { ...initBktState(0), pForgetLambda: 0 };
     for (let i = 0; i < 20; i++) {
