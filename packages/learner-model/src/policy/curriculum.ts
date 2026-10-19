@@ -6,12 +6,13 @@ import type { ConceptMasterySnapshot, PolicyConfig, PrereqEdge } from './types';
  *
  * Two regimes, split on whether the learner has already started a concept:
  *
- *  - INTRODUCTION (concept has no mastery / never attempted): HARD gate. The
+ *  - INTRODUCTION (concept never attempted — no mastery snapshot, or one with
+ *    observationCount = 0, e.g. a LEARNER_BOOTSTRAPPED prior): HARD gate. The
  *    concept is only eligible if every PREREQUISITE ancestor is mastered
  *    (pKnown ≥ prereqThreshold). We don't drop someone into Present Perfect
  *    before Past Simple.
  *
- *  - REVIEW (concept already has a mastery snapshot): NOT gated. Once a concept
+ *  - REVIEW (concept has at least one folded outcome): NOT gated. Once a concept
  *    has been started, its due reviews must keep flowing regardless of prereq
  *    state — otherwise a half-forgotten prereq would freeze review of things
  *    the learner already knows. FSRS scheduling owns review timing, not the gate.
@@ -51,7 +52,9 @@ export function computeUnlocked(
   const locked = new Set<ConceptId>();
 
   for (const conceptId of new Set(candidateConceptIds)) {
-    const alreadyStarted = masteryById.has(conceptId);
+    // A bootstrap snapshot is a prior, not practice (observationCount = 0), so
+    // it must not flip a concept into the review regime and bypass the gate.
+    const alreadyStarted = (masteryById.get(conceptId)?.observationCount ?? 0) > 0;
 
     // REVIEW regime: never gated.
     if (alreadyStarted) {

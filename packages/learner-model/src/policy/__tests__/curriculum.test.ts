@@ -59,6 +59,23 @@ describe('computeUnlocked', () => {
     expect(locked.has('present_perfect')).toBe(false);
   });
 
+  it('a bootstrap snapshot (observationCount 0) does not count as started', () => {
+    // LEARNER_BOOTSTRAPPED writes a prior for both concepts; neither has been
+    // practised, so present_perfect stays introduction-gated behind past_simple.
+    const edges = [prereq('past_simple', 'present_perfect')];
+    const { unlocked, locked } = computeUnlocked(
+      ['past_simple', 'present_perfect'],
+      [
+        { ...mastery('past_simple', 0.6), observationCount: 0 },
+        { ...mastery('present_perfect', 0.6), observationCount: 0 },
+      ],
+      edges,
+      DEFAULT_POLICY_CONFIG,
+    );
+    expect(unlocked.has('past_simple')).toBe(true);
+    expect(locked.has('present_perfect')).toBe(true);
+  });
+
   it('requires ALL prerequisites mastered (multi-parent)', () => {
     const edges = [prereq('a', 'target'), prereq('b', 'target')];
     // a mastered, b not => still locked
