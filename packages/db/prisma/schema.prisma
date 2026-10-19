@@ -487,6 +487,9 @@ enum EdgeKind {
 model Concept {
   id          String          @id
   name        String
+  /// Learner-facing title, LocalizedString JSON ({ en, ru?, uk?, de? }),
+  /// validated by ConceptTitleSchema. Null => UI falls back to `name`.
+  title       Json?
   description String?         @db.Text
   cefrLevel   CefrLevel
   category    ConceptCategory
@@ -527,6 +530,17 @@ model ConceptEdge {
   @@index([toId])
   @@index([kind])
 }
+/// BKT-only mastery ladder stored on ConceptMastery.displayStage.
+/// HIGH_SOLID = pKnown >= 0.90 (hysteresis down at 0.85); it is shown as
+/// SOLID or SECURE depending on FSRS stability (read model, not stored).
+enum MasteryStage {
+  NOT_STARTED
+  EMERGING
+  DEVELOPING
+  SOLID
+  HIGH_SOLID
+}
+
 /// Per-user BKT+ snapshot for a single concept.
 ///
 /// Source of truth on Day 7 will be LearnerEvent (append-only); this row
@@ -552,6 +566,11 @@ model ConceptMastery {
   lastUpdatedAt   BigInt
 
   observationCount Int   @default(0)
+
+  /// Hysteresis-guarded BKT stage, written ONLY by the event fold (apply.ts)
+  /// from the stored (un-decayed) pKnown. SECURE is not stored: the read model
+  /// upgrades HIGH_SOLID when median FSRS item stability > 21 d.
+  displayStage MasteryStage @default(NOT_STARTED)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
