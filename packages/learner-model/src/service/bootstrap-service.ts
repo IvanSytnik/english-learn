@@ -119,7 +119,7 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
         // Upsert every concept snapshot. Sequential on purpose: N ≤ number of
         // concepts (15 today), and a single tx keeps it atomic.
         for (const s of states) {
-          await tx.upsertConceptMastery(input.userId, s.conceptId, bktStateToRow(s.bkt));
+          await tx.upsertConceptMastery(input.userId, s.conceptId, bktStateToRow(s.bkt, s.stage));
         }
 
         return { guarded: false as const };

@@ -15,3 +15,15 @@ export {
   type BootstrapInput,
   type BootstrapOutput,
 } from './bootstrap';
+export {
+  BAND_TAIL,
+  buildPlacementReveal,
+  pickStartConcept,
+  placementBand,
+  type AnswerTally,
+  type PlacementReveal,
+  type PlacementRevealInput,
+  type RevealAnswerFact,
+  type RevealConcept,
+  type RevealSkillTag,
+} from './reveal';

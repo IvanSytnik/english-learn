@@ -1,3 +1,4 @@
+export { ConceptTitleSchema, getConceptTitle } from './concept';
 export * from './exercises';
 export * from './items';
 export * from './learner-events';

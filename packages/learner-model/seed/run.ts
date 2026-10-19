@@ -13,6 +13,7 @@
 
 import { createPrismaClient } from '@englishlearn/db/create-client';
 import { buildGraph } from '../src/core/graph/build';
+import { CONCEPT_TITLES } from './concepts/titles';
 import { SEED_GRAPH } from './index';
 
 const prisma = createPrismaClient(process.env.DATABASE_URL);
@@ -24,19 +25,23 @@ async function main() {
     `[seed:concepts] validated: ${graph.concepts.size} concepts, ${graph.edges.length} edges`,
   );
 
-  // 2. Upsert concepts.
+  // 2. Upsert concepts. A missing title is a seed bug, not a fallback case.
   for (const concept of SEED_GRAPH.concepts) {
+    const title = CONCEPT_TITLES[concept.id];
+    if (!title) throw new Error(`[seed:concepts] missing title for ${concept.id}`);
     await prisma.concept.upsert({
       where: { id: concept.id },
       create: {
         id: concept.id,
         name: concept.name,
+        title,
         description: concept.description ?? null,
         cefrLevel: concept.cefrLevel,
         category: concept.category,
       },
       update: {
         name: concept.name,
+        title,
         description: concept.description ?? null,
         cefrLevel: concept.cefrLevel,
         category: concept.category,

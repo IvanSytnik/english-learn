@@ -4,6 +4,7 @@ import { initBktState, update } from '../core/bkt/model';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
 import { initCardState, reviewCard } from '../core/fsrs/wrapper';
+import { type MasteryStage, nextDisplayStage } from '../mastery/stage';
 
 /**
  * The ONE pure fold step shared by the live path (recordOutcome) and replay.
@@ -20,6 +21,8 @@ import { initCardState, reviewCard } from '../core/fsrs/wrapper';
 export type LearnerStatePair = {
   bkt: BktState;
   fsrs: FsrsCardState;
+  /** ConceptMastery.displayStage after the outcome (from stored pKnown). */
+  stage: MasteryStage;
 };
 
 /**
@@ -34,7 +37,7 @@ export type ItemAttemptedFold = LearnerStatePair & {
 };
 
 export function applyItemAttempted(
-  prev: { bkt: BktState | null; fsrs: FsrsCardState | null },
+  prev: { bkt: BktState | null; fsrs: FsrsCardState | null; stage: MasteryStage | null },
   payload: ItemAttemptedPayload,
   occurredAt: bigint,
 ): ItemAttemptedFold {
@@ -56,13 +59,17 @@ export function applyItemAttempted(
   const fsrsBefore = prev.fsrs ?? initCardState(occurredAt);
   const { state: fsrs, scheduledDays } = reviewCard(fsrsBefore, payload.rating, occurredAt);
 
-  return { bkt, fsrs, pKnownBefore, scheduledDays };
+  const stage = nextDisplayStage(prev.stage ?? 'NOT_STARTED', bkt.pKnown);
+
+  return { bkt, fsrs, stage, pKnownBefore, scheduledDays };
 }
 
 /** One concept's initial BKT state produced by a bootstrap fold. */
 export type BootstrapConceptState = {
   conceptId: string;
   bkt: BktState;
+  /** Always NOT_STARTED: a diagnostic prior is not observed practice. */
+  stage: MasteryStage;
 };
 
 /**
@@ -101,5 +108,6 @@ export function applyLearnerBootstrapped(
       lastUpdatedAt: atMs,
       observationCount: 0,
     },
+    stage: 'NOT_STARTED' as const,
   }));
 }

@@ -2,6 +2,7 @@ import { bktStateToRow } from '../adapters/concept-mastery';
 import { fsrsStateToRow } from '../adapters/item-review-state';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
+import type { MasteryStage } from '../mastery/stage';
 import { applyItemAttempted, applyLearnerBootstrapped } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { parseEventRow } from './event-store';
@@ -35,6 +36,7 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
     await tx.deleteSnapshots(userId);
 
     const bktByConcept = new Map<string, BktState>();
+    const stageByConcept = new Map<string, MasteryStage>();
     const fsrsByItem = new Map<string, FsrsCardState>();
 
     let eventsProcessed = 0;
@@ -53,11 +55,13 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
             {
               bkt: bktByConcept.get(payload.conceptId) ?? null,
               fsrs: fsrsByItem.get(payload.itemId) ?? null,
+              stage: stageByConcept.get(payload.conceptId) ?? null,
             },
             payload,
             occurredAt,
           );
           bktByConcept.set(payload.conceptId, next.bkt);
+          stageByConcept.set(payload.conceptId, next.stage);
           fsrsByItem.set(payload.itemId, next.fsrs);
         } else {
           // LEARNER_BOOTSTRAPPED: seeds N concept BKT states directly — no
@@ -67,6 +71,7 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
           const states = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
           for (const s of states) {
             bktByConcept.set(s.conceptId, s.bkt);
+            stageByConcept.set(s.conceptId, s.stage);
           }
         }
 
@@ -80,7 +85,11 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
     }
 
     for (const [conceptId, state] of bktByConcept) {
-      await tx.upsertConceptMastery(userId, conceptId, bktStateToRow(state));
+      await tx.upsertConceptMastery(
+        userId,
+        conceptId,
+        bktStateToRow(state, stageByConcept.get(conceptId) ?? 'NOT_STARTED'),
+      );
     }
     for (const [itemId, state] of fsrsByItem) {
       await tx.upsertItemReviewState(userId, itemId, fsrsStateToRow(state));

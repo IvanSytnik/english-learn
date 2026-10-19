@@ -1,4 +1,5 @@
 import { type BktState, BktStateSchema } from '../core/bkt/types';
+import type { MasteryStage } from '../mastery/stage';
 
 /**
  * Adapter: pure BktState <-> Prisma ConceptMastery row.
@@ -20,6 +21,8 @@ export type ConceptMasteryRow = {
   pForgetLambda: number;
   lastUpdatedAt: bigint;
   observationCount: number;
+  /** Stored ladder stage — projection state, not part of BktState. */
+  displayStage: MasteryStage;
 };
 
 /** Values for prisma.conceptMastery.upsert create/update (state fields only). */
@@ -44,7 +47,7 @@ export function rowToBktState(row: ConceptMasteryRow): BktState {
   });
 }
 
-export function bktStateToRow(state: BktState): ConceptMasteryWrite {
+export function bktStateToRow(state: BktState, displayStage: MasteryStage): ConceptMasteryWrite {
   return {
     pKnown: state.pKnown,
     pLearn: state.pLearn,
@@ -53,5 +56,6 @@ export function bktStateToRow(state: BktState): ConceptMasteryWrite {
     pForgetLambda: state.pForgetLambda,
     lastUpdatedAt: BigInt(state.lastUpdatedAt),
     observationCount: state.observationCount,
+    displayStage,
   };
 }

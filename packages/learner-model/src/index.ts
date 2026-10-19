@@ -14,6 +14,7 @@ export * as bkt from './core/bkt';
 export * from './core/graph';
 export * from './core/graph/types';
 export * from './policy';
+export * from './mastery';
 export { createSelectionService, type SelectionService } from './service/selection-service';
 
 // Diagnostic v2: bootstrap pipeline (pure) + write-path service.
@@ -32,6 +33,16 @@ export {
   type MappingConstants,
   type BootstrapInput,
   type BootstrapOutput,
+  BAND_TAIL,
+  buildPlacementReveal,
+  pickStartConcept,
+  placementBand,
+  type AnswerTally,
+  type PlacementReveal,
+  type PlacementRevealInput,
+  type RevealAnswerFact,
+  type RevealConcept,
+  type RevealSkillTag,
 } from './diagnostic';
 
 export {

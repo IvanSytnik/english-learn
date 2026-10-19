@@ -107,6 +107,7 @@ export function createLearnerService(db: LearnerModelDb) {
           {
             bkt: masteryRow ? rowToBktState(masteryRow) : null,
             fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
+            stage: masteryRow?.displayStage ?? null,
           },
           // buildItemAttemptedEvent returned a schema-parsed payload.
           event.payload as Parameters<typeof applyItemAttempted>[1],
@@ -114,7 +115,11 @@ export function createLearnerService(db: LearnerModelDb) {
         );
 
         // 4. Persist projections.
-        await tx.upsertConceptMastery(input.userId, item.conceptId, bktStateToRow(folded.bkt));
+        await tx.upsertConceptMastery(
+          input.userId,
+          item.conceptId,
+          bktStateToRow(folded.bkt, folded.stage),
+        );
         await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
 
         return folded;

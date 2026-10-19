@@ -155,6 +155,8 @@ describe('bootstrap → selectNext integration', () => {
     });
     expect(boot.ok).toBe(true);
     expect(masteries.get(`u1:${DEPENDENT}`)?.observationCount).toBe(0);
+    // A diagnostic prior is not practice: the ladder starts at NOT_STARTED.
+    expect(masteries.get(`u1:${ROOT}`)?.displayStage).toBe('NOT_STARTED');
 
     // Both concepts have a bootstrap snapshot, yet only the root is selectable:
     // the dependent's prerequisite sits at the 0.6 bootstrap ceiling (< 0.7).
@@ -188,6 +190,8 @@ describe('bootstrap → selectNext integration', () => {
       expect(res.ok).toBe(true);
     }
     expect(masteries.get(`u1:${ROOT}`)?.pKnown).toBeGreaterThanOrEqual(0.7);
+    // Ladder and gate agree: the prerequisite that unlocks a dependent is Solid.
+    expect(['SOLID', 'HIGH_SOLID']).toContain(masteries.get(`u1:${ROOT}`)?.displayStage);
 
     const picked = await conceptsPicked(db, now + 1000);
     expect(picked.has(DEPENDENT)).toBe(true);

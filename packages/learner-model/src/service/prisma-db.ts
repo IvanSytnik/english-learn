@@ -56,6 +56,7 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
           pForgetLambda: true,
           lastUpdatedAt: true,
           observationCount: true,
+          displayStage: true,
         },
       });
       return row;

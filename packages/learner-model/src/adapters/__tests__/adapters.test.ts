@@ -10,7 +10,7 @@ const probArb = fc.double({ min: 0, max: 1, noNaN: true });
 describe('concept-mastery adapter', () => {
   it('roundtrips a freshly initialized state', () => {
     const state = initBktState(1_700_000_000_000);
-    expect(rowToBktState(bktStateToRow(state))).toEqual(state);
+    expect(rowToBktState(bktStateToRow(state, 'NOT_STARTED'))).toEqual(state);
   });
 
   it('roundtrips an updated state', () => {
@@ -19,7 +19,7 @@ describe('concept-mastery adapter', () => {
       timestamp: 1_700_000_060_000,
       item: { a: 1.2, b: -0.4 },
     });
-    expect(rowToBktState(bktStateToRow(state))).toEqual(state);
+    expect(rowToBktState(bktStateToRow(state, 'NOT_STARTED'))).toEqual(state);
   });
 
   it('roundtrips arbitrary valid states (property)', () => {
@@ -42,20 +42,20 @@ describe('concept-mastery adapter', () => {
             lastUpdatedAt: at,
             observationCount: obs,
           };
-          expect(rowToBktState(bktStateToRow(state))).toEqual(state);
+          expect(rowToBktState(bktStateToRow(state, 'NOT_STARTED'))).toEqual(state);
         },
       ),
     );
   });
 
   it('converts lastUpdatedAt to bigint for the row', () => {
-    const row = bktStateToRow(initBktState(42));
+    const row = bktStateToRow(initBktState(42), 'NOT_STARTED');
     expect(row.lastUpdatedAt).toBe(42n);
   });
 
   it('rejects lastUpdatedAt beyond Number.MAX_SAFE_INTEGER', () => {
     const state = initBktState(0);
-    const row = { ...bktStateToRow(state), lastUpdatedAt: 2n ** 60n };
+    const row = { ...bktStateToRow(state, 'NOT_STARTED'), lastUpdatedAt: 2n ** 60n };
     expect(() => rowToBktState(row)).toThrow(RangeError);
   });
 });

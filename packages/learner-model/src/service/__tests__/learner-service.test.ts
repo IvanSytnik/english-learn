@@ -105,6 +105,7 @@ const ITEMS: Record<string, ItemForOutcome> = {
 const USER = 'user_1';
 const T0 = 1_750_000_000_000n;
 const DAY_MS = 86_400_000n;
+const MINUTE_MS = 60_000n;
 
 describe('outcomeToRating', () => {
   it('maps correct -> GOOD, incorrect -> AGAIN', () => {
@@ -268,6 +269,43 @@ describe('LearnerService.recordOutcome', () => {
 
     expect(new Map(masteries)).toEqual(liveM);
     expect(new Map(reviews)).toEqual(liveR);
+  });
+
+  it('persists displayStage from the fold and replays it identically (E5)', async () => {
+    const { db, masteries } = createFakeDb(ITEMS);
+    const service = createLearnerService(db);
+    const itemId = 'item.past_simple.regular_ed';
+    const key = `${USER}:past_simple`;
+
+    // Climb: correct answers until the concept is at least SOLID. Minute
+    // spacing (one session): with the placeholder forgetting rate, day-spaced
+    // practice plateaus near pKnown 0.18 (HANDOFF §8 #10) — this test is about
+    // the fold mechanics, not calibration.
+    const seen: string[] = [];
+    let t = T0;
+    for (let i = 0; i < 12 && masteries.get(key)?.displayStage !== 'HIGH_SOLID'; i++) {
+      t += MINUTE_MS;
+      await service.recordOutcome({ userId: USER, itemId, correct: true, occurredAtMs: t });
+      seen.push(masteries.get(key)?.displayStage ?? 'missing');
+    }
+    expect(seen[0]).not.toBe('NOT_STARTED');
+    expect(seen).toContain('SOLID');
+    // Ladder only moves up on a run of correct answers.
+    const order = ['EMERGING', 'DEVELOPING', 'SOLID', 'HIGH_SOLID'];
+    for (let i = 1; i < seen.length; i++) {
+      expect(order.indexOf(seen[i] as string)).toBeGreaterThanOrEqual(
+        order.indexOf(seen[i - 1] as string),
+      );
+    }
+
+    // Then a few misses — hysteresis decides; replay must land on the same stage.
+    for (let i = 0; i < 3; i++) {
+      t += MINUTE_MS;
+      await service.recordOutcome({ userId: USER, itemId, correct: false, occurredAtMs: t });
+    }
+    const live = masteries.get(key);
+    await replayUser(db, USER);
+    expect(masteries.get(key)).toEqual(live);
   });
 
   it('uses ONE timestamp for event, BKT anchor and FSRS review', async () => {
