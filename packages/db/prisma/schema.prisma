@@ -445,6 +445,10 @@ model DiagnosticAnswer {
   itemId     String
   userAnswer String    @db.Text
   isCorrect  Boolean
+  /// "I don't know" (key `0`): an explicit no-guess answer. Always graded
+  /// incorrect — the migration adds CHECK (NOT ("dontKnow" AND "isCorrect")),
+  /// which Prisma does not model. userAnswer is "" for these rows.
+  dontKnow   Boolean   @default(false)
   timeMs     Int?
   itemLevel  CefrLevel
   position   Int
