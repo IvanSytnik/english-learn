@@ -42,7 +42,7 @@ export const accuracyBasedEstimator: ThetaEstimator = {
       // crashing the whole bootstrap. Should never happen given the Zod gate.
       if (!t) continue;
       t.total += 1;
-      if (a.correct) t.correct += 1;
+      if (a.correct && !a.dontKnow) t.correct += 1;
     }
 
     return ALL_AXES.map((axis) => {

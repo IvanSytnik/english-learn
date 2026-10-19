@@ -16,7 +16,6 @@ import { buildItemAttemptedEvent } from './event-store';
 export type RecordOutcomeInput = {
   userId: string;
   itemId: string;
-  correct: boolean;
   /** Response time in ms, if the client measured it. */
   timeMs?: number;
   /**
@@ -24,7 +23,15 @@ export type RecordOutcomeInput = {
    * production callers omit it and get Date.now().
    */
   occurredAtMs?: bigint;
-};
+} & (
+  | { correct: boolean; dontKnow?: false }
+  /**
+   * "I don't know" (key `0`). Recorded as an incorrect answer — for BKT it is
+   * evidence of not knowing without guess noise, for FSRS a lapse (AGAIN).
+   * The flag is frozen into the payload; the fold does not branch on it.
+   */
+  | { dontKnow: true; correct?: false }
+);
 
 /**
  * What the post-answer UI needs, taken from the same fold that was persisted:
@@ -71,12 +78,14 @@ export function createLearnerService(db: LearnerModelDb) {
       const item = await db.getItemForOutcome(input.itemId);
       if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
 
-      const rating = outcomeToRating(input.correct);
+      const correct = input.dontKnow ? false : input.correct;
+      const rating = outcomeToRating(correct);
       const event = buildItemAttemptedEvent({
         userId: input.userId,
         itemId: input.itemId,
         conceptId: item.conceptId,
-        correct: input.correct,
+        correct,
+        dontKnow: input.dontKnow === true,
         timeMs: input.timeMs ?? null,
         rating,
         irt: { a: item.irtDiscrimination, b: item.irtDifficulty },

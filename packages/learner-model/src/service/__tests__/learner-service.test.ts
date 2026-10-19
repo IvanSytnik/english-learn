@@ -216,6 +216,60 @@ describe('LearnerService.recordOutcome', () => {
     expect(graduated.nextDueAt > T0 + DAY_MS).toBe(true);
   });
 
+  it("records don't-know as an incorrect AGAIN attempt and freezes the flag (E4)", async () => {
+    const flagged = createFakeDb(ITEMS);
+    const plain = createFakeDb(ITEMS);
+    const itemId = 'item.past_simple.regular_ed';
+
+    const dk = await createLearnerService(flagged.db).recordOutcome({
+      userId: USER,
+      itemId,
+      dontKnow: true,
+      occurredAtMs: T0,
+    });
+    const wrong = await createLearnerService(plain.db).recordOutcome({
+      userId: USER,
+      itemId,
+      correct: false,
+      occurredAtMs: T0,
+    });
+
+    expect(dk).toEqual(wrong);
+    expect(dk).toMatchObject({ ok: true, rating: 'AGAIN' });
+    expect(flagged.events[0]?.payload).toEqual({
+      ...(plain.events[0]?.payload as object),
+      dontKnow: true,
+    });
+    expect(plain.events[0]?.payload).not.toHaveProperty('dontKnow');
+    // Projections are bit-identical to an ordinary wrong answer.
+    expect([...flagged.masteries.entries()]).toEqual([...plain.masteries.entries()]);
+    expect([...flagged.reviews.entries()]).toEqual([...plain.reviews.entries()]);
+  });
+
+  it("replays a don't-know event to the same projections as the live path (E4)", async () => {
+    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const service = createLearnerService(db);
+    await service.recordOutcome({
+      userId: USER,
+      itemId: 'item.past_simple.regular_ed',
+      correct: true,
+      occurredAtMs: T0,
+    });
+    await service.recordOutcome({
+      userId: USER,
+      itemId: 'item.past_simple.irregular_go',
+      dontKnow: true,
+      occurredAtMs: T0 + DAY_MS,
+    });
+    const liveM = new Map(masteries);
+    const liveR = new Map(reviews);
+
+    await replayUser(db, USER);
+
+    expect(new Map(masteries)).toEqual(liveM);
+    expect(new Map(reviews)).toEqual(liveR);
+  });
+
   it('uses ONE timestamp for event, BKT anchor and FSRS review', async () => {
     const { db, masteries, reviews } = createFakeDb(ITEMS);
     const service = createLearnerService(db);

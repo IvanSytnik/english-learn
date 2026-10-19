@@ -13,6 +13,12 @@ export type DiagnosticAnswerFact = {
   /** Which skill axis this item measured (DiagnosticItem.kind). */
   axis: DiagnosticAxisValue;
   correct: boolean;
+  /**
+   * DiagnosticAnswer.dontKnow — "I don't know" (no guess). Scored as incorrect
+   * regardless of `correct` (the DB CHECK already forbids dontKnow AND
+   * isCorrect); still counts toward `answered`, since it is a real signal.
+   */
+  dontKnow?: boolean;
 };
 
 /**

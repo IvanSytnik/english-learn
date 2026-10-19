@@ -246,4 +246,33 @@ describe('createBootstrapService', () => {
       expect(state.bkt.observationCount).toBe(live.observationCount);
     }
   });
+
+  it("don't-know answers flow through bootstrap exactly like incorrect ones", async () => {
+    // Same answer sheet, but every wrong answer was given as "I don't know".
+    const dontKnowAnswers: DiagnosticAnswerFact[] = ANSWERS.map((a) =>
+      a.correct ? a : { ...a, dontKnow: true },
+    );
+
+    const plain = makeFakeDb();
+    const flagged = makeFakeDb();
+    const input = {
+      userId: 'u1',
+      diagnosticAttemptId: 'da1',
+      assessedLevel: 'B1' as const,
+      concepts: CONCEPTS,
+      occurredAtMs: at,
+    };
+    const a = await createBootstrapService(plain.db).bootstrapFromDiagnostic({
+      ...input,
+      answers: ANSWERS,
+    });
+    const b = await createBootstrapService(flagged.db).bootstrapFromDiagnostic({
+      ...input,
+      answers: dontKnowAnswers,
+    });
+
+    expect(b).toEqual(a);
+    expect(flagged.events[0]?.payload).toEqual(plain.events[0]?.payload);
+    expect([...flagged.mastery.entries()]).toEqual([...plain.mastery.entries()]);
+  });
 });

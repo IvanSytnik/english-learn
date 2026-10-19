@@ -79,4 +79,40 @@ describe('accuracyBasedEstimator', () => {
       ),
     );
   });
+
+  it("scores don't-know as answered but incorrect, even if mis-flagged correct", () => {
+    const answers: DiagnosticAnswerFact[] = [
+      { axis: 'GRAMMAR', correct: true },
+      { axis: 'GRAMMAR', correct: false, dontKnow: true },
+      { axis: 'GRAMMAR', correct: true, dontKnow: true }, // DB CHECK forbids; estimator still safe
+    ];
+    const est = accuracyBasedEstimator.estimate(answers).find((e) => e.axis === 'GRAMMAR');
+    expect(est?.answered).toBe(3);
+    expect(est?.accuracy).toBeCloseTo(1 / 3, 10);
+  });
+
+  it("marking answers don't-know is equivalent to marking them incorrect", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.record({ correct: fc.boolean(), dontKnow: fc.boolean() }), {
+          minLength: 1,
+          maxLength: 40,
+        }),
+        (rows) => {
+          const withFlag: DiagnosticAnswerFact[] = rows.map((r) => ({
+            axis: 'VOCAB' as const,
+            correct: r.correct,
+            dontKnow: r.dontKnow,
+          }));
+          const asIncorrect: DiagnosticAnswerFact[] = rows.map((r) => ({
+            axis: 'VOCAB' as const,
+            correct: r.correct && !r.dontKnow,
+          }));
+          expect(accuracyBasedEstimator.estimate(withFlag)).toEqual(
+            accuracyBasedEstimator.estimate(asIncorrect),
+          );
+        },
+      ),
+    );
+  });
 });

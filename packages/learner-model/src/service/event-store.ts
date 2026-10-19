@@ -21,6 +21,8 @@ export type ItemOutcomeFact = {
   itemId: string;
   conceptId: string;
   correct: boolean;
+  /** "I don't know" — written to the payload only when true. */
+  dontKnow?: boolean;
   timeMs: number | null;
   rating: FsrsRating;
   irt: IrtParams;
@@ -36,6 +38,7 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
     timeMs: fact.timeMs,
     rating: fact.rating,
     irt: { a: fact.irt.a, b: fact.irt.b },
+    ...(fact.dontKnow ? { dontKnow: true } : {}),
   });
   return {
     userId: fact.userId,

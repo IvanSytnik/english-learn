@@ -46,8 +46,19 @@ export const ItemAttemptedPayloadSchema = z
     rating: FsrsRatingValue,
     /** IRT params fed to BKT, frozen at attempt time. */
     irt: IrtSnapshotSchema,
+    /**
+     * "I don't know" (no guess). Present only when true, so ordinary payloads
+     * — including every event written before this field existed — are
+     * unchanged. Folded exactly like an incorrect answer (correct = false,
+     * rating AGAIN); kept for analytics and future no-guess modelling.
+     */
+    dontKnow: z.literal(true).optional(),
   })
-  .strict();
+  .strict()
+  .refine((p) => !(p.dontKnow && p.correct), {
+    message: "a don't-know attempt cannot be correct",
+    path: ['correct'],
+  });
 export type ItemAttemptedPayload = z.infer<typeof ItemAttemptedPayloadSchema>;
 
 export function parseItemAttemptedPayload(json: unknown): ItemAttemptedPayload {
