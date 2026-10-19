@@ -1,4 +1,4 @@
-export { applyItemAttempted, type LearnerStatePair } from './apply';
+export { applyItemAttempted, type ItemAttemptedFold, type LearnerStatePair } from './apply';
 export type {
   ItemForOutcome,
   LearnerEventInsert,

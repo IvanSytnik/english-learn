@@ -1,4 +1,5 @@
 import type { ItemAttemptedPayload, LearnerBootstrappedPayload } from '@englishlearn/db/schemas';
+import { applyForgetting } from '../core/bkt/forgetting';
 import { initBktState, update } from '../core/bkt/model';
 import type { BktState } from '../core/bkt/types';
 import type { FsrsCardState } from '../core/fsrs/types';
@@ -21,14 +22,31 @@ export type LearnerStatePair = {
   fsrs: FsrsCardState;
 };
 
+/**
+ * The fold result plus two derived facts the live path reports back to the
+ * caller (post-answer feedback). Never persisted; replay ignores them.
+ */
+export type ItemAttemptedFold = LearnerStatePair & {
+  /** pKnown just before this outcome, with forgetting applied up to occurredAt. */
+  pKnownBefore: number;
+  /** Interval FSRS granted, in days (0 for an intra-day learning step). */
+  scheduledDays: number;
+};
+
 export function applyItemAttempted(
   prev: { bkt: BktState | null; fsrs: FsrsCardState | null },
   payload: ItemAttemptedPayload,
   occurredAt: bigint,
-): LearnerStatePair {
+): ItemAttemptedFold {
   const atMs = Number(occurredAt);
 
   const bktBefore = prev.bkt ?? initBktState(atMs);
+  // Same decay update() applies internally — the value the posterior starts from.
+  const pKnownBefore = applyForgetting(
+    bktBefore.pKnown,
+    bktBefore.pForgetLambda,
+    atMs - bktBefore.lastUpdatedAt,
+  );
   const bkt = update(bktBefore, {
     correct: payload.correct,
     timestamp: atMs,
@@ -36,9 +54,9 @@ export function applyItemAttempted(
   });
 
   const fsrsBefore = prev.fsrs ?? initCardState(occurredAt);
-  const { state: fsrs } = reviewCard(fsrsBefore, payload.rating, occurredAt);
+  const { state: fsrs, scheduledDays } = reviewCard(fsrsBefore, payload.rating, occurredAt);
 
-  return { bkt, fsrs };
+  return { bkt, fsrs, pKnownBefore, scheduledDays };
 }
 
 /** One concept's initial BKT state produced by a bootstrap fold. */

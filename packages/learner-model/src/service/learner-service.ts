@@ -1,6 +1,6 @@
 import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
-import type { FsrsRating } from '../core/fsrs/types';
+import type { FsrsCardStatus, FsrsRating } from '../core/fsrs/types';
 import { applyItemAttempted } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { buildItemAttemptedEvent } from './event-store';
@@ -26,8 +26,27 @@ export type RecordOutcomeInput = {
   occurredAtMs?: bigint;
 };
 
+/**
+ * What the post-answer UI needs, taken from the same fold that was persisted:
+ * a stage crossing (pKnownBefore → pKnownAfter) or the next review moment.
+ * BKT numbers are mapped to semantic stages by the caller, never shown raw.
+ */
 export type RecordOutcomeResult =
-  | { ok: true; occurredAt: bigint; rating: FsrsRating }
+  | {
+      ok: true;
+      occurredAt: bigint;
+      rating: FsrsRating;
+      conceptId: string;
+      /** pKnown just before the outcome, forgetting applied up to occurredAt. */
+      pKnownBefore: number;
+      /** Stored (un-decayed) pKnown after the outcome. */
+      pKnownAfter: number;
+      /** Next FSRS due moment for this item, Unix ms. */
+      nextDueAt: bigint;
+      /** FSRS interval in days; 0 = intra-day learning step ("Back soon"). */
+      scheduledDays: number;
+      cardStatus: FsrsCardStatus;
+    }
   | { ok: false; error: 'ITEM_NOT_FOUND' };
 
 /**
@@ -64,7 +83,7 @@ export function createLearnerService(db: LearnerModelDb) {
         occurredAt,
       });
 
-      await db.runInTx(async (tx) => {
+      const next = await db.runInTx(async (tx) => {
         // 1. The fact, first — projections are derived from it.
         await tx.appendEvent(event);
 
@@ -75,7 +94,7 @@ export function createLearnerService(db: LearnerModelDb) {
         ]);
 
         // 3. One shared pure fold — identical to what replay runs.
-        const next = applyItemAttempted(
+        const folded = applyItemAttempted(
           {
             bkt: masteryRow ? rowToBktState(masteryRow) : null,
             fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
@@ -86,11 +105,23 @@ export function createLearnerService(db: LearnerModelDb) {
         );
 
         // 4. Persist projections.
-        await tx.upsertConceptMastery(input.userId, item.conceptId, bktStateToRow(next.bkt));
-        await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(next.fsrs));
+        await tx.upsertConceptMastery(input.userId, item.conceptId, bktStateToRow(folded.bkt));
+        await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
+
+        return folded;
       });
 
-      return { ok: true, occurredAt, rating };
+      return {
+        ok: true,
+        occurredAt,
+        rating,
+        conceptId: item.conceptId,
+        pKnownBefore: next.pKnownBefore,
+        pKnownAfter: next.bkt.pKnown,
+        nextDueAt: next.fsrs.dueAt,
+        scheduledDays: next.scheduledDays,
+        cardStatus: next.fsrs.cardStatus,
+      };
     },
   };
 }

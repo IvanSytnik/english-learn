@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ConceptMasteryRow } from '../../adapters/concept-mastery';
 import type { ItemReviewStateRow } from '../../adapters/item-review-state';
+import { BKT_DEFAULTS } from '../../core/bkt/constants';
+import { applyForgetting } from '../../core/bkt/forgetting';
 import type { ItemForOutcome, LearnerEventRow, LearnerModelDb, LearnerModelTx } from '../db-port';
 import { createLearnerService, outcomeToRating } from '../learner-service';
 import { replayUser } from '../replay';
@@ -102,6 +104,7 @@ const ITEMS: Record<string, ItemForOutcome> = {
 
 const USER = 'user_1';
 const T0 = 1_750_000_000_000n;
+const DAY_MS = 86_400_000n;
 
 describe('outcomeToRating', () => {
   it('maps correct -> GOOD, incorrect -> AGAIN', () => {
@@ -140,7 +143,7 @@ describe('LearnerService.recordOutcome', () => {
       occurredAtMs: T0,
     });
 
-    expect(result).toEqual({ ok: true, occurredAt: T0, rating: 'AGAIN' });
+    expect(result).toMatchObject({ ok: true, occurredAt: T0, rating: 'AGAIN' });
     expect(events).toHaveLength(1);
     expect(events[0].type).toBe('ITEM_ATTEMPTED');
     expect(events[0].occurredAt).toBe(T0);
@@ -152,6 +155,65 @@ describe('LearnerService.recordOutcome', () => {
       rating: 'AGAIN',
       irt: { a: 1.3, b: -0.5 },
     });
+  });
+
+  it('reports post-answer deltas that match the persisted projections (E3)', async () => {
+    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const service = createLearnerService(db);
+
+    // First ever outcome on the concept, wrong: cold prior, intra-day relearn step.
+    const first = await service.recordOutcome({
+      userId: USER,
+      itemId: 'item.past_simple.regular_ed',
+      correct: false,
+      occurredAtMs: T0,
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.conceptId).toBe('past_simple');
+    expect(first.pKnownBefore).toBe(BKT_DEFAULTS.pKnownInit);
+    expect(first.pKnownAfter).toBe(masteries.get(`${USER}:past_simple`)?.pKnown);
+    expect(first.nextDueAt).toBe(reviews.get(`${USER}:item.past_simple.regular_ed`)?.dueAt);
+    expect(first.scheduledDays).toBe(0);
+    expect(first.cardStatus).toBe('LEARNING');
+
+    // 30 days later on a sibling item: pKnownBefore is the decayed stored value.
+    const stored = masteries.get(`${USER}:past_simple`);
+    if (!stored) throw new Error('mastery missing');
+    const later = T0 + 30n * DAY_MS;
+    const second = await service.recordOutcome({
+      userId: USER,
+      itemId: 'item.past_simple.irregular_go',
+      correct: true,
+      occurredAtMs: later,
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.pKnownBefore).toBe(
+      applyForgetting(stored.pKnown, stored.pForgetLambda, Number(later - stored.lastUpdatedAt)),
+    );
+    expect(second.pKnownBefore).toBeLessThan(stored.pKnown);
+    expect(second.pKnownAfter).toBe(masteries.get(`${USER}:past_simple`)?.pKnown);
+  });
+
+  it('reports a multi-day interval once the card graduates to REVIEW (E3)', async () => {
+    const { db, reviews } = createFakeDb(ITEMS);
+    const service = createLearnerService(db);
+    const itemId = 'item.present_perfect.for_since';
+
+    await service.recordOutcome({ userId: USER, itemId, correct: true, occurredAtMs: T0 });
+    const graduated = await service.recordOutcome({
+      userId: USER,
+      itemId,
+      correct: true,
+      occurredAtMs: T0 + DAY_MS,
+    });
+    expect(graduated.ok).toBe(true);
+    if (!graduated.ok) return;
+    expect(graduated.cardStatus).toBe('REVIEW');
+    expect(graduated.scheduledDays).toBeGreaterThan(0);
+    expect(graduated.nextDueAt).toBe(reviews.get(`${USER}:${itemId}`)?.dueAt);
+    expect(graduated.nextDueAt > T0 + DAY_MS).toBe(true);
   });
 
   it('uses ONE timestamp for event, BKT anchor and FSRS review', async () => {
