@@ -59,6 +59,42 @@ describe('computeUnlocked', () => {
     expect(locked.has('present_perfect')).toBe(false);
   });
 
+  it('unlockedBy lists every direct parent (sorted) only for introduction-unlocked concepts', () => {
+    const edges = [
+      prereq('past_simple', 'present_perfect'),
+      prereq('past_participle', 'present_perfect'),
+      prereq('present_perfect', 'present_perfect_continuous'),
+    ];
+    const { unlockedBy } = computeUnlocked(
+      ['past_simple', 'present_perfect', 'present_perfect_continuous'],
+      [
+        mastery('past_simple', 0.8),
+        mastery('past_participle', 0.75),
+        mastery('present_perfect_continuous', 0.3), // started → review regime
+        mastery('present_perfect', 0.5),
+      ],
+      edges,
+      DEFAULT_POLICY_CONFIG,
+    );
+    expect(unlockedBy.has('past_simple')).toBe(false); // root
+    expect(unlockedBy.has('present_perfect')).toBe(false); // started
+    expect(unlockedBy.has('present_perfect_continuous')).toBe(false); // started
+  });
+
+  it('unlockedBy names the parents that opened the gate for a new concept', () => {
+    const edges = [
+      prereq('past_simple', 'present_perfect'),
+      prereq('past_participle', 'present_perfect'),
+    ];
+    const { unlockedBy } = computeUnlocked(
+      ['present_perfect'],
+      [mastery('past_simple', 0.8), mastery('past_participle', 0.75)],
+      edges,
+      DEFAULT_POLICY_CONFIG,
+    );
+    expect(unlockedBy.get('present_perfect')).toEqual(['past_participle', 'past_simple']);
+  });
+
   it('a bootstrap snapshot (observationCount 0) does not count as started', () => {
     // LEARNER_BOOTSTRAPPED writes a prior for both concepts; neither has been
     // practised, so present_perfect stays introduction-gated behind past_simple.

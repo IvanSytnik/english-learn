@@ -32,6 +32,7 @@ const cand = (itemId: string, conceptId: string, dueAt: bigint | null): Candidat
   irtDifficulty: 0,
   cefrLevel: 'B1',
   dueAt,
+  lastReviewAt: null,
 });
 
 describe('SelectionService.selectNext', () => {

@@ -193,6 +193,7 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
           irtDifficulty: number;
           cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
           dueAt: bigint | null;
+          lastReviewAt: bigint | null;
         }[]
       >`
     SELECT
@@ -201,7 +202,8 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
       i."irtDiscrimination" AS "irtDiscrimination",
       i."irtDifficulty" AS "irtDifficulty",
       i."cefrLevel" AS "cefrLevel",
-      irs."dueAt" AS "dueAt"
+      irs."dueAt" AS "dueAt",
+      irs."lastReviewAt" AS "lastReviewAt"
     FROM "Item" i
     LEFT JOIN "ItemReviewState" irs
       ON irs."itemId" = i."id"

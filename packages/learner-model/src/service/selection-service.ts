@@ -81,6 +81,7 @@ export function createSelectionService(db: LearnerModelDb) {
           irtDifficulty: r.irtDifficulty,
           cefrLevel: r.cefrLevel,
           dueAt: r.dueAt === null ? null : Number(r.dueAt),
+          lastReviewAt: r.lastReviewAt === null ? null : Number(r.lastReviewAt),
         })),
         config,
       };

@@ -115,4 +115,6 @@ export type CandidateItemRow = {
   cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   /** Next-due Unix ms, or null if no ItemReviewState row for this (user,item). */
   dueAt: bigint | null;
+  /** Last review Unix ms, or null if never reviewed (or no ItemReviewState row). */
+  lastReviewAt: bigint | null;
 };

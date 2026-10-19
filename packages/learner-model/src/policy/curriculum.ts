@@ -28,6 +28,22 @@ export interface UnlockResult {
   readonly unlocked: ReadonlySet<ConceptId>;
   /** Concepts that appear as candidates but are gated out (introduction-locked). */
   readonly locked: ReadonlySet<ConceptId>;
+  /**
+   * For concepts unlocked under the INTRODUCTION regime: the direct
+   * PREREQUISITE parents whose mastery opened the gate (sorted). Roots and
+   * REVIEW-regime concepts have no entry.
+   */
+  readonly unlockedBy: ReadonlyMap<ConceptId, readonly ConceptId[]>;
+}
+
+/**
+ * A concept is "started" once at least one outcome has been folded into it.
+ * A LEARNER_BOOTSTRAPPED snapshot alone (observationCount = 0) is a prior,
+ * not practice. Shared by the gate and SelectionResult.isNewConcept so the
+ * two can never disagree.
+ */
+export function isStarted(mastery: ConceptMasterySnapshot | undefined): boolean {
+  return (mastery?.observationCount ?? 0) > 0;
 }
 
 export function computeUnlocked(
@@ -50,11 +66,12 @@ export function computeUnlocked(
 
   const unlocked = new Set<ConceptId>();
   const locked = new Set<ConceptId>();
+  const unlockedBy = new Map<ConceptId, ConceptId[]>();
 
   for (const conceptId of new Set(candidateConceptIds)) {
     // A bootstrap snapshot is a prior, not practice (observationCount = 0), so
     // it must not flip a concept into the review regime and bypass the gate.
-    const alreadyStarted = (masteryById.get(conceptId)?.observationCount ?? 0) > 0;
+    const alreadyStarted = isStarted(masteryById.get(conceptId));
 
     // REVIEW regime: never gated.
     if (alreadyStarted) {
@@ -69,9 +86,13 @@ export function computeUnlocked(
       return pm !== undefined && pm.pKnown >= config.prereqThreshold;
     });
 
-    if (allParentsMastered) unlocked.add(conceptId);
-    else locked.add(conceptId);
+    if (allParentsMastered) {
+      unlocked.add(conceptId);
+      if (parents.length > 0) unlockedBy.set(conceptId, [...new Set(parents)].sort());
+    } else {
+      locked.add(conceptId);
+    }
   }
 
-  return { unlocked, locked };
+  return { unlocked, locked, unlockedBy };
 }

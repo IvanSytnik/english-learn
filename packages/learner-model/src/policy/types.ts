@@ -104,6 +104,8 @@ export interface DueItem {
    * never been reviewed (no ItemReviewState row => a brand-new item).
    */
   readonly dueAt: number | null;
+  /** Last review Unix ms from ItemReviewState, or null if never reviewed. */
+  readonly lastReviewAt: number | null;
 }
 
 /** Everything the pure selector needs — assembled by the service. */
@@ -133,6 +135,23 @@ export interface SelectionResult {
   readonly itemId: string;
   readonly conceptId: ConceptId;
   readonly reason: SelectionReason;
+  /**
+   * True when the concept has no folded outcome yet (a bootstrap prior does
+   * not count). NEW_INTRODUCTION alone does NOT imply this — Thompson also
+   * picks already-started concepts (HANDOFF gotcha 37c).
+   */
+  readonly isNewConcept: boolean;
+  /**
+   * Direct PREREQUISITE parents that opened the gate for a new concept
+   * (sorted). Empty for roots and for already-started concepts.
+   */
+  readonly unlockedBy: readonly ConceptId[];
+  /**
+   * Most recent review (Unix ms) across the concept's candidate items, or
+   * null if none has been reviewed. Concept-level on purpose: the chosen item
+   * itself may be unseen while the concept has been practised.
+   */
+  readonly lastPracticedAt: number | null;
   /** Thompson sample per unlocked concept — debug only, never shown to users. */
   readonly debugScores: Readonly<Record<ConceptId, number>>;
 }

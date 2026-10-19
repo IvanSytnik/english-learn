@@ -1,9 +1,10 @@
 import type { ConceptId } from '../core/graph/types';
-import { computeUnlocked } from './curriculum';
+import { computeUnlocked, isStarted } from './curriculum';
 import { betaParamsForConcept, meanDifficultyByConcept } from './posterior';
 import { type Rng, sampleBeta } from './rng';
 import type {
   ConceptEventCounts,
+  ConceptMasterySnapshot,
   DueItem,
   SelectionInput,
   SelectionOutcome,
@@ -37,7 +38,34 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
 
   // ── Gate ──────────────────────────────────────────────────────────────────
   const candidateConceptIds = candidates.map((c) => c.conceptId);
-  const { unlocked } = computeUnlocked(candidateConceptIds, masteries, prereqEdges, config);
+  const { unlocked, unlockedBy } = computeUnlocked(
+    candidateConceptIds,
+    masteries,
+    prereqEdges,
+    config,
+  );
+  const masteryById = new Map<ConceptId, ConceptMasterySnapshot>();
+  for (const m of masteries) masteryById.set(m.conceptId, m);
+
+  const okResult = (
+    item: DueItem,
+    reason: SelectionResult['reason'],
+    debugScores: Record<ConceptId, number>,
+  ): SelectionOutcome => {
+    const isNewConcept = !isStarted(masteryById.get(item.conceptId));
+    return {
+      ok: true,
+      result: {
+        itemId: item.itemId,
+        conceptId: item.conceptId,
+        reason,
+        isNewConcept,
+        unlockedBy: isNewConcept ? (unlockedBy.get(item.conceptId) ?? []) : [],
+        lastPracticedAt: lastPracticedAt(candidates, item.conceptId),
+        debugScores,
+      },
+    };
+  };
 
   const unlockedCandidates = candidates.filter((c) => unlocked.has(c.conceptId));
   if (unlockedCandidates.length === 0) {
@@ -128,20 +156,14 @@ function pickItemInConcept(
   return sorted[0] as DueItem;
 }
 
-function okResult(
-  item: DueItem,
-  reason: SelectionResult['reason'],
-  debugScores: Record<ConceptId, number>,
-): SelectionOutcome {
-  return {
-    ok: true,
-    result: {
-      itemId: item.itemId,
-      conceptId: item.conceptId,
-      reason,
-      debugScores,
-    },
-  };
+/** Latest lastReviewAt across a concept's candidate items, or null. */
+function lastPracticedAt(candidates: readonly DueItem[], conceptId: ConceptId): number | null {
+  let latest: number | null = null;
+  for (const c of candidates) {
+    if (c.conceptId !== conceptId || c.lastReviewAt === null) continue;
+    if (latest === null || c.lastReviewAt > latest) latest = c.lastReviewAt;
+  }
+  return latest;
 }
 
 function indexCounts(

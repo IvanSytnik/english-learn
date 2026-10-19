@@ -120,6 +120,7 @@ function createStore() {
         irtDifficulty: item.irtDifficulty,
         cefrLevel: 'A2' as const,
         dueAt: reviews.get(`${userId}:${itemId}`)?.dueAt ?? null,
+        lastReviewAt: reviews.get(`${userId}:${itemId}`)?.lastReviewAt ?? null,
       }));
     },
   };

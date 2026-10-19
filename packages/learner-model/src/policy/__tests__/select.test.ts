@@ -19,13 +19,28 @@ function baseInput(over: Partial<SelectionInput> = {}): SelectionInput {
   };
 }
 
-const item = (itemId: string, conceptId: string, dueAt: number | null, b = 0.0): DueItem => ({
+const item = (
+  itemId: string,
+  conceptId: string,
+  dueAt: number | null,
+  b = 0.0,
+  lastReviewAt: number | null = null,
+): DueItem => ({
   itemId,
   conceptId,
   irtDiscrimination: 1.0,
   irtDifficulty: b,
   cefrLevel: 'B1',
   dueAt,
+  lastReviewAt,
+});
+
+const mastery = (conceptId: string, pKnown: number, observationCount: number) => ({
+  conceptId,
+  pKnown,
+  observationCount,
+  lastUpdatedAt: 0,
+  pForgetLambda: 0.01,
 });
 
 describe('select — empties & gate', () => {
@@ -188,5 +203,77 @@ describe('select — item choice within a concept', () => {
     );
     expect(out.ok).toBe(true);
     if (out.ok) expect(out.result.itemId).toBe('seen-soon');
+  });
+});
+
+describe('select — explanation fields (E2)', () => {
+  const edges = [{ from: 'past_simple', to: 'present_perfect', kind: 'PREREQUISITE' as const }];
+
+  it('REVIEW_DUE: started concept, no unlockedBy, lastPracticedAt = latest review in concept', () => {
+    const out = select(
+      baseInput({
+        masteries: [mastery('c.a', 0.5, 3)],
+        candidates: [
+          item('due', 'c.a', NOW - 1000, 0, NOW - 5 * 86_400_000),
+          item('sibling', 'c.a', NOW + 1000, 0, NOW - 2 * 86_400_000),
+        ],
+      }),
+      makeRng(1),
+    );
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.result.reason).toBe('REVIEW_DUE');
+    expect(out.result.isNewConcept).toBe(false);
+    expect(out.result.unlockedBy).toEqual([]);
+    expect(out.result.lastPracticedAt).toBe(NOW - 2 * 86_400_000);
+  });
+
+  it('NEW_INTRODUCTION of a gated concept reports the parent that unlocked it', () => {
+    const out = select(
+      baseInput({
+        prereqEdges: edges,
+        // past_simple mastered, but has no candidate item → only present_perfect is selectable.
+        masteries: [mastery('past_simple', 0.8, 6)],
+        candidates: [item('pp', 'present_perfect', null)],
+      }),
+      makeRng(1),
+    );
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.result.reason).toBe('NEW_INTRODUCTION');
+    expect(out.result.isNewConcept).toBe(true);
+    expect(out.result.unlockedBy).toEqual(['past_simple']);
+    expect(out.result.lastPracticedAt).toBeNull();
+  });
+
+  it('a root concept on a bootstrap prior is new with empty unlockedBy', () => {
+    const out = select(
+      baseInput({
+        masteries: [mastery('past_simple', 0.6, 0)],
+        candidates: [item('ps', 'past_simple', null)],
+      }),
+      makeRng(1),
+    );
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.result.isNewConcept).toBe(true);
+    expect(out.result.unlockedBy).toEqual([]);
+  });
+
+  it('NEW_INTRODUCTION of an already-started concept is not new (gotcha 37c)', () => {
+    const out = select(
+      baseInput({
+        prereqEdges: edges,
+        masteries: [mastery('past_simple', 0.8, 6), mastery('present_perfect', 0.4, 2)],
+        candidates: [item('pp', 'present_perfect', NOW + 60_000, 0, NOW - 60_000)],
+      }),
+      makeRng(1),
+    );
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.result.reason).toBe('NEW_INTRODUCTION');
+    expect(out.result.isNewConcept).toBe(false);
+    expect(out.result.unlockedBy).toEqual([]);
+    expect(out.result.lastPracticedAt).toBe(NOW - 60_000);
   });
 });
