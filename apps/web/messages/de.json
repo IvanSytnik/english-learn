@@ -90,5 +90,30 @@
     "title": "Seite nicht gefunden",
     "description": "Die gesuchte Seite existiert nicht.",
     "home": "Zur Startseite"
+  },
+  "learning": {
+    "reason": {
+      "review": "Wiederholung",
+      "new": "Neu",
+      "checkIn": "Kurzcheck",
+      "lastPractised": "{days, plural, =0 {Heute geübt} one {Zuletzt vor # Tag geübt} other {Zuletzt vor # Tagen geübt}}",
+      "unlockedBy": "Freigeschaltet durch „{concept}“"
+    },
+    "stage": {
+      "NOT_STARTED": "Nicht begonnen",
+      "EMERGING": "Erste Schritte",
+      "DEVELOPING": "Im Aufbau",
+      "SOLID": "Sicher",
+      "SECURE": "Gefestigt",
+      "dueForReview": "Wiederholung fällig"
+    },
+    "session": {
+      "progress": "Sitzungsfortschritt",
+      "progressValue": "{done} von {total}"
+    },
+    "feedback": {
+      "backSoon": "Kommt bald wieder",
+      "backInDays": "{days, plural, one {Wieder in # Tag} other {Wieder in # Tagen}}"
+    }
   }
 }

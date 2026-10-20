@@ -1,0 +1,122 @@
+/*
+ * EnglishLearn design tokens — "Editorial shell, instrument player, coach loop"
+ * (HANDOFF §7, decision 2026-10-19). Case B Editorial palette, light default.
+ *
+ * Imported by apps/web/app/globals.css right after `@import "tailwindcss"`.
+ * Every colour is a semantic token; components never use raw palette classes.
+ * Tailwind v4 turns each `--color-*` into utilities (bg-surface, text-ink, ...);
+ * because utilities reference the variables, the dark overrides below switch
+ * every utility at once.
+ *
+ * Contrast (WCAG 2.2, checked 2026-10-20): ink/ink-muted/accent/feedback pass
+ * AA 4.5:1 for normal text on both surfaces in both modes. Light feedback
+ * colours are nudged darker than the spec (#2B6CB0 → #2A6BAE,
+ * #C05621 → #AA4C1D) because the spec values fall to 4.45 / 3.75 on surface-2.
+ * White on dark-mode accent is 2.37:1 — always pair accent with on-accent.
+ */
+
+@theme {
+  /* Surfaces & text */
+  --color-surface: #f7f3ec;
+  --color-surface-2: #efe8dc;
+  --color-ink: #23201b;
+  --color-ink-muted: #6b6358;
+  --color-line: #ddd3c3;
+  --color-accent: #2f5d50;
+  --color-on-accent: #ffffff;
+
+  /* Answer feedback — blue/orange, never green/red (colour-blind safe) */
+  --color-feedback-correct: #2a6bae;
+  --color-feedback-incorrect: #aa4c1d;
+
+  /*
+   * Mastery ladder, one token per stage, in ladder order:
+   * 1 Not started · 2 Emerging · 3 Developing · 4 Solid · 5 Secure.
+   * Decorative — the stage WORD always carries the meaning.
+   */
+  --color-mastery-1: #d9cfbf;
+  --color-mastery-2: #b4cfc3;
+  --color-mastery-3: #7aa894;
+  --color-mastery-4: #467f6b;
+  --color-mastery-5: #2f5d50;
+
+  /* Shape */
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --shadow-soft: 0 1px 2px rgb(35 32 27 / 0.08);
+
+  /* Motion — nothing longer than 200 ms */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+/*
+ * Font roles. next/font sets --font-literata / --font-onest / --font-jetbrains
+ * on <html> (apps/web/app/fonts.ts); `inline` makes the utilities embed the
+ * var() so they resolve on that element.
+ */
+@theme inline {
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-content: var(--font-literata), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+@layer base {
+  /* Dark mode follows the OS until an explicit data-theme is set on <html>. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-surface: #1b1916;
+      --color-surface-2: #24211d;
+      --color-ink: #ede6da;
+      --color-ink-muted: #a39a8c;
+      --color-line: #38332c;
+      --color-accent: #7fb3a2;
+      --color-on-accent: #1b1916;
+      --color-feedback-correct: #6ea3db;
+      --color-feedback-incorrect: #e08a57;
+      --color-mastery-1: #4a443b;
+      --color-mastery-2: #3a5a4f;
+      --color-mastery-3: #4f8a75;
+      --color-mastery-4: #68a08c;
+      --color-mastery-5: #8cc2af;
+      --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --color-surface: #1b1916;
+    --color-surface-2: #24211d;
+    --color-ink: #ede6da;
+    --color-ink-muted: #a39a8c;
+    --color-line: #38332c;
+    --color-accent: #7fb3a2;
+    --color-on-accent: #1b1916;
+    --color-feedback-correct: #6ea3db;
+    --color-feedback-incorrect: #e08a57;
+    --color-mastery-1: #4a443b;
+    --color-mastery-2: #3a5a4f;
+    --color-mastery-3: #4f8a75;
+    --color-mastery-4: #68a08c;
+    --color-mastery-5: #8cc2af;
+    --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  /* Honour reduced motion everywhere, including third-party transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

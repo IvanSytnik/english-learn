@@ -1,6 +1,7 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { fontVariables } from './fonts';
 import './globals.css';
 
 export const metadata = {
@@ -13,8 +14,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
+    <html lang={locale} className={fontVariables}>
+      <body className="min-h-screen bg-surface font-sans text-ink antialiased">
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>

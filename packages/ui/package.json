@@ -10,7 +10,12 @@
     "./button": "./src/button.tsx",
     "./input": "./src/input.tsx",
     "./card": "./src/card.tsx",
-    "./utils": "./src/utils.ts"
+    "./utils": "./src/utils.ts",
+    "./reason-chip": "./src/reason-chip.tsx",
+    "./stage-label": "./src/stage-label.tsx",
+    "./key-hint": "./src/key-hint.tsx",
+    "./segmented-progress": "./src/segmented-progress.tsx",
+    "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,13 +1,4 @@
 @import "tailwindcss";
+@import "../../../packages/ui/src/tokens.css";
 @source "../../../packages/ui/src";
 
-@theme {
-  --color-brand-50: oklch(0.97 0.02 240);
-  --color-brand-500: oklch(0.55 0.18 240);
-  --color-brand-700: oklch(0.40 0.18 240);
-}
-
-html,
-body {
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
-}
