@@ -158,6 +158,9 @@ importers:
       '@englishlearn/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@englishlearn/learner-model':
+        specifier: workspace:*
+        version: link:../../packages/learner-model
       '@englishlearn/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -114,6 +114,31 @@
     "feedback": {
       "backSoon": "Back soon",
       "backInDays": "{days, plural, one {Back in # day} other {Back in # days}}"
+    },
+    "player": {
+      "chooseInstruction": "Choose the option that fits the gap.",
+      "typeInstruction": "Type the missing word or words.",
+      "answerLabel": "Your answer",
+      "dontKnow": "I don't know",
+      "hint": "Hint",
+      "check": "Check",
+      "continue": "Continue",
+      "pause": "Pause",
+      "why": "Why?",
+      "verdict": {
+        "correct": "Correct",
+        "incorrect": "Not quite",
+        "dontKnow": "Here's the answer"
+      },
+      "answerIs": "Answer: {answer}",
+      "stageCrossed": "{concept} is now {stage}",
+      "error": "Something went wrong. Please try again.",
+      "done": {
+        "title": "Session complete",
+        "body": "{count, plural, one {You answered # question.} other {You answered # questions.}}",
+        "again": "Another session",
+        "dashboard": "Back to dashboard"
+      }
     }
   }
 }

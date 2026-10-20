@@ -1,0 +1,161 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import type { ReactNode } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExerciseFeedback, ExerciseView } from '@/lib/exercise/view';
+import en from '../../messages/en.json';
+
+const { submitExerciseAttempt, nextExercise, push } = vi.hoisted(() => ({
+  submitExerciseAttempt: vi.fn(),
+  nextExercise: vi.fn(),
+  push: vi.fn(),
+}));
+vi.mock('@/app/[locale]/(student)/exercises/actions', () => ({
+  submitExerciseAttempt,
+  nextExercise,
+}));
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+  useRouter: () => ({ push }),
+}));
+
+const { ExercisePlayer } = await import('@/app/[locale]/(student)/exercises/exercise-player');
+
+const choiceView: ExerciseView = {
+  itemId: 'item.a',
+  conceptTitle: 'Past Simple',
+  reason: 'REVIEW_DUE',
+  isNewConcept: false,
+  detail: { kind: 'lastPractised', days: 6 },
+  question: {
+    type: 'choice',
+    prompt: 'Last summer we ___ to Spain.',
+    options: ['goed', 'gone', 'go', 'went'],
+  },
+  hint: 'go → went',
+};
+const clozeView: ExerciseView = {
+  ...choiceView,
+  itemId: 'item.b',
+  question: { type: 'cloze', prompt: 'There are three ___ on the shelf. (box)' },
+};
+const feedback: ExerciseFeedback = {
+  verdict: 'correct',
+  chosenIndex: 3,
+  correctIndex: 3,
+  correctAnswer: 'went',
+  answerSentence: 'Last summer we went to Spain.',
+  why: 'Irregular past.',
+  more: null,
+  consequence: { kind: 'stageCrossed', concept: 'Past Simple', stage: 'SOLID' },
+};
+
+function renderPlayer(initial: ExerciseView) {
+  return render(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <ExercisePlayer initial={initial} sessionLength={12} />
+    </NextIntlClientProvider>,
+  );
+}
+const key = (k: string, target: Element | Window = window) =>
+  act(() => {
+    fireEvent.keyDown(target, { key: k });
+  });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  submitExerciseAttempt.mockResolvedValue({ ok: true, value: feedback });
+});
+
+describe('ExercisePlayer', () => {
+  it('renders the top bar: progress, reason chip with detail, concept and pause', () => {
+    renderPlayer(choiceView);
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByText('Review')).toBeInTheDocument();
+    expect(screen.getByText('Last practised 6 days ago')).toBeInTheDocument();
+    expect(screen.getByText('Past Simple')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Pause/ })).toHaveAttribute('href', '/dashboard');
+    expect(document.getElementById('exercise-prompt')).toHaveAttribute('lang', 'en');
+  });
+
+  it('selects with 1–4 and checks with Enter, then shows inline feedback', async () => {
+    renderPlayer(choiceView);
+    key('4');
+    expect(screen.getByRole('button', { name: /went/ })).toHaveAttribute('aria-pressed', 'true');
+    key('Enter');
+    await waitFor(() =>
+      expect(submitExerciseAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ itemId: 'item.a', answer: { type: 'choice', index: 3 } }),
+      ),
+    );
+    expect(await screen.findByText('Correct')).toBeInTheDocument();
+    expect(screen.getByText('Past Simple is now Solid')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+    // The prompt stays on screen above the feedback.
+    expect(document.getElementById('exercise-prompt')).toBeInTheDocument();
+  });
+
+  it("0 submits I don't know", async () => {
+    renderPlayer(choiceView);
+    key('0');
+    await waitFor(() =>
+      expect(submitExerciseAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ answer: { type: 'dontKnow' } }),
+      ),
+    );
+  });
+
+  it('H toggles the hint', () => {
+    renderPlayer(choiceView);
+    key('h');
+    expect(screen.getByText('go → went')).toBeInTheDocument();
+    key('h');
+    expect(screen.queryByText('go → went')).toBeNull();
+  });
+
+  it('input guard: typing 1, 0, h, ? in the cloze field types instead of triggering shortcuts', async () => {
+    renderPlayer(clozeView);
+    const input = screen.getByRole('textbox', { name: 'Your answer' });
+    for (const k of ['1', '0', 'h', '?']) key(k, input);
+    expect(submitExerciseAttempt).not.toHaveBeenCalled();
+    expect(screen.queryByText('go → went')).toBeNull();
+
+    fireEvent.change(input, { target: { value: 'boxes' } });
+    key('Enter', input);
+    await waitFor(() =>
+      expect(submitExerciseAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ answer: { type: 'text', value: 'boxes' } }),
+      ),
+    );
+  });
+
+  it('Enter on feedback loads the next item, skipping the one just shown', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: clozeView });
+    renderPlayer(choiceView);
+    key('2');
+    key('Enter');
+    await screen.findByText('Correct');
+    key('Enter');
+    await waitFor(() => expect(nextExercise).toHaveBeenCalledWith(['item.a']));
+    expect(await screen.findByRole('textbox', { name: 'Your answer' })).toBeInTheDocument();
+  });
+
+  it('Esc pauses back to the dashboard', () => {
+    renderPlayer(choiceView);
+    key('Escape');
+    expect(push).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('keeps the learner on the question when submitting fails', async () => {
+    submitExerciseAttempt.mockResolvedValue({ ok: false, error: 'NOT_FOUND' });
+    renderPlayer(choiceView);
+    key('1');
+    key('Enter');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong');
+    expect(screen.getByRole('button', { name: /goed/ })).not.toBeDisabled();
+  });
+});

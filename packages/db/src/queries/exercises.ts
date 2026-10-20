@@ -6,10 +6,15 @@ import {
   DiagnosticContentSchema,
   type GrammarContent,
   GrammarContentSchema,
+  getConceptTitle,
+  type ItemContent,
+  type ItemKindValue,
   type ListeningContent,
   ListeningContentSchema,
   type Locale,
   localized,
+  type Practice,
+  parseItemContent,
   type VocabContent,
   VocabContentSchema,
 } from '../schemas';
@@ -186,4 +191,54 @@ export async function getDiagnosticItemForStudent(
       ? localized(content.localized.explanation, locale)
       : null,
   };
+}
+
+// ─── Practice items (adaptive player) ───────────────────────────────────────
+
+/**
+ * A PUBLISHED Item with its practice question, for the adaptive player.
+ * Returns the parsed content (including the answer key) — callers must keep
+ * it on the server and send the learner only the question.
+ */
+export type PracticeItemRecord = {
+  id: string;
+  kind: ItemKindValue;
+  content: ItemContent;
+  practice: Practice;
+  concept: { id: string; name: string; title: unknown; cefrLevel: string };
+};
+
+export async function getPublishedPracticeItem(itemId: string): Promise<PracticeItemRecord | null> {
+  const row = await prisma.item.findFirst({
+    where: { id: itemId, ...PUBLISHED },
+    select: {
+      id: true,
+      kind: true,
+      content: true,
+      concept: { select: { id: true, name: true, title: true, cefrLevel: true } },
+    },
+  });
+  if (!row) return null;
+  const content = parseItemContent(row.kind, row.content);
+  if (!content.practice) return null;
+  return {
+    id: row.id,
+    kind: row.kind,
+    content,
+    practice: content.practice,
+    concept: row.concept,
+  };
+}
+
+/** Learner-facing titles for concept ids (title[locale] → title.en → name). */
+export async function getConceptTitles(
+  ids: readonly string[],
+  locale: Locale,
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.concept.findMany({
+    where: { id: { in: [...ids] } },
+    select: { id: true, name: true, title: true },
+  });
+  return new Map(rows.map((r) => [r.id, getConceptTitle(r, locale)]));
 }

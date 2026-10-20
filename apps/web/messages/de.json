@@ -114,6 +114,31 @@
     "feedback": {
       "backSoon": "Kommt bald wieder",
       "backInDays": "{days, plural, one {Wieder in # Tag} other {Wieder in # Tagen}}"
+    },
+    "player": {
+      "chooseInstruction": "Wähle die Option, die in die Lücke passt.",
+      "typeInstruction": "Schreib das fehlende Wort oder die fehlenden Wörter.",
+      "answerLabel": "Deine Antwort",
+      "dontKnow": "Weiß ich nicht",
+      "hint": "Hinweis",
+      "check": "Prüfen",
+      "continue": "Weiter",
+      "pause": "Pause",
+      "why": "Warum?",
+      "verdict": {
+        "correct": "Richtig",
+        "incorrect": "Nicht ganz",
+        "dontKnow": "Hier ist die Antwort"
+      },
+      "answerIs": "Antwort: {answer}",
+      "stageCrossed": "{concept}: jetzt „{stage}“",
+      "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "done": {
+        "title": "Sitzung abgeschlossen",
+        "body": "{count, plural, one {Du hast # Frage beantwortet.} other {Du hast # Fragen beantwortet.}}",
+        "again": "Noch eine Sitzung",
+        "dashboard": "Zum Dashboard"
+      }
     }
   }
 }

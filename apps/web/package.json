@@ -23,6 +23,7 @@
     "@auth/prisma-adapter": "catalog:",
     "@englishlearn/ai": "workspace:*",
     "@englishlearn/db": "workspace:*",
+    "@englishlearn/learner-model": "workspace:*",
     "@englishlearn/ui": "workspace:*",
     "@hookform/resolvers": "catalog:",
     "@prisma/client": "catalog:",

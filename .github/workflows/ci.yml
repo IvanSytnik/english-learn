@@ -102,6 +102,9 @@ jobs:
       - run: pnpm db:generate
       - run: pnpm --filter @englishlearn/db migrate:deploy
       - run: pnpm --filter @englishlearn/db seed
+      # Concepts + items (with practice questions) for the exercise player e2e.
+      - run: pnpm --filter @englishlearn/learner-model seed:concepts
+      - run: pnpm --filter @englishlearn/learner-model seed:items
 
       - name: Install Playwright browsers
         run: pnpm --filter @englishlearn/web exec playwright install --with-deps chromium
