@@ -14,16 +14,16 @@ export default async function UsersAdminPage() {
     <div>
       <h1 className="mb-4 text-2xl font-bold">Users</h1>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-line text-sm">
+          <thead className="bg-surface-2">
             <tr>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Email</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Role</th>
-              <th className="px-4 py-2 text-left font-medium text-gray-600">Created</th>
+              <th className="px-4 py-2 text-left font-medium text-ink-muted">Email</th>
+              <th className="px-4 py-2 text-left font-medium text-ink-muted">Name</th>
+              <th className="px-4 py-2 text-left font-medium text-ink-muted">Role</th>
+              <th className="px-4 py-2 text-left font-medium text-ink-muted">Created</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-line bg-surface">
             {users.map((u) => (
               <tr key={u.id}>
                 <td className="px-4 py-2">{u.email}</td>

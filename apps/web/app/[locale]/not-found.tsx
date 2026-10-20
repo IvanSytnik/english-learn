@@ -7,8 +7,8 @@ export default async function NotFound() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
       <h1 className="text-2xl font-bold">{t('title')}</h1>
-      <p className="text-gray-600">{t('description')}</p>
-      <Link href="/" className="font-medium text-blue-600 hover:underline">
+      <p className="text-ink-muted">{t('description')}</p>
+      <Link href="/" className="font-medium text-accent underline underline-offset-4">
         {t('home')}
       </Link>
     </main>

@@ -45,6 +45,7 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
+    "@axe-core/playwright": "catalog:",
     "@biomejs/biome": "catalog:",
     "@englishlearn/config": "workspace:*",
     "@playwright/test": "catalog:",

@@ -10,6 +10,11 @@ export const STUDENT: Credentials = { email: 'student@englishlearn.dev', passwor
 // under `next dev` that target may be compiled on demand, so allow more than 5s.
 export const AFTER_SUBMIT = { timeout: 15_000 };
 
+// Accounts created by e2e live on a dedicated domain so they are easy to clean up.
+export function uniqueEmail(tag: string) {
+  return `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.englishlearn.dev`;
+}
+
 /** Fills and submits the login form on the current page. */
 export async function submitLogin(page: Page, user: Credentials) {
   await page.locator('#email').fill(user.email);

@@ -1,10 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { AFTER_SUBMIT, STUDENT } from './helpers/auth';
-
-// Accounts created here live on a dedicated domain so they are easy to clean up.
-function uniqueEmail(tag: string) {
-  return `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.englishlearn.dev`;
-}
+import { AFTER_SUBMIT, STUDENT, uniqueEmail } from './helpers/auth';
 
 async function submitRegister(page: Page, user: { name: string; email: string; password: string }) {
   await page.locator('#name').fill(user.name);

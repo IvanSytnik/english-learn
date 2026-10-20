@@ -3,14 +3,16 @@ import { type ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from './utils';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-control font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-500',
-        secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus-visible:ring-gray-400',
-        ghost: 'hover:bg-gray-100 text-gray-900',
-        danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500',
+        primary: 'bg-accent text-on-accent hover:bg-accent/90',
+        secondary: 'border border-line bg-surface-2 text-ink hover:bg-line',
+        // Used for nav links (sign in / sign out): the underline keeps them recognisable without colour.
+        ghost: 'text-ink-muted underline underline-offset-4 hover:bg-surface-2 hover:text-ink',
+        // No danger token: form errors and destructive actions share the "incorrect" colour.
+        danger: 'bg-feedback-incorrect text-on-accent hover:bg-feedback-incorrect/90',
       },
       size: {
         sm: 'h-8 px-3 text-sm',

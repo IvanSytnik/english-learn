@@ -14,7 +14,10 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
     <form action={formAction} className="space-y-4">
       {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
       {state && !state.ok ? (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <p
+          role="alert"
+          className="rounded-control border border-feedback-incorrect bg-surface-2 p-3 text-sm text-feedback-incorrect"
+        >
           {state.error === 'INVALID_CREDENTIALS'
             ? t('errors.invalidCredentials')
             : t('errors.generic')}
@@ -41,11 +44,11 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
       <Button type="submit" className="w-full" disabled={pending}>
         {t('submit')}
       </Button>
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-ink-muted">
         {t('noAccount')}{' '}
         <Link
           href={callbackUrl ? { pathname: '/register', query: { callbackUrl } } : '/register'}
-          className="font-medium text-blue-600 hover:underline"
+          className="font-medium text-accent underline underline-offset-4"
         >
           {t('signUp')}
         </Link>

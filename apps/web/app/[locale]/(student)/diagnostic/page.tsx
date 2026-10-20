@@ -19,7 +19,7 @@ export default async function DiagnosticPage() {
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-6 text-gray-600">{t('intro')}</p>
+          <p className="mb-6 text-ink-muted">{t('intro')}</p>
           <Button>{t('start')}</Button>
           {/* Pseudo-CAT engine wires up in next phase. */}
         </CardContent>

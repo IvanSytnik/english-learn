@@ -10,30 +10,45 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-56 border-r border-gray-200 bg-white p-4">
+      <aside className="w-56 border-r border-line bg-surface-2 p-4">
         <div className="mb-6 font-semibold">Admin</div>
         <nav className="flex flex-col gap-2 text-sm">
-          <div className="mt-2 text-xs font-semibold uppercase text-gray-500">{t('content')}</div>
-          <Link href="/admin/content/vocab" className="text-gray-700 hover:text-blue-600">
+          <div className="mt-2 text-xs font-semibold uppercase text-ink-muted">{t('content')}</div>
+          <Link
+            href="/admin/content/vocab"
+            className="text-ink-muted hover:text-ink hover:underline"
+          >
             {t('vocab')}
           </Link>
-          <Link href="/admin/content/grammar" className="text-gray-700 hover:text-blue-600">
+          <Link
+            href="/admin/content/grammar"
+            className="text-ink-muted hover:text-ink hover:underline"
+          >
             {t('grammar')}
           </Link>
-          <Link href="/admin/content/listening" className="text-gray-700 hover:text-blue-600">
+          <Link
+            href="/admin/content/listening"
+            className="text-ink-muted hover:text-ink hover:underline"
+          >
             {t('listening')}
           </Link>
-          <Link href="/admin/content/diagnostic" className="text-gray-700 hover:text-blue-600">
+          <Link
+            href="/admin/content/diagnostic"
+            className="text-ink-muted hover:text-ink hover:underline"
+          >
             {t('diagnostic')}
           </Link>
-          <Link href="/admin/content/skill-tags" className="text-gray-700 hover:text-blue-600">
+          <Link
+            href="/admin/content/skill-tags"
+            className="text-ink-muted hover:text-ink hover:underline"
+          >
             {t('skillTags')}
           </Link>
-          <div className="mt-4 text-xs font-semibold uppercase text-gray-500">Operations</div>
-          <Link href="/admin/users" className="text-gray-700 hover:text-blue-600">
+          <div className="mt-4 text-xs font-semibold uppercase text-ink-muted">Operations</div>
+          <Link href="/admin/users" className="text-ink-muted hover:text-ink hover:underline">
             {t('users')}
           </Link>
-          <Link href="/admin/ai-review" className="text-gray-700 hover:text-blue-600">
+          <Link href="/admin/ai-review" className="text-ink-muted hover:text-ink hover:underline">
             {t('aiReview')}
           </Link>
         </nav>

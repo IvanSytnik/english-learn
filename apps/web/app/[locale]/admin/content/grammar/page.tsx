@@ -6,7 +6,7 @@ export default async function Page() {
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">grammar (admin)</h1>
-      <p className="text-gray-600">CRUD UI is implemented in the next phase.</p>
+      <p className="text-ink-muted">CRUD UI is implemented in the next phase.</p>
     </div>
   );
 }

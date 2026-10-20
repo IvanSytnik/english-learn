@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <p className="mb-6 text-gray-600">{t('welcome', { name: session.user.name ?? 'friend' })}</p>
+      <p className="mb-6 text-ink-muted">{t('welcome', { name: session.user.name ?? 'friend' })}</p>
 
       {profile?.assessedLevel ? (
         <p className="mb-6">{t('level', { level: profile.assessedLevel })}</p>

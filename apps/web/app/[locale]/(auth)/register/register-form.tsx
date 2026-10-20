@@ -14,7 +14,7 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
   const fieldError = (field: RegisterField) => {
     const code = failed?.fieldErrors?.[field];
     return code ? (
-      <p id={`${field}-error`} className="mt-1 text-sm text-red-700">
+      <p id={`${field}-error`} className="mt-1 text-sm text-feedback-incorrect">
         {t(`errors.${field}.${code}`)}
       </p>
     ) : null;
@@ -28,7 +28,10 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
     <form action={formAction} className="space-y-4">
       {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
       {failed && failed.error !== 'VALIDATION' ? (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <p
+          role="alert"
+          className="rounded-control border border-feedback-incorrect bg-surface-2 p-3 text-sm text-feedback-incorrect"
+        >
           {failed.error === 'EMAIL_TAKEN' ? t('errors.emailTaken') : t('errors.generic')}
         </p>
       ) : null}
@@ -79,11 +82,11 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
       <Button type="submit" className="w-full" disabled={pending}>
         {t('submit')}
       </Button>
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-ink-muted">
         {t('hasAccount')}{' '}
         <Link
           href={callbackUrl ? { pathname: '/login', query: { callbackUrl } } : '/login'}
-          className="font-medium text-blue-600 hover:underline"
+          className="font-medium text-accent underline underline-offset-4"
         >
           {t('signIn')}
         </Link>
