@@ -10,6 +10,13 @@ export {
   GrammarPatternContentSchema,
 } from './grammar-pattern';
 export { type IdiomContent, IdiomContentSchema } from './idiom';
+export {
+  isClozeAnswerAccepted,
+  normalizeClozeAnswer,
+  PRACTICE_GAP,
+  type Practice,
+  PracticeSchema,
+} from './practice';
 export { type VocabWordContent, VocabWordContentSchema } from './vocab-word';
 
 /** Mirrors Prisma enum ItemKind. Keep in sync with schema.prisma. */
@@ -31,6 +38,9 @@ const SCHEMA_BY_KIND = {
 export function parseItemContent(kind: ItemKindValue, content: unknown) {
   return SCHEMA_BY_KIND[kind].parse(content);
 }
+
+/** Parsed Item.content of any kind. */
+export type ItemContent = ReturnType<typeof parseItemContent>;
 
 /** Non-throwing variant for validation pipelines (AI generation, admin). */
 export function safeParseItemContent(kind: ItemKindValue, content: unknown) {

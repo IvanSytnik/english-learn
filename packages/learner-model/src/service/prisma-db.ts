@@ -210,6 +210,7 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
       ON irs."itemId" = i."id"
      AND irs."userId" = ${userId}
     WHERE i."status" = 'PUBLISHED'
+      AND i."content" -> 'practice' IS NOT NULL
   `;
     },
     runInTx(fn) {

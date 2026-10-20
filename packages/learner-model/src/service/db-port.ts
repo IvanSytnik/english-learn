@@ -84,6 +84,7 @@ export type LearnerModelDb = {
   getMasterySnapshots(userId: string): Promise<MasterySnapshotRow[]>;
   getPrereqEdges(): Promise<PrereqEdgeRow[]>;
   getConceptEventCounts(userId: string): Promise<ConceptCountsRow[]>;
+  /** PUBLISHED items that have a practice question (Item.content.practice). */
   getCandidateItems(userId: string): Promise<CandidateItemRow[]>;
 };
 

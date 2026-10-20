@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { LocalizedStringSchema } from '../localized-string';
+import { PracticeSchema } from './practice';
 
 /**
  * Item content for kind = COLLOCATION.
@@ -26,6 +27,8 @@ export const CollocationContentSchema = z
         usageNote: LocalizedStringSchema.optional(),
       })
       .strict(),
+    /** The question asked for this item (see practice.ts). */
+    practice: PracticeSchema.optional(),
   })
   .strict();
 
