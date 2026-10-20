@@ -21,3 +21,8 @@ export {
 } from './learner-service';
 export { createPrismaLearnerDb } from './prisma-db';
 export { type ReplayResult, replayUser } from './replay';
+export {
+  createSelectionService,
+  type SelectionService,
+  type SelectNextInput,
+} from './selection-service';

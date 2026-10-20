@@ -1,6 +1,7 @@
 import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
 import type { FsrsCardStatus, FsrsRating } from '../core/fsrs/types';
+import type { MasteryStage } from '../mastery/stage';
 import { applyItemAttempted } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { buildItemAttemptedEvent } from './event-store';
@@ -53,6 +54,9 @@ export type RecordOutcomeResult =
       /** FSRS interval in days; 0 = intra-day learning step ("Back soon"). */
       scheduledDays: number;
       cardStatus: FsrsCardStatus;
+      /** Stored ConceptMastery.displayStage before / after this outcome. */
+      stageBefore: MasteryStage;
+      stageAfter: MasteryStage;
     }
   | { ok: false; error: 'ITEM_NOT_FOUND' };
 
@@ -122,7 +126,7 @@ export function createLearnerService(db: LearnerModelDb) {
         );
         await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
 
-        return folded;
+        return { ...folded, stageBefore: masteryRow?.displayStage ?? ('NOT_STARTED' as const) };
       });
 
       return {
@@ -135,6 +139,8 @@ export function createLearnerService(db: LearnerModelDb) {
         nextDueAt: next.fsrs.dueAt,
         scheduledDays: next.scheduledDays,
         cardStatus: next.fsrs.cardStatus,
+        stageBefore: next.stageBefore,
+        stageAfter: next.stage,
       };
     },
   };

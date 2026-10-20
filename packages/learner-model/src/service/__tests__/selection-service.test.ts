@@ -88,4 +88,26 @@ describe('SelectionService.selectNext', () => {
     expect(out.ok).toBe(true);
     if (out.ok) expect(out.result.itemId).toBe('free');
   });
+
+  it('skips excludeItemIds, falling back to the full pool if nothing else is left', async () => {
+    const now = 10_000;
+    const svc = createSelectionService(
+      fakeDb({ candidates: [cand('due', 'c.a', 1000n), cand('other', 'c.a', null)] }),
+    );
+    const skipped = await svc.selectNext({
+      userId: 'u1',
+      nowMs: now,
+      seed: 1,
+      excludeItemIds: ['due'],
+    });
+    expect(skipped.ok && skipped.result.itemId).toBe('other');
+
+    const all = await svc.selectNext({
+      userId: 'u1',
+      nowMs: now,
+      seed: 1,
+      excludeItemIds: ['due', 'other'],
+    });
+    expect(all.ok && all.result.itemId).toBe('due');
+  });
 });

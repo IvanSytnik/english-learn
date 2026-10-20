@@ -303,6 +303,32 @@ describe('LearnerService.recordOutcome', () => {
     expect(masteries.get(key)).toEqual(live);
   });
 
+  it('reports the stored stage before and after the outcome (U2)', async () => {
+    const { db, masteries } = createFakeDb(ITEMS);
+    const service = createLearnerService(db);
+    const itemId = 'item.past_simple.regular_ed';
+    const first = await service.recordOutcome({
+      userId: USER,
+      itemId,
+      correct: true,
+      occurredAtMs: T0,
+    });
+    expect(first).toMatchObject({ ok: true, stageBefore: 'NOT_STARTED', stageAfter: 'EMERGING' });
+
+    let last = first;
+    for (let i = 1; i <= 8; i++) {
+      last = await service.recordOutcome({
+        userId: USER,
+        itemId,
+        correct: true,
+        occurredAtMs: T0 + BigInt(i) * DAY_MS,
+      });
+      if (last.ok && last.stageAfter !== last.stageBefore) break;
+    }
+    expect(last.ok && last.stageAfter).toBe(masteries.get(`${USER}:past_simple`)?.displayStage);
+    expect(last.ok && last.stageBefore).not.toBe(last.ok && last.stageAfter);
+  });
+
   it('uses ONE timestamp for event, BKT anchor and FSRS review', async () => {
     const { db, masteries, reviews } = createFakeDb(ITEMS);
     const service = createLearnerService(db);

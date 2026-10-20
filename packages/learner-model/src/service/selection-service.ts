@@ -34,6 +34,12 @@ export type SelectNextInput = {
   seed?: number;
   /** Optional config override; defaults to DEFAULT_POLICY_CONFIG. */
   config?: PolicyConfig;
+  /**
+   * Items to skip this call — the player passes the last few it showed, so a
+   * just-failed card (due again in a minute) is not served straight back.
+   * Ignored when it would leave no candidate.
+   */
+  excludeItemIds?: readonly string[];
 };
 
 export function createSelectionService(db: LearnerModelDb) {
@@ -53,6 +59,10 @@ export function createSelectionService(db: LearnerModelDb) {
         db.getConceptEventCounts(input.userId),
         db.getCandidateItems(input.userId),
       ]);
+
+      const excluded = new Set(input.excludeItemIds ?? []);
+      const allowedRows = candidateRows.filter((r) => !excluded.has(r.itemId));
+      const pool = allowedRows.length > 0 ? allowedRows : candidateRows;
 
       const selectionInput: SelectionInput = {
         userId: input.userId,
@@ -74,7 +84,7 @@ export function createSelectionService(db: LearnerModelDb) {
           to: r.to,
           kind: r.kind,
         })),
-        candidates: candidateRows.map((r) => ({
+        candidates: pool.map((r) => ({
           itemId: r.itemId,
           conceptId: r.conceptId,
           irtDiscrimination: r.irtDiscrimination,
