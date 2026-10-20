@@ -1,5 +1,5 @@
 import { prisma } from '@englishlearn/db';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
+import { Button, buttonVariants, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
@@ -38,28 +38,17 @@ export default async function DashboardPage() {
         <p className="mb-6">{t('level', { level: profile.assessedLevel })}</p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('takeDiagnostic')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Link href="/diagnostic">
-              <Button>{t('takeDiagnostic')}</Button>
-            </Link>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('nextExercise')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Link href="/exercises">
-              <Button variant="secondary">{t('nextExercise')}</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('startPractice')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Until the diagnostic UI ships, the primary CTA leads to practice. */}
+          <Link href="/exercises" className={buttonVariants()}>
+            {t('startPractice')}
+          </Link>
+        </CardContent>
+      </Card>
     </main>
   );
 }

@@ -1,8 +1,8 @@
 import { prisma } from '@englishlearn/db';
 import { ensureStudentProfile } from '@englishlearn/db/queries/student-profile';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
+import { buttonVariants, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { redirect } from '@/i18n/navigation';
+import { Link, redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
 
 export default async function DiagnosticPage() {
@@ -19,9 +19,11 @@ export default async function DiagnosticPage() {
           <CardTitle>{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="mb-6 text-ink-muted">{t('intro')}</p>
-          <Button>{t('start')}</Button>
-          {/* Pseudo-CAT engine wires up in next phase. */}
+          <p className="mb-6 text-ink-muted">{t('comingSoon')}</p>
+          {/* Until the diagnostic UI ships, the primary CTA leads to practice. */}
+          <Link href="/exercises" className={buttonVariants()}>
+            {t('goToPractice')}
+          </Link>
         </CardContent>
       </Card>
     </main>

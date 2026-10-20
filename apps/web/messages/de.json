@@ -12,7 +12,8 @@
     "hero": {
       "title": "Englisch lernen mit KI und echten Lehrern",
       "subtitle": "Adaptive Übungen, die genau deine Schwachstellen trainieren.",
-      "cta": "Diagnose starten"
+      "cta": "Diagnose starten",
+      "startPractice": "Jetzt üben"
     }
   },
   "auth": {
@@ -61,12 +62,15 @@
       "welcome": "Hallo, {name}",
       "nextExercise": "Weiterlernen",
       "takeDiagnostic": "Einstufungstest machen",
-      "level": "Niveau: {level}"
+      "level": "Niveau: {level}",
+      "startPractice": "Jetzt üben"
     },
     "diagnostic": {
       "title": "Einstufungstest",
       "intro": "Wir stellen dir ~15-20 Fragen unterschiedlicher Schwierigkeit, um dein Niveau zu ermitteln.",
-      "start": "Starten"
+      "start": "Starten",
+      "comingSoon": "Der Einstufungstest kommt bald. Bis dahin kannst du direkt üben: Die Übungen passen sich dir unterwegs an.",
+      "goToPractice": "Zum Üben"
     },
     "exercises": {
       "title": "Übungen",

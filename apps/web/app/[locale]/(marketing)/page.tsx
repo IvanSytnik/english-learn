@@ -11,8 +11,9 @@ export default async function MarketingPage() {
       <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-6xl">{t('title')}</h1>
       <p className="mt-6 text-lg text-ink-muted">{t('subtitle')}</p>
       <div className="mt-10 flex gap-4">
+        {/* Until the diagnostic UI ships, the primary CTA leads to practice. */}
         <Link href="/register">
-          <Button size="lg">{t('cta')}</Button>
+          <Button size="lg">{t('startPractice')}</Button>
         </Link>
         <Link href="/login">
           <Button size="lg" variant="ghost">
