@@ -10,7 +10,12 @@
 
 import { hash } from 'bcryptjs';
 import { createPrismaClient } from './create-client';
-import type { DiagnosticContent, GrammarContent, VocabContent } from './schemas';
+import {
+  type DiagnosticContent,
+  DiagnosticContentSchema,
+  type GrammarContent,
+  type VocabContent,
+} from './schemas';
 
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 
@@ -171,13 +176,17 @@ async function seedGrammar(adminId: string) {
   }
 }
 
+// Diagnostic items use fixed ids so the seed upserts instead of duplicating on
+// every run.
 async function seedDiagnostic(adminId: string) {
   const samples: Array<{
+    id: string;
     kind: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
-    level: string;
+    level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
     content: DiagnosticContent;
   }> = [
     {
+      id: 'seed-diag-grammar-a2-01',
       kind: 'GRAMMAR',
       level: 'A2',
       content: {
@@ -195,6 +204,7 @@ async function seedDiagnostic(adminId: string) {
       },
     },
     {
+      id: 'seed-diag-grammar-b1-01',
       kind: 'GRAMMAR',
       level: 'B1',
       content: {
@@ -212,6 +222,7 @@ async function seedDiagnostic(adminId: string) {
       },
     },
     {
+      id: 'seed-diag-vocab-b2-01',
       kind: 'VOCAB',
       level: 'B2',
       content: {
@@ -231,16 +242,19 @@ async function seedDiagnostic(adminId: string) {
   ];
 
   for (const s of samples) {
-    await prisma.diagnosticItem.create({
-      data: {
-        cefrLevel: s.level as 'A2' | 'B1' | 'B2',
-        kind: s.kind,
-        source: 'CURATED',
-        status: 'PUBLISHED',
-        content: s.content as object,
-        createdById: adminId,
-        reviewedById: adminId,
-      },
+    const data = {
+      cefrLevel: s.level,
+      kind: s.kind,
+      source: 'CURATED' as const,
+      status: 'PUBLISHED' as const,
+      content: DiagnosticContentSchema.parse(s.content) as object,
+      createdById: adminId,
+      reviewedById: adminId,
+    };
+    await prisma.diagnosticItem.upsert({
+      where: { id: s.id },
+      create: { id: s.id, ...data },
+      update: data,
     });
   }
 }

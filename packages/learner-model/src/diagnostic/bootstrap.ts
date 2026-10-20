@@ -49,10 +49,11 @@ const CEFR_RANK: Record<CefrLevelValue, number> = {
 /**
  * Map a ConceptCategory to the diagnostic axis that measures it.
  *
- * GRAMMAR and VOCAB have direct axes. LISTENING category *would* map to the
- * LISTENING axis, but is included here for completeness. Categories with no
- * diagnostic signal (PHONETICS/DISCOURSE/PRAGMATICS) return null → the concept
- * is left on the selection cold-start prior (decision 6.a), NOT fabricated.
+ * GRAMMAR, VOCAB and LISTENING have direct axes. While there are no listening
+ * diagnostic items, the LISTENING axis has no answers and buildBootstrapSnapshots
+ * skips its concepts as 'sparse_axis'. Categories with no diagnostic signal
+ * (PHONETICS/DISCOURSE/PRAGMATICS) return null → the concept is left on the
+ * selection cold-start prior (decision 6.a), NOT fabricated.
  *
  * Total over the enum by construction: adding a category without an axis is a
  * compile error only if the caller switches exhaustively; here we default to
@@ -107,8 +108,9 @@ export function mapAccuracyToPKnown(
  *
  * Uses initBktState for the canonical BKT_DEFAULTS (single source of truth for
  * pLearn/pSlip/pGuess/pForgetLambda), then overrides ONLY pKnown. observation-
- * Count stays 0: bootstrap is a starting point, not observed practice, so
- * forgetting decay and calibration treat it correctly as "no evidence yet".
+ * Count stays 0: bootstrap is a starting point, not observed practice, so the
+ * curriculum gate (isStarted) and calibration treat it as "no evidence yet".
+ * (BKT update() applies no time decay — HANDOFF §8 #10.)
  */
 function snapshotForConcept(
   conceptId: string,

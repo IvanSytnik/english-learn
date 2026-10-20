@@ -25,9 +25,10 @@ export type DiagnosticAnswerFact = {
  * A concept eligible for bootstrap, as read from Concept.
  *
  * `category` is the raw ConceptCategory. It is mapped to a diagnostic axis by
- * bootstrap.ts; categories with no axis (PHONETICS/DISCOURSE/PRAGMATICS/
- * LISTENING-with-no-items) resolve to null and are left on the selection
- * cold-start prior (decision 6.a) rather than fabricated.
+ * bootstrap.ts; categories with no axis (PHONETICS/DISCOURSE/PRAGMATICS)
+ * resolve to null and are left on the selection cold-start prior (decision
+ * 6.a) rather than fabricated. LISTENING maps to its axis, but with no
+ * listening answers the axis is sparse and its concepts are skipped too.
  */
 export type BootstrapConcept = {
   id: string;

@@ -161,22 +161,23 @@ export async function getListeningExerciseForStudent(
 
 // ─── Diagnostic ─────────────────────────────────────────────────────────────
 
+/**
+ * What the learner sees of a diagnostic item: the question only. The answer
+ * key (correctIndex) and the explanation never leave the server — grade with
+ * checkDiagnosticAnswer instead.
+ */
 export type DiagnosticItemView = {
   id: string;
   cefrLevel: string;
+  kind: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
   stem: string;
   choices: string[];
-  correctIndex: number;
-  explanation: string | null;
 };
 
-export async function getDiagnosticItemForStudent(
-  id: string,
-  locale: Locale,
-): Promise<DiagnosticItemView | null> {
+export async function getDiagnosticItemForStudent(id: string): Promise<DiagnosticItemView | null> {
   const row = await prisma.diagnosticItem.findFirst({
     where: { id, ...PUBLISHED },
-    select: { id: true, cefrLevel: true, content: true },
+    select: { id: true, cefrLevel: true, kind: true, content: true },
   });
   if (!row) return null;
 
@@ -184,13 +185,43 @@ export async function getDiagnosticItemForStudent(
   return {
     id: row.id,
     cefrLevel: row.cefrLevel,
+    kind: row.kind,
     stem: content.source.stem,
     choices: content.source.choices,
-    correctIndex: content.source.correctIndex,
-    explanation: content.localized?.explanation
-      ? localized(content.localized.explanation, locale)
-      : null,
   };
+}
+
+/**
+ * Grades a submitted choice. Anything that is not an in-range integer index
+ * (a string, a float, NaN, null, out of range) is incorrect, never correct.
+ */
+export function gradeDiagnosticChoice(content: DiagnosticContent, choiceIndex: unknown): boolean {
+  return (
+    typeof choiceIndex === 'number' &&
+    Number.isInteger(choiceIndex) &&
+    choiceIndex >= 0 &&
+    choiceIndex < content.source.choices.length &&
+    choiceIndex === content.source.correctIndex
+  );
+}
+
+/**
+ * Server-side check of a diagnostic answer; the key is read here and only the
+ * verdict is returned. Null for an unknown or unpublished item, so callers can
+ * tell "no such question" from "wrong answer".
+ */
+export async function checkDiagnosticAnswer(
+  itemId: string,
+  choiceIndex: unknown,
+): Promise<{ correct: boolean } | null> {
+  const row = await prisma.diagnosticItem.findFirst({
+    where: { id: itemId, ...PUBLISHED },
+    select: { content: true },
+  });
+  if (!row) return null;
+
+  const content: DiagnosticContent = DiagnosticContentSchema.parse(row.content);
+  return { correct: gradeDiagnosticChoice(content, choiceIndex) };
 }
 
 // ─── Practice items (adaptive player) ───────────────────────────────────────
