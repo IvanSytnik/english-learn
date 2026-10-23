@@ -108,6 +108,15 @@ describe('submitExerciseAttempt', () => {
     });
   });
 
+  it('reports the review even when the stage crossing takes the consequence line', async () => {
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+    });
+    expect(res.ok && res.value.consequence.kind).toBe('stageCrossed');
+    expect(res.ok && res.value.review).toEqual({ kind: 'backInDays', days: 3 });
+  });
+
   it("records I don't know as dontKnow, not as a chosen answer", async () => {
     recordOutcome.mockResolvedValue(recorded({ stageBefore: 'SOLID', scheduledDays: 0 }));
     const res = await submitExerciseAttempt({ itemId: item.id, answer: { type: 'dontKnow' } });
@@ -119,6 +128,7 @@ describe('submitExerciseAttempt', () => {
     });
     expect(res.ok && res.value.verdict).toBe('dontKnow');
     expect(res.ok && res.value.consequence).toEqual({ kind: 'backSoon' });
+    expect(res.ok && res.value.review).toEqual({ kind: 'backSoon' });
   });
 
   it('a wrong choice is recorded as incorrect', async () => {

@@ -77,10 +77,11 @@ export type ExerciseAnswer =
 
 export type Verdict = 'correct' | 'incorrect' | 'dontKnow';
 
-export type Consequence =
-  | { kind: 'stageCrossed'; concept: string; stage: StageValue }
-  | { kind: 'backSoon' }
-  | { kind: 'backInDays'; days: number };
+/** When the item comes back for review (FSRS), independent of any stage change. */
+export type Review = { kind: 'backSoon' } | { kind: 'backInDays'; days: number };
+
+/** The single line shown under the answer: a stage crossing wins over the review. */
+export type Consequence = { kind: 'stageCrossed'; concept: string; stage: StageValue } | Review;
 
 export type ExerciseFeedback = {
   verdict: Verdict;
@@ -97,6 +98,11 @@ export type ExerciseFeedback = {
   /** Optional longer note behind `?`. */
   more: string | null;
   consequence: Consequence;
+  /**
+   * Always present, even when `consequence` is a stage crossing — the
+   * session summary needs both.
+   */
+  review: Review;
 };
 
 /** Strip the answer key: what the learner may see before answering. */
@@ -202,7 +208,7 @@ export function gradeAnswer(practice: Practice, answer: ExerciseAnswer): Verdict
     : 'incorrect';
 }
 
-const STAGE_RANK: Record<StageValue, number> = {
+export const STAGE_RANK: Record<StageValue, number> = {
   NOT_STARTED: 0,
   EMERGING: 1,
   DEVELOPING: 2,
@@ -227,6 +233,13 @@ export function stageCrossing(before: MasteryStage, after: MasteryStage): StageV
   return STAGE_RANK[b] > STAGE_RANK[a] && STAGE_RANK[b] >= STAGE_RANK.DEVELOPING ? b : null;
 }
 
+/** `scheduledDays === 0` is a learning step after AGAIN: "Back soon", not "in 0 days". */
+export function reviewFor(scheduledDays: number): Review {
+  return scheduledDays <= 0
+    ? { kind: 'backSoon' }
+    : { kind: 'backInDays', days: Math.round(scheduledDays) };
+}
+
 /** Consequence line priority: stage crossing → "Back soon" → "Back in N days". */
 export function consequenceFor(args: {
   conceptTitle: string;
@@ -236,6 +249,5 @@ export function consequenceFor(args: {
 }): Consequence {
   const crossed = stageCrossing(args.stageBefore, args.stageAfter);
   if (crossed) return { kind: 'stageCrossed', concept: args.conceptTitle, stage: crossed };
-  if (args.scheduledDays <= 0) return { kind: 'backSoon' };
-  return { kind: 'backInDays', days: Math.round(args.scheduledDays) };
+  return reviewFor(args.scheduledDays);
 }

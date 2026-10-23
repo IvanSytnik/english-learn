@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,12 +52,13 @@ const feedback: ExerciseFeedback = {
   why: 'Irregular past.',
   more: null,
   consequence: { kind: 'stageCrossed', concept: 'Past Simple', stage: 'SOLID' },
+  review: { kind: 'backInDays', days: 3 },
 };
 
-function renderPlayer(initial: ExerciseView) {
+function renderPlayer(initial: ExerciseView, sessionLength = 12) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ExercisePlayer initial={initial} sessionLength={12} />
+      <ExercisePlayer initial={initial} sessionLength={sessionLength} />
     </NextIntlClientProvider>,
   );
 }
@@ -148,6 +149,76 @@ describe('ExercisePlayer', () => {
     renderPlayer(choiceView);
     key('Escape');
     expect(push).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('ends with a summary built from the session feedback, without the answers', async () => {
+    submitExerciseAttempt
+      .mockResolvedValueOnce({ ok: true, value: feedback })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          ...feedback,
+          verdict: 'dontKnow',
+          chosenIndex: null,
+          correctAnswer: 'boxes',
+          answerSentence: 'There are three boxes on the shelf.',
+          consequence: { kind: 'backSoon' },
+          review: { kind: 'backSoon' },
+        },
+      });
+    nextExercise.mockResolvedValue({
+      ok: true,
+      value: { ...clozeView, conceptTitle: 'Plural nouns' },
+    });
+    renderPlayer(choiceView, 2);
+
+    key('4');
+    key('Enter');
+    await screen.findByText('Correct');
+    key('Enter');
+    await screen.findByRole('textbox', { name: 'Your answer' });
+    key('0');
+    await screen.findByText("Here's the answer");
+    key('Enter');
+
+    const heading = await screen.findByRole('heading', { name: 'Session complete' });
+    expect(heading).toHaveFocus();
+    expect(screen.getByText('You answered 2 questions.')).toBeInTheDocument();
+    const tally = (k: string) => document.querySelector(`[data-tally="${k}"] dd`)?.textContent;
+    expect([tally('correct'), tally('incorrect'), tally('dontKnow')]).toEqual(['1', '0', '1']);
+    // The crossing and the review of the same answer both survive.
+    const moved = screen.getByRole('region', { name: 'Moved up' });
+    expect(moved).toHaveTextContent('Past Simple');
+    expect(moved).toHaveTextContent('Solid');
+    const review = screen.getByRole('region', { name: 'Coming back for review' });
+    const row = (kind: string) => review.querySelector(`[data-review="${kind}"]`) as HTMLElement;
+    expect(row('backSoon')).toHaveTextContent('Back soon');
+    expect(
+      within(row('backSoon'))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Plural nouns']);
+    expect(row('backInDays')).toHaveTextContent('Back in 3 days');
+    expect(
+      within(row('backInDays'))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Past Simple']);
+    // Progress, not a replay of the answers.
+    expect(document.body).not.toHaveTextContent(/went|boxes/);
+  });
+
+  it('Another session starts over from zero', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: clozeView });
+    renderPlayer(choiceView, 1);
+    key('4');
+    key('Enter');
+    await screen.findByText('Correct');
+    key('Enter');
+    fireEvent.click(await screen.findByRole('button', { name: 'Another session' }));
+    expect(await screen.findByRole('textbox', { name: 'Your answer' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '1');
   });
 
   it('keeps the learner on the question when submitting fails', async () => {

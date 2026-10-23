@@ -149,6 +149,13 @@
         "again": "Noch eine Sitzung",
         "dashboard": "Zum Dashboard"
       }
+    },
+    "summary": {
+      "correct": "Richtig",
+      "incorrect": "Nicht ganz",
+      "dontKnow": "Weiß ich nicht",
+      "progressTitle": "Aufgestiegen",
+      "reviewTitle": "Kommt zur Wiederholung"
     }
   }
 }

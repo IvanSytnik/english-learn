@@ -15,6 +15,7 @@ import {
   fillGap,
   gradeAnswer,
   RECENT_EXCLUDE,
+  reviewFor,
 } from '@/lib/exercise/view';
 import { learnerService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
@@ -102,6 +103,7 @@ export async function submitExerciseAttempt(
         stageAfter: recorded.stageAfter,
         scheduledDays: recorded.scheduledDays,
       }),
+      review: reviewFor(recorded.scheduledDays),
     },
   };
 }

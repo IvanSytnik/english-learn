@@ -9,6 +9,7 @@ import {
   hintFor,
   parseSessionMinutes,
   reasonDetail,
+  reviewFor,
   SESSION_ITEMS,
   stageCrossing,
   toQuestion,
@@ -112,6 +113,14 @@ describe('consequenceFor', () => {
       kind: 'backInDays',
       days: 3,
     });
+  });
+});
+
+describe('reviewFor', () => {
+  it('a learning step is Back soon, never "in 0 days"; otherwise whole days', () => {
+    expect(reviewFor(0)).toEqual({ kind: 'backSoon' });
+    expect(reviewFor(-1)).toEqual({ kind: 'backSoon' });
+    expect(reviewFor(2.6)).toEqual({ kind: 'backInDays', days: 3 });
   });
 });
 

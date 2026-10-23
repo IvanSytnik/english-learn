@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT } from './helpers/auth';
 
@@ -88,4 +89,44 @@ test('/ru/exercises: ?minutes= maps to the server allowlist, anything else shows
     await expect(picker, query).toBeVisible();
     await expect(progress, query).toHaveCount(0);
   }
+});
+
+test('/ru/exercises: a 5-minute session ends on the summary, then starts over', async ({
+  page,
+}) => {
+  await registerFreshLearner(page);
+  await page.goto('/ru/exercises?minutes=5');
+  const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
+  const status = page.getByRole('status');
+
+  for (let done = 1; done <= 6; done++) {
+    if (done % 2 === 0) await page.keyboard.press('0');
+    else await answerWithKeyboard(page);
+    await expect(status.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
+    await expect(progress).toHaveAttribute('aria-valuenow', String(done));
+    await page.keyboard.press('Enter');
+    if (done < 6) await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+  }
+
+  const heading = page.getByRole('heading', { name: 'Сессия завершена' });
+  await expect(heading).toBeFocused(AFTER_SUBMIT);
+  await expect(page.getByText('Вы ответили на 6 вопросов.')).toBeVisible();
+  const tally = async (key: string) =>
+    Number(await page.locator(`[data-tally="${key}"] dd`).textContent());
+  expect((await tally('correct')) + (await tally('incorrect'))).toBe(3);
+  expect(await tally('dontKnow')).toBe(3);
+  // Every "I don't know" is a learning step: something always comes back soon.
+  const review = page.getByRole('region', { name: 'Вернётся на повторение' });
+  await expect(review.locator('[data-review="backSoon"]')).toContainText('Скоро вернёмся к этому');
+
+  // Text contrast on the summary, in both colour schemes.
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
+    expect(violations, colorScheme).toEqual([]);
+  }
+
+  await page.getByRole('button', { name: 'Ещё одна сессия' }).click();
+  await expect(progress).toHaveAttribute('aria-valuenow', '0', AFTER_SUBMIT);
+  await expect(progress).toHaveAttribute('aria-valuemax', '6');
 });

@@ -149,6 +149,13 @@
         "again": "Another session",
         "dashboard": "Back to dashboard"
       }
+    },
+    "summary": {
+      "correct": "Correct",
+      "incorrect": "Not quite",
+      "dontKnow": "I don't know",
+      "progressTitle": "Moved up",
+      "reviewTitle": "Coming back for review"
     }
   }
 }

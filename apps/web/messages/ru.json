@@ -149,6 +149,13 @@
         "again": "Ещё одна сессия",
         "dashboard": "На главную"
       }
+    },
+    "summary": {
+      "correct": "Верно",
+      "incorrect": "Не совсем",
+      "dontKnow": "Не знаю",
+      "progressTitle": "Шаг вперёд",
+      "reviewTitle": "Вернётся на повторение"
     }
   }
 }

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode, useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { focusKind, type PlayerPhase, resolveShortcut } from '@/lib/exercise/shortcuts';
+import { type SessionEntry, summarizeSession, toSessionEntry } from '@/lib/exercise/summary';
 import type {
   ExerciseAnswer,
   ExerciseFeedback,
@@ -13,6 +14,7 @@ import type {
   ReasonDetail,
 } from '@/lib/exercise/view';
 import { nextExercise, submitExerciseAttempt } from './actions';
+import { SessionSummary } from './session-summary';
 
 const GAP = '___';
 
@@ -42,6 +44,7 @@ export function ExercisePlayer({
   // Length is client-enforced by design (§8 #9); allowlist guards the input,
   // not the session. The server keeps no session state to check this against.
   const [completed, setCompleted] = useState(0);
+  const [entries, setEntries] = useState<SessionEntry[]>([]);
   const [recent, setRecent] = useState<string[]>([initial.itemId]);
   const [error, setError] = useState(false);
 
@@ -78,10 +81,11 @@ export function ExercisePlayer({
         }
         setFeedback(res.value);
         setCompleted((n) => n + 1);
+        setEntries((list) => [...list, toSessionEntry(view.conceptTitle, res.value)]);
         setPhase('feedback');
       });
     },
-    [phase, view.itemId],
+    [phase, view.itemId, view.conceptTitle],
   );
 
   const check = useCallback(() => {
@@ -127,6 +131,7 @@ export function ExercisePlayer({
 
   const startAgain = useCallback(() => {
     setCompleted(0);
+    setEntries([]);
     loadNext(recent);
   }, [loadNext, recent]);
 
@@ -168,18 +173,12 @@ export function ExercisePlayer({
 
   if (phase === 'done') {
     return (
-      <main className="mx-auto w-full max-w-[62ch] px-4 py-12">
-        <h1 className="font-content text-3xl text-ink">{t('player.done.title')}</h1>
-        <p className="mt-3 text-ink-muted">{t('player.done.body', { count: completed })}</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button type="button" className={primaryButton} onClick={startAgain}>
-            {t('player.done.again')}
-          </button>
-          <Link href="/dashboard" className={quietButton}>
-            {t('player.done.dashboard')}
-          </Link>
-        </div>
-      </main>
+      <SessionSummary
+        summary={summarizeSession(entries)}
+        onAgain={startAgain}
+        primaryClassName={primaryButton}
+        quietClassName={quietButton}
+      />
     );
   }
 
