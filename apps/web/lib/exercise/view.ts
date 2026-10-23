@@ -19,8 +19,31 @@ import type { SelectionReasonValue, StageValue } from '@englishlearn/ui';
  * Grading happens on the server (gradeAnswer) inside submitExerciseAttempt.
  */
 
-/** Items per session until U3 adds the session-length picker. */
-export const SESSION_LENGTH = 12;
+/**
+ * Session length picker: minutes → fixed number of items (HANDOFF §7, Case D).
+ * Roughly 50 s per item including feedback — an estimate until real
+ * occurredAt gaps can calibrate it.
+ */
+export const SESSION_ITEMS = { 5: 6, 10: 12, 20: 24 } as const;
+
+export type SessionMinutes = keyof typeof SESSION_ITEMS;
+
+export const SESSION_MINUTES: readonly SessionMinutes[] = [5, 10, 20];
+
+export const DEFAULT_SESSION_MINUTES: SessionMinutes = 10;
+
+/**
+ * `?minutes=` → an allowlisted length, or null (show the picker). Only the
+ * exact strings "5" | "10" | "20" pass; a repeated param arrives as an array
+ * and is rejected, not narrowed to its first element.
+ *
+ * Length is client-enforced by design (§8 #9); allowlist guards the input,
+ * not the session.
+ */
+export function parseSessionMinutes(raw: unknown): SessionMinutes | null {
+  if (typeof raw !== 'string') return null;
+  return SESSION_MINUTES.find((m) => String(m) === raw) ?? null;
+}
 
 /** How many recently shown items the player asks selectNext to skip. */
 export const RECENT_EXCLUDE = 3;

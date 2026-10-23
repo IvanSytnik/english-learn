@@ -7,7 +7,9 @@ import {
   fillGap,
   gradeAnswer,
   hintFor,
+  parseSessionMinutes,
   reasonDetail,
+  SESSION_ITEMS,
   stageCrossing,
   toQuestion,
 } from '@/lib/exercise/view';
@@ -151,5 +153,28 @@ describe('hintFor / explanationFor', () => {
       why: 'luggage — bags',
       more: 'Bags for travel.',
     });
+  });
+});
+
+describe('parseSessionMinutes', () => {
+  it('accepts only the allowlisted lengths and maps them on the server', () => {
+    expect(parseSessionMinutes('5')).toBe(5);
+    expect(parseSessionMinutes('10')).toBe(10);
+    expect(parseSessionMinutes('20')).toBe(20);
+    expect(SESSION_ITEMS).toEqual({ 5: 6, 10: 12, 20: 24 });
+  });
+
+  it('rejects anything else, so the client can never pick an arbitrary count', () => {
+    for (const raw of ['', '7', '999', '0', '-5', '05', '10.0', ' 10', '1e1', 'ten', '24']) {
+      expect(parseSessionMinutes(raw), JSON.stringify(raw)).toBeNull();
+    }
+    for (const raw of [undefined, null, 10, {}, true]) {
+      expect(parseSessionMinutes(raw), String(raw)).toBeNull();
+    }
+  });
+
+  it('rejects a repeated param (array) instead of taking its first element', () => {
+    expect(parseSessionMinutes(['5', '10'])).toBeNull();
+    expect(parseSessionMinutes(['10'])).toBeNull();
   });
 });

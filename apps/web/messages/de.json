@@ -115,6 +115,12 @@
       "progress": "Sitzungsfortschritt",
       "progressValue": "{done} von {total}"
     },
+    "sessionLength": {
+      "title": "Wie viel Zeit hast du?",
+      "option": "{minutes} Min.",
+      "items": "{count, plural, one {# Frage} other {# Fragen}}",
+      "start": "Los geht’s"
+    },
     "feedback": {
       "backSoon": "Kommt bald wieder",
       "backInDays": "{days, plural, one {Wieder in # Tag} other {Wieder in # Tagen}}"

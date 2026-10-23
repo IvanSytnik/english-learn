@@ -115,6 +115,12 @@
       "progress": "Прогресс сессии",
       "progressValue": "{done} из {total}"
     },
+    "sessionLength": {
+      "title": "Сколько у вас времени?",
+      "option": "{minutes} мин",
+      "items": "{count, plural, one {# вопрос} few {# вопроса} many {# вопросов} other {# вопроса}}",
+      "start": "Начать"
+    },
     "feedback": {
       "backSoon": "Скоро вернёмся к этому",
       "backInDays": "{days, plural, one {Вернёмся через # день} few {Вернёмся через # дня} many {Вернёмся через # дней} other {Вернёмся через # дня}}"

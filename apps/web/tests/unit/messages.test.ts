@@ -35,6 +35,10 @@ describe('message catalogues', () => {
     }
     expect(t('reason.unlockedBy', { concept: 'Past Simple' })).toContain('Past Simple');
     expect(t('session.progressValue', { done: 3, total: 12 })).toMatch(/3.*12/);
+    for (const count of [1, 2, 6, 12, 21, 24]) {
+      expect(t('sessionLength.items', { count })).toContain(String(count));
+    }
+    expect(t('sessionLength.option', { minutes: 20 })).toContain('20');
   });
 
   it('uses the right Slavic plural forms', () => {
@@ -45,5 +49,8 @@ describe('message catalogues', () => {
     const uk = createTranslator({ locale: 'uk', messages: MESSAGES.uk, namespace: 'learning' });
     expect(uk('reason.lastPractised', { days: 2 })).toBe('Остання практика 2 дні тому');
     expect(uk('reason.lastPractised', { days: 21 })).toBe('Остання практика 21 день тому');
+    expect(ru('sessionLength.items', { count: 6 })).toBe('6 вопросов');
+    expect(ru('sessionLength.items', { count: 24 })).toBe('24 вопроса');
+    expect(uk('sessionLength.items', { count: 12 })).toBe('12 запитань');
   });
 });

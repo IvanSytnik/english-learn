@@ -31,8 +31,19 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   await registerFreshLearner(page);
   await page.goto('/ru/exercises');
 
+  // Session length first: 10 min preselected, arrows move, Enter starts.
+  const ten = page.getByRole('radio', { name: '10 мин', exact: true });
+  await expect(ten).toBeChecked();
+  await ten.focus();
+  await page.keyboard.press('ArrowLeft');
+  const five = page.getByRole('radio', { name: '5 мин', exact: true });
+  await expect(five).toBeChecked();
+  await expect(five).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/ru\/exercises\?minutes=5$/, AFTER_SUBMIT);
+
   const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
-  await expect(progress).toHaveAttribute('aria-valuemax', '12');
+  await expect(progress).toHaveAttribute('aria-valuemax', '6');
   await expect(progress).toHaveAttribute('aria-valuenow', '0');
   const prompt = page.locator('#exercise-prompt');
   await expect(prompt).toHaveAttribute('lang', 'en');
@@ -60,4 +71,21 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   // Esc = pause → dashboard.
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
+});
+
+test('/ru/exercises: ?minutes= maps to the server allowlist, anything else shows the picker', async ({
+  page,
+}) => {
+  await registerFreshLearner(page);
+  const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
+  const picker = page.getByRole('group', { name: 'Сколько у вас времени?' });
+
+  await page.goto('/ru/exercises?minutes=20');
+  await expect(progress).toHaveAttribute('aria-valuemax', '24');
+
+  for (const query of ['minutes=999', 'minutes=7', 'minutes=5&minutes=10', 'minutes=']) {
+    await page.goto(`/ru/exercises?${query}`);
+    await expect(picker, query).toBeVisible();
+    await expect(progress, query).toHaveCount(0);
+  }
 });

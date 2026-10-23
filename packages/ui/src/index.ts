@@ -10,5 +10,10 @@ export {
   type SelectionReasonValue,
 } from './reason-chip';
 export { SegmentedProgress, type SegmentedProgressProps } from './segmented-progress';
+export {
+  type SessionLengthOption,
+  SessionLengthPicker,
+  type SessionLengthPickerProps,
+} from './session-length-picker';
 export { StageLabel, type StageLabelProps, type StageValue } from './stage-label';
 export { cn } from './utils';

@@ -39,6 +39,8 @@ export function ExercisePlayer({
   const [hintOpen, setHintOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [feedback, setFeedback] = useState<ExerciseFeedback | null>(null);
+  // Length is client-enforced by design (§8 #9); allowlist guards the input,
+  // not the session. The server keeps no session state to check this against.
   const [completed, setCompleted] = useState(0);
   const [recent, setRecent] = useState<string[]>([initial.itemId]);
   const [error, setError] = useState(false);

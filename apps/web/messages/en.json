@@ -115,6 +115,12 @@
       "progress": "Session progress",
       "progressValue": "{done} of {total}"
     },
+    "sessionLength": {
+      "title": "How long do you have?",
+      "option": "{minutes} min",
+      "items": "{count, plural, one {# question} other {# questions}}",
+      "start": "Start"
+    },
     "feedback": {
       "backSoon": "Back soon",
       "backInDays": "{days, plural, one {Back in # day} other {Back in # days}}"

@@ -37,7 +37,12 @@ for (const colorScheme of ['dark', 'light'] as const) {
       });
     }
 
-    for (const path of ['/ru/dashboard', '/ru/diagnostic']) {
+    for (const path of [
+      '/ru/dashboard',
+      '/ru/diagnostic',
+      '/ru/exercises',
+      '/ru/exercises?minutes=10',
+    ]) {
       test(`${path} (signed in)`, async ({ page }) => {
         await registerFreshStudent(page);
         await page.goto(path);

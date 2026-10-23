@@ -115,6 +115,12 @@
       "progress": "Прогрес сесії",
       "progressValue": "{done} з {total}"
     },
+    "sessionLength": {
+      "title": "Скільки у вас часу?",
+      "option": "{minutes} хв",
+      "items": "{count, plural, one {# запитання} few {# запитання} many {# запитань} other {# запитання}}",
+      "start": "Почати"
+    },
     "feedback": {
       "backSoon": "Скоро повернемося до цього",
       "backInDays": "{days, plural, one {Повернемося через # день} few {Повернемося через # дні} many {Повернемося через # днів} other {Повернемося через # дня}}"
