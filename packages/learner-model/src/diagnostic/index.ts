@@ -21,6 +21,7 @@ export {
   LADDER_LEVELS,
   LADDER_START,
   type LadderAnswer,
+  ladderAssessedLevel,
   type LadderAxis,
   ladderAxisLevel,
   type LadderInput,
@@ -35,14 +36,14 @@ export {
   TOTAL_QUESTIONS,
 } from './ladder';
 export {
-  BAND_TAIL,
   buildPlacementReveal,
   pickStartConcept,
-  placementBand,
   type AnswerTally,
+  type AxisReveal,
   type PlacementReveal,
   type PlacementRevealInput,
   type RevealAnswerFact,
   type RevealConcept,
   type RevealSkillTag,
+  type StartConceptInput,
 } from './reveal';

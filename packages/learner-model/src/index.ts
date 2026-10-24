@@ -52,16 +52,16 @@ export {
   type MappingConstants,
   type BootstrapInput,
   type BootstrapOutput,
-  BAND_TAIL,
   buildPlacementReveal,
   pickStartConcept,
-  placementBand,
   type AnswerTally,
+  type AxisReveal,
   type PlacementReveal,
   type PlacementRevealInput,
   type RevealAnswerFact,
   type RevealConcept,
   type RevealSkillTag,
+  type StartConceptInput,
 } from './diagnostic';
 
 export {

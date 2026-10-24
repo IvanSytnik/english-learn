@@ -8,15 +8,19 @@ import {
   type PrereqEdge,
 } from '../policy/types';
 import { MAPPING_V1 } from './bootstrap';
+import { ladderAssessedLevel, ladderAxisLevel } from './ladder';
 import type { DiagnosticAnswerFact } from './types';
 
 /**
- * Placement reveal read model (E7, decision 2026-10-19).
+ * Placement reveal read model (E7, rebuilt on the ladder 2026-10-24).
  *
- * Builds the letter-style reveal from facts that already exist — the graded
- * diagnostic answers and the post-bootstrap mastery snapshots. Deliberately
- * NOT a per-concept "top 3": inside one axis the bootstrap pKnown differs only
- * by levelFactor, so concept ranking would be fake precision (HANDOFF §7).
+ * Builds the reveal from facts that already exist — the graded diagnostic
+ * answers and the post-bootstrap mastery snapshots. Levels come from the
+ * ladder's own formulas (`ladderAxisLevel`, `ladderAssessedLevel`), so the
+ * reveal always says what the engine and the bootstrap estimator decided.
+ * Deliberately NOT a per-concept "top 3": inside one axis the bootstrap
+ * pKnown differs only by levelFactor, so concept ranking would be fake
+ * precision (HANDOFF §7).
  *
  * Pure: the caller loads the facts (see @englishlearn/db/queries/diagnostic-reveal).
  */
@@ -28,7 +32,10 @@ export type RevealSkillTag = {
   category: string;
 };
 
-export type RevealAnswerFact = Pick<DiagnosticAnswerFact, 'axis' | 'correct' | 'dontKnow'> & {
+export type RevealAnswerFact = Pick<
+  DiagnosticAnswerFact,
+  'axis' | 'correct' | 'dontKnow' | 'itemLevel' | 'position'
+> & {
   /** DiagnosticItem.skillTag, or null for an untagged item. */
   skillTag: RevealSkillTag | null;
 };
@@ -39,9 +46,6 @@ export type RevealConcept = {
 };
 
 export type PlacementRevealInput = {
-  assessedLevel: CefrLevelValue;
-  /** DiagnosticAttempt.levelTrajectory — the pseudo-CAT level per answered item. */
-  levelTrajectory: readonly CefrLevelValue[];
   answers: readonly RevealAnswerFact[];
   /**
    * Concepts eligible as a starting point. Pass only concepts that have
@@ -53,6 +57,11 @@ export type PlacementRevealInput = {
   masteries: readonly ConceptMasterySnapshot[];
   prereqEdges: readonly PrereqEdge[];
   config?: PolicyConfig;
+};
+
+export type StartConceptInput = Omit<PlacementRevealInput, 'answers'> & {
+  /** The level to start near — the reveal's assessed level. */
+  level: CefrLevelValue;
 };
 
 export type AnswerTally = {
@@ -69,12 +78,23 @@ export type AnswerTally = {
   reliable: boolean;
 };
 
-export type PlacementReveal = {
+/**
+ * One axis of the reveal. The level only — no correct/answered counts: the
+ * ladder keeps everyone near 50 % correct, so a fraction would read as a
+ * second, contradicting "level" (decision 2026-10-24, 2.а).
+ */
+export type AxisReveal = {
+  axis: DiagnosticAxisValue;
   level: CefrLevelValue;
-  /** Where the pseudo-CAT settled; low === high when it never wavered. */
-  band: { low: CefrLevelValue; high: CefrLevelValue };
+  /** Same bar as the bootstrap sparse-axis guard (MAPPING_V1.minAnswersPerAxis). */
+  reliable: boolean;
+};
+
+export type PlacementReveal = {
+  /** Mean of the axis levels, rounded down; null when nothing was answered. */
+  level: CefrLevelValue | null;
   /** Axes that received at least one answer, in VOCAB/GRAMMAR/LISTENING order. */
-  axes: (AnswerTally & { axis: DiagnosticAxisValue })[];
+  axes: AxisReveal[];
   /** Per skill tag, strongest first (accuracy desc, then answered desc, then slug). */
   skillTags: (AnswerTally & { tag: RevealSkillTag })[];
   untaggedAnswers: number;
@@ -83,13 +103,6 @@ export type PlacementReveal = {
 };
 
 const AXIS_ORDER: readonly DiagnosticAxisValue[] = ['VOCAB', 'GRAMMAR', 'LISTENING'];
-
-/** How many final trajectory steps define the band (where the CAT settled). */
-export const BAND_TAIL = 4;
-
-const BY_RANK = (Object.keys(CEFR_RANK) as CefrLevelValue[]).sort(
-  (a, b) => CEFR_RANK[a] - CEFR_RANK[b],
-);
 
 function tally(
   answers: readonly Pick<DiagnosticAnswerFact, 'correct' | 'dontKnow'>[],
@@ -111,33 +124,17 @@ function tally(
 }
 
 /**
- * Band v1: min..max over the last BAND_TAIL trajectory levels, always
- * including assessedLevel. Early steps are the CAT still searching from its
- * B1 start, so they are excluded.
- */
-export function placementBand(
-  assessedLevel: CefrLevelValue,
-  levelTrajectory: readonly CefrLevelValue[],
-): { low: CefrLevelValue; high: CefrLevelValue } {
-  const ranks = [...levelTrajectory.slice(-BAND_TAIL), assessedLevel].map((l) => CEFR_RANK[l]);
-  return {
-    low: BY_RANK[Math.min(...ranks)] as CefrLevelValue,
-    high: BY_RANK[Math.max(...ranks)] as CefrLevelValue,
-  };
-}
-
-/**
  * The concept to suggest first: unlocked, not yet practised, closest to the
- * assessed level (lower level wins a tie), weakest bootstrap prior next, id
+ * given level (lower level wins a tie), weakest bootstrap prior next, id
  * last for determinism. Deterministic on purpose — this is copy on a page,
  * unlike the Thompson draw selectNext makes for the first exercise.
  */
-export function pickStartConcept(input: PlacementRevealInput): ConceptId | null {
+export function pickStartConcept(input: StartConceptInput): ConceptId | null {
   const config = input.config ?? DEFAULT_POLICY_CONFIG;
   const ids = input.concepts.map((c) => c.id);
   const { unlocked } = computeUnlocked(ids, input.masteries, input.prereqEdges, config);
   const masteryById = new Map(input.masteries.map((m) => [m.conceptId, m]));
-  const target = CEFR_RANK[input.assessedLevel];
+  const target = CEFR_RANK[input.level];
 
   const eligible = input.concepts.filter(
     (c) => unlocked.has(c.id) && !isStarted(masteryById.get(c.id)),
@@ -156,14 +153,19 @@ export function pickStartConcept(input: PlacementRevealInput): ConceptId | null 
 }
 
 export function buildPlacementReveal(input: PlacementRevealInput): PlacementReveal {
-  const axes = AXIS_ORDER.map((axis) => ({
-    axis,
-    ...tally(input.answers.filter((a) => a.axis === axis)),
-  })).filter((a) => a.answered > 0);
+  const ordered = [...input.answers].sort((a, b) => a.position - b.position);
+  const axes: AxisReveal[] = [];
+  for (const axis of AXIS_ORDER) {
+    const ofAxis = ordered.filter((a) => a.axis === axis);
+    const level = ladderAxisLevel(ofAxis);
+    if (level === null) continue;
+    axes.push({ axis, level, reliable: ofAxis.length >= MAPPING_V1.minAnswersPerAxis });
+  }
+  const level = axes.length === 0 ? null : ladderAssessedLevel(axes.map((a) => a.level));
 
   const byTag = new Map<string, { tag: RevealSkillTag; answers: RevealAnswerFact[] }>();
   let untaggedAnswers = 0;
-  for (const a of input.answers) {
+  for (const a of ordered) {
     if (!a.skillTag) {
       untaggedAnswers += 1;
       continue;
@@ -182,11 +184,10 @@ export function buildPlacementReveal(input: PlacementRevealInput): PlacementReve
     );
 
   return {
-    level: input.assessedLevel,
-    band: placementBand(input.assessedLevel, input.levelTrajectory),
+    level,
     axes,
     skillTags,
     untaggedAnswers,
-    startConcept: pickStartConcept(input),
+    startConcept: level === null ? null : pickStartConcept({ ...input, level }),
   };
 }

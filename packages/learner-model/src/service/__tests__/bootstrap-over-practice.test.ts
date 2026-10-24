@@ -167,9 +167,7 @@ describe('bootstrap over practice', () => {
     // X (A2, weakest pKnown) would win the ranking if it were not started.
     expect(
       pickStartConcept({
-        assessedLevel: 'B1',
-        levelTrajectory: [],
-        answers: [],
+        level: 'B1',
         concepts: CONCEPTS.map(({ id, cefrLevel }) => ({ id, cefrLevel })),
         masteries,
         prereqEdges: EDGES,

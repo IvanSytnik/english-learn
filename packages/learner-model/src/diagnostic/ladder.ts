@@ -124,6 +124,12 @@ export function ladderAxisLevel(
   return floorMeanLevel(axisAnswers.slice(-LEVEL_TAIL).map((a) => a.itemLevel));
 }
 
+/** The attempt's assessed level: the mean rank of its axis levels, rounded down. */
+export function ladderAssessedLevel(axisLevels: readonly CefrLevelValue[]): CefrLevelValue {
+  if (axisLevels.length === 0) throw new Error('ladder: no axis level to assess');
+  return floorMeanLevel(axisLevels);
+}
+
 /** Throws on input only a bug can produce; returns answers in position order. */
 function validated(answers: readonly LadderAnswer[]): LadderAnswer[] {
   const sorted = [...answers].sort((a, b) => a.position - b.position);
@@ -152,7 +158,7 @@ export function nextLadderStep(input: LadderInput): LadderStep {
       axis,
       level: ladderAxisLevel(ofAxis(axis)) as CefrLevelValue,
     }));
-    return { kind: 'complete', axes, assessedLevel: floorMeanLevel(axes.map((a) => a.level)) };
+    return { kind: 'complete', axes, assessedLevel: ladderAssessedLevel(axes.map((a) => a.level)) };
   }
 
   const position = answers.length;
