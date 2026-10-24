@@ -168,9 +168,11 @@ describe('DiagnosticFlow', () => {
     key('1');
     key('Enter');
     expect(await screen.findByRole('alert')).toBeTruthy();
-    // The send is over once the controls are live again.
+    // The send is over once the controls are live again; then let the effects
+    // that re-attach the key listener run (nothing visible marks that moment).
     const answerButton = screen.getByRole('button', { name: /^Answer/ }) as HTMLButtonElement;
     await waitFor(() => expect(answerButton.disabled).toBe(false));
+    await act(async () => {});
     key('Enter');
     expect(await screen.findByText('Question 2 of 16')).toBeTruthy();
   });

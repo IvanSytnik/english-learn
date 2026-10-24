@@ -82,8 +82,29 @@ const key = (k: string, target: Element | Window = window) =>
     fireEvent.keyDown(target, { key: k });
   });
 
+/*
+ * After an async step the new phase is in the DOM before the player's effects
+ * run — and the keyboard listener is (re)attached by one of those effects. A
+ * key pressed in that gap reaches the previous phase's listener and is lost
+ * (a slow CI runner widens the gap). The same commit moves focus, so wait for
+ * the focus: once it is there, the listener is current.
+ */
+const onFeedback = async (verdict: string) => {
+  await screen.findByText(verdict);
+  await waitFor(() => expect(screen.getByRole('button', { name: /^Continue/ })).toHaveFocus());
+};
+const onClozeQuestion = async () => {
+  const field = await screen.findByRole('textbox', { name: 'Your answer' });
+  await waitFor(() => expect(field).toHaveFocus());
+  return field;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  // Reset implementations too: a test that fails midway must not leave its
+  // unconsumed *Once replies to the next one.
+  submitExerciseAttempt.mockReset();
+  nextExercise.mockReset();
   submitExerciseAttempt.mockResolvedValue({ ok: true, value: feedback });
   weekRhythm.mockResolvedValue({ ok: true, value: week });
 });
@@ -155,10 +176,10 @@ describe('ExercisePlayer', () => {
     renderPlayer(choiceView);
     key('2');
     key('Enter');
-    await screen.findByText('Correct');
+    await onFeedback('Correct');
     key('Enter');
     await waitFor(() => expect(nextExercise).toHaveBeenCalledWith(['item.a']));
-    expect(await screen.findByRole('textbox', { name: 'Your answer' })).toBeInTheDocument();
+    expect(await onClozeQuestion()).toBeInTheDocument();
   });
 
   it('Esc pauses back to the dashboard', () => {
@@ -190,11 +211,11 @@ describe('ExercisePlayer', () => {
 
     key('4');
     key('Enter');
-    await screen.findByText('Correct');
+    await onFeedback('Correct');
     key('Enter');
-    await screen.findByRole('textbox', { name: 'Your answer' });
+    await onClozeQuestion();
     key('0');
-    await screen.findByText("Here's the answer");
+    await onFeedback("Here's the answer");
     key('Enter');
 
     const heading = await screen.findByRole('heading', { name: 'Session complete' });
@@ -236,7 +257,7 @@ describe('ExercisePlayer', () => {
     renderPlayer(choiceView, 1);
     key('4');
     key('Enter');
-    await screen.findByText('Correct');
+    await onFeedback('Correct');
     key('Enter');
     fireEvent.click(await screen.findByRole('button', { name: 'Another session' }));
     expect(await screen.findByRole('textbox', { name: 'Your answer' })).toBeInTheDocument();
