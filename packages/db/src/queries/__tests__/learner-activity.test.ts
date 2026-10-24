@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getAttemptEvents } from '../learner-activity';
+import { getAttemptEvents, hasLearnerBootstrapped } from '../learner-activity';
 
 type Db = Parameters<typeof getAttemptEvents>[0];
 const dbWith = (rows: unknown[]) => {
@@ -25,5 +25,26 @@ describe('getAttemptEvents', () => {
     expect(await getAttemptEvents(db, { userId: 'u1', fromMs: 0, toMs: 1 })).toEqual([
       { type: 'ITEM_ATTEMPTED', occurredAt: 1761170400000 },
     ]);
+  });
+});
+
+describe('hasLearnerBootstrapped', () => {
+  type Db = Parameters<typeof hasLearnerBootstrapped>[0];
+  const dbWith = (row: unknown) => {
+    const findFirst = vi.fn().mockResolvedValue(row);
+    return { db: { learnerEvent: { findFirst } } as unknown as Db, findFirst };
+  };
+
+  it('looks for this learner’s LEARNER_BOOTSTRAPPED event', async () => {
+    const { db, findFirst } = dbWith(null);
+    expect(await hasLearnerBootstrapped(db, 'u1')).toBe(false);
+    expect(findFirst.mock.calls[0]?.[0].where).toEqual({
+      userId: 'u1',
+      type: 'LEARNER_BOOTSTRAPPED',
+    });
+  });
+
+  it('is true once the event exists', async () => {
+    expect(await hasLearnerBootstrapped(dbWith({ id: 'e1' }).db, 'u1')).toBe(true);
   });
 });

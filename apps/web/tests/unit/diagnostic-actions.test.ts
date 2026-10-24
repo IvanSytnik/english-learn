@@ -105,7 +105,6 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
     if (!a?.assessedLevel) return null;
     return {
       assessedLevel: a.assessedLevel,
-      levelTrajectory: [],
       answers: a.answers.map((x) => ({
         position: x.position,
         axis: x.axis,
