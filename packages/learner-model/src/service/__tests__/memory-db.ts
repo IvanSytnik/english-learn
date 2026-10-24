@@ -66,6 +66,12 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
       const row = masteries.get(`${userId}:${conceptId}`);
       return row ? { ...row } : null;
     },
+    async getConceptMasteries(userId, conceptIds) {
+      return conceptIds.flatMap((conceptId) => {
+        const row = masteries.get(`${userId}:${conceptId}`);
+        return row ? [{ conceptId, ...row }] : [];
+      });
+    },
     async upsertConceptMastery(userId, conceptId, write) {
       masteries.set(`${userId}:${conceptId}`, { ...write });
     },

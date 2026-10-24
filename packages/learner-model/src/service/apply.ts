@@ -66,13 +66,20 @@ export type BootstrapConceptState = {
   stage: MasteryStage;
 };
 
+export type BootstrapFold = {
+  /** Concepts the bootstrap seeds — the only rows to write. */
+  states: BootstrapConceptState[];
+  /** Concepts in the payload left untouched because they were already practised. */
+  skipped: { conceptId: string; reason: 'already_observed' }[];
+};
+
 /**
  * Fold a LEARNER_BOOTSTRAPPED event into a set of initial ConceptMastery
  * states.
  *
- * Unlike applyItemAttempted this touches ONLY the BKT layer, and produces N
- * states (one per snapshot in the payload) rather than a single pair — there
- * are no items, hence no FSRS state, at bootstrap time.
+ * Unlike applyItemAttempted this touches ONLY the BKT layer, and produces up
+ * to N states (one per snapshot in the payload) rather than a single pair —
+ * the diagnostic says nothing about items, hence no FSRS state.
  *
  * The snapshot is taken verbatim from the frozen payload; the mapping formula
  * is NOT re-run here (it already ran in the diagnostic module before the event
@@ -80,29 +87,40 @@ export type BootstrapConceptState = {
  * we persist the frozen result, we don't recompute it. The only value fold sets
  * is lastUpdatedAt = occurredAt, so forgetting decay is anchored correctly.
  *
- * bootstrap-service guarantees at most one LEARNER_BOOTSTRAPPED per user, but
- * not that it is the user's first event. Fold is pure and does not read
- * existing state, so a bootstrap after practice overwrites the practised
- * concepts' BktState. KNOWN GAP until the fold skips concepts with
- * observationCount > 0; no production caller bootstraps yet.
+ * Practice wins over the diagnostic: a concept whose prior state has
+ * observationCount > 0 is skipped, never overwritten — real outcomes are
+ * stronger evidence than a placement test. The decision depends only on the
+ * state folded so far (`prevBkt`), which the live path reads under the user
+ * lock and replay carries in memory, so both skip the same concepts.
  */
 export function applyLearnerBootstrapped(
   payload: LearnerBootstrappedPayload,
   occurredAt: bigint,
-): BootstrapConceptState[] {
+  prevBkt: (conceptId: string) => BktState | null,
+): BootstrapFold {
   const atMs = Number(occurredAt);
+  const states: BootstrapConceptState[] = [];
+  const skipped: BootstrapFold['skipped'] = [];
 
-  return payload.snapshots.map((s) => ({
-    conceptId: s.conceptId,
-    bkt: {
-      pKnown: s.pKnown,
-      pLearn: s.pLearn,
-      pSlip: s.pSlip,
-      pGuess: s.pGuess,
-      pForgetLambda: s.pForgetLambda,
-      lastUpdatedAt: atMs,
-      observationCount: 0,
-    },
-    stage: 'NOT_STARTED' as const,
-  }));
+  for (const s of payload.snapshots) {
+    if ((prevBkt(s.conceptId)?.observationCount ?? 0) > 0) {
+      skipped.push({ conceptId: s.conceptId, reason: 'already_observed' });
+      continue;
+    }
+    states.push({
+      conceptId: s.conceptId,
+      bkt: {
+        pKnown: s.pKnown,
+        pLearn: s.pLearn,
+        pSlip: s.pSlip,
+        pGuess: s.pGuess,
+        pForgetLambda: s.pForgetLambda,
+        lastUpdatedAt: atMs,
+        observationCount: 0,
+      },
+      stage: 'NOT_STARTED' as const,
+    });
+  }
+
+  return { states, skipped };
 }

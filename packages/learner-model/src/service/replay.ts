@@ -67,10 +67,14 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
           stageByConcept.set(payload.conceptId, next.stage);
           fsrsByItem.set(payload.itemId, next.fsrs);
         } else {
-          // LEARNER_BOOTSTRAPPED: seeds N concept BKT states directly — no
-          // FSRS layer. Same overwrite semantics as the live path (see
-          // applyLearnerBootstrapped), so replay stays equivalent.
-          const states = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
+          // LEARNER_BOOTSTRAPPED: seeds concept BKT states directly — no
+          // FSRS layer. Concepts already practised by this point in the
+          // history are skipped, exactly as on the live path.
+          const { states } = applyLearnerBootstrapped(
+            parsed.payload,
+            parsed.occurredAt,
+            (conceptId) => bktByConcept.get(conceptId) ?? null,
+          );
           for (const s of states) {
             bktByConcept.set(s.conceptId, s.bkt);
             stageByConcept.set(s.conceptId, s.stage);

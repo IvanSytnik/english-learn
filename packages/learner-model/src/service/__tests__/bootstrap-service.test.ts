@@ -143,9 +143,10 @@ describe('createBootstrapService', () => {
     expect(parsed.type).toBe('LEARNER_BOOTSTRAPPED');
     if (parsed.type !== 'LEARNER_BOOTSTRAPPED') return;
 
-    const rebuilt = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
+    const rebuilt = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt, () => null);
+    expect(rebuilt.skipped).toEqual([]);
 
-    for (const state of rebuilt) {
+    for (const state of rebuilt.states) {
       const live = masteries.get(`u1:${state.conceptId}`)!;
       expect(state.bkt.pKnown).toBeCloseTo(live.pKnown, 12);
       expect(state.bkt.pLearn).toBeCloseTo(live.pLearn, 12);

@@ -60,6 +60,11 @@ export type LearnerModelTx = {
   hasEventOfType(userId: string, type: LearnerEventInsert['type']): Promise<boolean>;
 
   getConceptMastery(userId: string, conceptId: string): Promise<ConceptMasteryRow | null>;
+  /** Existing rows among `conceptIds` (missing concepts are simply absent). */
+  getConceptMasteries(
+    userId: string,
+    conceptIds: readonly string[],
+  ): Promise<(ConceptMasteryRow & { conceptId: string })[]>;
   upsertConceptMastery(
     userId: string,
     conceptId: string,

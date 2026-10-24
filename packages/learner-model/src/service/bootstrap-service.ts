@@ -3,7 +3,7 @@ import type {
   DiagnosticAxisValue,
   LearnerBootstrappedPayload,
 } from '@englishlearn/db/schemas';
-import { bktStateToRow } from '../adapters/concept-mastery';
+import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import {
   accuracyBasedEstimator,
   type BootstrapConcept,
@@ -28,9 +28,11 @@ import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
  *      a second event (returns ALREADY_BOOTSTRAPPED).
  *   2. Estimates per-axis ability (ThetaEstimator seam, decision 5.c).
  *   3. Maps to conservative per-concept snapshots (formula v1, decision 9.a).
- *   4. Writes ONE LEARNER_BOOTSTRAPPED event + upserts N ConceptMastery rows
- *      in a single transaction — preserving "no direct mastery UPDATE outside
- *      an event" and keeping replay honest.
+ *   4. Writes ONE LEARNER_BOOTSTRAPPED event + upserts a ConceptMastery row
+ *      for every snapshot concept not yet practised (practice wins), in a
+ *      single transaction — preserving "no direct mastery UPDATE outside an
+ *      event" and keeping replay honest. The event is written even if every
+ *      concept was already practised: the diagnostic still counts as done.
  */
 
 export type BootstrapInputData = {
@@ -55,7 +57,11 @@ export type BootstrapResult =
       ok: true;
       occurredAt: bigint;
       bootstrappedConceptIds: string[];
-      skipped: { conceptId: string; reason: 'no_axis' | 'sparse_axis' }[];
+      /**
+       * Concepts left as they were: no axis / sparse axis (decided before the
+       * write), or already practised (decided by the fold — practice wins).
+       */
+      skipped: { conceptId: string; reason: 'no_axis' | 'sparse_axis' | 'already_observed' }[];
     }
   | { ok: false; error: 'ALREADY_BOOTSTRAPPED' }
   | { ok: false; error: 'NO_CONCEPTS_BOOTSTRAPPED' };
@@ -119,18 +125,30 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
         });
         await tx.appendEvent(event);
 
-        // Pure fold (reads no prior state); upsert every concept snapshot.
+        // Current state of the payload's concepts, read under the lock, so the
+        // fold skips exactly the concepts replay will see as practised.
+        const rows = await tx.getConceptMasteries(
+          input.userId,
+          payload.snapshots.map((s) => s.conceptId),
+        );
+        const prev = new Map(rows.map((r) => [r.conceptId, rowToBktState(r)]));
+        const fold = applyLearnerBootstrapped(
+          payload,
+          occurredAt,
+          (conceptId) => prev.get(conceptId) ?? null,
+        );
+
         // Sequential on purpose: N ≤ number of concepts (15 today), and a
         // single tx keeps it atomic.
-        const states = applyLearnerBootstrapped(payload, occurredAt);
-        for (const s of states) {
+        for (const s of fold.states) {
           await tx.upsertConceptMastery(input.userId, s.conceptId, bktStateToRow(s.bkt, s.stage));
         }
 
         return {
           guarded: false as const,
           occurredAt,
-          conceptIds: states.map((s) => s.conceptId),
+          conceptIds: fold.states.map((s) => s.conceptId),
+          alreadyObserved: fold.skipped,
         };
       });
 
@@ -142,7 +160,7 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
         ok: true,
         occurredAt: result.occurredAt,
         bootstrappedConceptIds: result.conceptIds,
-        skipped,
+        skipped: [...skipped, ...result.alreadyObserved],
       };
     },
   };

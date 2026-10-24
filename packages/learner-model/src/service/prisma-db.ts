@@ -83,6 +83,23 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
       return row;
     },
 
+    async getConceptMasteries(userId, conceptIds) {
+      return tx.conceptMastery.findMany({
+        where: { userId, conceptId: { in: [...conceptIds] } },
+        select: {
+          conceptId: true,
+          pKnown: true,
+          pLearn: true,
+          pSlip: true,
+          pGuess: true,
+          pForgetLambda: true,
+          lastUpdatedAt: true,
+          observationCount: true,
+          displayStage: true,
+        },
+      });
+    },
+
     async upsertConceptMastery(userId, conceptId, write) {
       await tx.conceptMastery.upsert({
         where: { userId_conceptId: { userId, conceptId } },
