@@ -5,26 +5,27 @@ import type {
 } from '@englishlearn/db/schemas';
 import { bktStateToRow } from '../adapters/concept-mastery';
 import {
+  accuracyBasedEstimator,
   type BootstrapConcept,
   buildBootstrapSnapshots,
+  type DiagnosticAnswerFact,
   FORMULA_VERSION,
   MAPPING_V1,
-  accuracyBasedEstimator,
-  type DiagnosticAnswerFact,
   type ThetaEstimator,
 } from '../diagnostic';
 import { applyLearnerBootstrapped } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { buildLearnerBootstrappedEvent } from './event-store';
+import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
 
 /**
  * BootstrapService: the single write path for diagnostic → learner-model
  * initialization. Symmetric to LearnerService (which owns recordOutcome).
  *
  * READ path is the diagnostic pipeline (pure); this is the WRITE path. It:
- *   1. Guards strictly-once (decision 7.a): bootstrap is only valid as the
- *      user's FIRST learner event. A completed re-diagnostic still runs, it
- *      just doesn't write a second event (returns ALREADY_BOOTSTRAPPED).
+ *   1. Guards strictly-once (decision 7.a): at most one LEARNER_BOOTSTRAPPED
+ *      per user. A completed re-diagnostic still runs, it just doesn't write
+ *      a second event (returns ALREADY_BOOTSTRAPPED).
  *   2. Estimates per-axis ability (ThetaEstimator seam, decision 5.c).
  *   3. Maps to conservative per-concept snapshots (formula v1, decision 9.a).
  *   4. Writes ONE LEARNER_BOOTSTRAPPED event + upserts N ConceptMastery rows
@@ -42,7 +43,10 @@ export type BootstrapInputData = {
   answers: readonly DiagnosticAnswerFact[];
   /** Concepts eligible for bootstrap (typically all 15 seed concepts). */
   concepts: readonly BootstrapConcept[];
-  /** Override the bootstrap moment (Unix ms). Tests/backfills only. */
+  /**
+   * Override the bootstrap moment (Unix ms). Tests/backfills only; must be
+   * after the user's latest event (OccurredAtNotMonotonicError otherwise).
+   */
   occurredAtMs?: bigint;
 };
 
@@ -59,15 +63,16 @@ export type BootstrapResult =
 export type BootstrapServiceDeps = {
   /** Swap-in point for the future irt2plEstimator. Defaults to accuracy. */
   estimator?: ThetaEstimator;
+  /** Source of "now" when occurredAtMs is not given. */
+  clock?: Clock;
 };
 
 export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServiceDeps = {}) {
   const estimator = deps.estimator ?? accuracyBasedEstimator;
+  const clock = deps.clock ?? systemClock;
 
   return {
     async bootstrapFromDiagnostic(input: BootstrapInputData): Promise<BootstrapResult> {
-      const occurredAt = input.occurredAtMs ?? BigInt(Date.now());
-
       // Estimate + map OUTSIDE the tx — pure, no DB reads needed.
       const axes = estimator.estimate(input.answers);
       const { snapshots, skipped } = buildBootstrapSnapshots({
@@ -97,32 +102,36 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
         snapshots,
       };
 
-      const event = buildLearnerBootstrappedEvent({
-        userId: input.userId,
-        occurredAt,
-        payload,
-      });
-
-      // Fold outside the tx: bootstrap fold is pure and reads no prior state.
-      const states = applyLearnerBootstrapped(payload, occurredAt);
-
       const result = await db.runInTx(async (tx) => {
-        // Strictly-once guard INSIDE the tx: count under the same isolation as
-        // the write, so two concurrent diagnostics can't both pass the check.
-        const existing = await tx.countEvents(input.userId);
-        if (existing > 0) {
+        // Strictly-once guard. Race-free only because of the user lock: two
+        // concurrent diagnostics serialize here, and the second one sees the
+        // first one's committed event.
+        await tx.lockUser(input.userId);
+        if (await tx.hasEventOfType(input.userId, 'LEARNER_BOOTSTRAPPED')) {
           return { guarded: true as const };
         }
 
+        const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
+        const event = buildLearnerBootstrappedEvent({
+          userId: input.userId,
+          occurredAt,
+          payload,
+        });
         await tx.appendEvent(event);
 
-        // Upsert every concept snapshot. Sequential on purpose: N ≤ number of
-        // concepts (15 today), and a single tx keeps it atomic.
+        // Pure fold (reads no prior state); upsert every concept snapshot.
+        // Sequential on purpose: N ≤ number of concepts (15 today), and a
+        // single tx keeps it atomic.
+        const states = applyLearnerBootstrapped(payload, occurredAt);
         for (const s of states) {
           await tx.upsertConceptMastery(input.userId, s.conceptId, bktStateToRow(s.bkt, s.stage));
         }
 
-        return { guarded: false as const };
+        return {
+          guarded: false as const,
+          occurredAt,
+          conceptIds: states.map((s) => s.conceptId),
+        };
       });
 
       if (result.guarded) {
@@ -131,8 +140,8 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
 
       return {
         ok: true,
-        occurredAt,
-        bootstrappedConceptIds: states.map((s) => s.conceptId),
+        occurredAt: result.occurredAt,
+        bootstrappedConceptIds: result.conceptIds,
         skipped,
       };
     },

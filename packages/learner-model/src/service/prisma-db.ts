@@ -15,8 +15,9 @@ import type {
  *
  * Uses an INTERACTIVE transaction (callback form) so that reads (current
  * snapshot) and writes (event + new snapshots) happen inside the same DB
- * transaction — two concurrent recordOutcome calls for the same user cannot
- * interleave a stale read between them.
+ * transaction. The transaction alone runs at READ COMMITTED and does NOT stop
+ * two writes for the same user from reading the same stale snapshot — the
+ * per-user advisory lock (lockUser, first call of every write) does.
  *
  * NOTE: type-only import of PrismaClient from the generated client — same
  * specifier pattern the seed scripts use from other packages (грабля 26).
@@ -28,6 +29,13 @@ type PrismaTxClient = Prisma.TransactionClient;
 
 function txOps(tx: PrismaTxClient): LearnerModelTx {
   return {
+    async lockUser(userId) {
+      // $executeRaw, not $queryRaw: the function returns `void`, which
+      // $queryRaw cannot deserialize. 64-bit key; a collision between two
+      // users only serializes them, it never breaks correctness.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`;
+    },
+
     async appendEvent(event: LearnerEventInsert): Promise<void> {
       await tx.learnerEvent.create({
         data: {
@@ -41,8 +49,21 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
       });
     },
 
-    async countEvents(userId: string): Promise<number> {
-      return tx.learnerEvent.count({ where: { userId } });
+    async lastEventOccurredAt(userId) {
+      const row = await tx.learnerEvent.findFirst({
+        where: { userId },
+        orderBy: { occurredAt: 'desc' },
+        select: { occurredAt: true },
+      });
+      return row?.occurredAt ?? null;
+    },
+
+    async hasEventOfType(userId, type) {
+      const row = await tx.learnerEvent.findFirst({
+        where: { userId, type },
+        select: { id: true },
+      });
+      return row !== null;
     },
 
     async getConceptMastery(userId, conceptId) {

@@ -5,6 +5,7 @@ import type { MasteryStage } from '../mastery/stage';
 import { applyItemAttempted } from './apply';
 import type { LearnerModelDb } from './db-port';
 import { buildItemAttemptedEvent } from './event-store';
+import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
 
 /**
  * LearnerService: the single write path into the learner model.
@@ -21,7 +22,8 @@ export type RecordOutcomeInput = {
   timeMs?: number;
   /**
    * Override the outcome moment (Unix ms). Tests and backfills only —
-   * production callers omit it and get Date.now().
+   * production callers omit it and get max(now, latest event + 1 ms). Must be
+   * after the user's latest event (OccurredAtNotMonotonicError otherwise).
    */
   occurredAtMs?: bigint;
 } & (
@@ -73,34 +75,45 @@ export function outcomeToRating(correct: boolean): FsrsRating {
   return correct ? 'GOOD' : 'AGAIN';
 }
 
-export function createLearnerService(db: LearnerModelDb) {
+export type LearnerServiceDeps = {
+  /** Source of "now" for outcomes without an explicit occurredAtMs. */
+  clock?: Clock;
+};
+
+export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDeps = {}) {
+  const clock = deps.clock ?? systemClock;
+
   return {
     async recordOutcome(input: RecordOutcomeInput): Promise<RecordOutcomeResult> {
-      // The single "now" for this outcome — event, BKT and FSRS all use it.
-      const occurredAt = input.occurredAtMs ?? BigInt(Date.now());
-
       const item = await db.getItemForOutcome(input.itemId);
       if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
 
       const correct = input.dontKnow ? false : input.correct;
       const rating = outcomeToRating(correct);
-      const event = buildItemAttemptedEvent({
-        userId: input.userId,
-        itemId: input.itemId,
-        conceptId: item.conceptId,
-        correct,
-        dontKnow: input.dontKnow === true,
-        timeMs: input.timeMs ?? null,
-        rating,
-        irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
-        occurredAt,
-      });
 
       const next = await db.runInTx(async (tx) => {
+        // 0. Serialize with every other write for this user, then take the
+        //    single "now" for this outcome — event, BKT and FSRS all use it.
+        await tx.lockUser(input.userId);
+        const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
+
+        const event = buildItemAttemptedEvent({
+          userId: input.userId,
+          itemId: input.itemId,
+          conceptId: item.conceptId,
+          correct,
+          dontKnow: input.dontKnow === true,
+          timeMs: input.timeMs ?? null,
+          rating,
+          irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
+          occurredAt,
+        });
+
         // 1. The fact, first — projections are derived from it.
         await tx.appendEvent(event);
 
-        // 2. Read current snapshots INSIDE the tx (no stale-read race).
+        // 2. Read current snapshots INSIDE the tx, under the user lock (no
+        //    concurrent write can change them before step 4).
         const [masteryRow, reviewRow] = await Promise.all([
           tx.getConceptMastery(input.userId, item.conceptId),
           tx.getItemReviewState(input.userId, input.itemId),
@@ -126,12 +139,16 @@ export function createLearnerService(db: LearnerModelDb) {
         );
         await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
 
-        return { ...folded, stageBefore: masteryRow?.displayStage ?? ('NOT_STARTED' as const) };
+        return {
+          ...folded,
+          occurredAt,
+          stageBefore: masteryRow?.displayStage ?? ('NOT_STARTED' as const),
+        };
       });
 
       return {
         ok: true,
-        occurredAt,
+        occurredAt: next.occurredAt,
         rating,
         conceptId: item.conceptId,
         pKnownBefore: next.pKnownBefore,

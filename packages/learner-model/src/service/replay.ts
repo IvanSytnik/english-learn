@@ -18,7 +18,9 @@ import { parseEventRow } from './event-store';
  *   3. write the final snapshots.
  *
  * Everything runs in ONE transaction: a crash mid-replay leaves the old
- * snapshots untouched; a concurrent recordOutcome serializes against it.
+ * snapshots untouched. It takes the same per-user lock as the write paths,
+ * so a concurrent recordOutcome waits for the rebuild instead of folding onto
+ * half-written projections.
  * At MVP volumes (≤ a few thousand events per user) this is well within
  * Neon's default interactive-transaction limits; revisit when it isn't.
  */
@@ -33,6 +35,7 @@ export type ReplayResult = {
 
 export async function replayUser(db: LearnerModelDb, userId: string): Promise<ReplayResult> {
   return db.runInTx(async (tx) => {
+    await tx.lockUser(userId);
     await tx.deleteSnapshots(userId);
 
     const bktByConcept = new Map<string, BktState>();
@@ -65,9 +68,8 @@ export async function replayUser(db: LearnerModelDb, userId: string): Promise<Re
           fsrsByItem.set(payload.itemId, next.fsrs);
         } else {
           // LEARNER_BOOTSTRAPPED: seeds N concept BKT states directly — no
-          // FSRS layer, no items exist yet at bootstrap time. Strictly-once
-          // guard in bootstrap-service guarantees this is always the user's
-          // first event, so it never overwrites practice-derived state.
+          // FSRS layer. Same overwrite semantics as the live path (see
+          // applyLearnerBootstrapped), so replay stays equivalent.
           const states = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
           for (const s of states) {
             bktByConcept.set(s.conceptId, s.bkt);

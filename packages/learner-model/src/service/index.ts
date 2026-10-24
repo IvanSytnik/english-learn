@@ -1,4 +1,11 @@
 export { applyItemAttempted, type ItemAttemptedFold, type LearnerStatePair } from './apply';
+export {
+  type BootstrapInputData,
+  type BootstrapResult,
+  type BootstrapService,
+  type BootstrapServiceDeps,
+  createBootstrapService,
+} from './bootstrap-service';
 export type {
   ItemForOutcome,
   LearnerEventInsert,
@@ -15,10 +22,12 @@ export {
 export {
   createLearnerService,
   type LearnerService,
+  type LearnerServiceDeps,
   outcomeToRating,
   type RecordOutcomeInput,
   type RecordOutcomeResult,
 } from './learner-service';
+export { type Clock, OccurredAtNotMonotonicError, systemClock } from './occurred-at';
 export { createPrismaLearnerDb } from './prisma-db';
 export { type ReplayResult, replayUser } from './replay';
 export {

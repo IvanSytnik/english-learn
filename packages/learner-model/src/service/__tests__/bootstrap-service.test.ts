@@ -1,99 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ConceptMasteryWrite } from '../../adapters/concept-mastery';
 import type { BootstrapConcept, DiagnosticAnswerFact } from '../../diagnostic';
 import { applyLearnerBootstrapped } from '../apply';
-import type {
-  LearnerEventInsert,
-  LearnerEventRow,
-  LearnerModelDb,
-  LearnerModelTx,
-} from '../db-port';
-import { parseEventRow } from '../event-store';
 import { createBootstrapService } from '../bootstrap-service';
-
-/**
- * In-memory fake of LearnerModelDb — same approach as the selection-service
- * test. No Prisma. Only the methods bootstrap-service touches are meaningful;
- * the rest throw so accidental use is caught.
- */
-function makeFakeDb() {
-  const events: LearnerEventRow[] = [];
-  const mastery = new Map<string, ConceptMasteryWrite>(); // key: `${userId}:${conceptId}`
-
-  const tx: LearnerModelTx = {
-    async appendEvent(e: LearnerEventInsert) {
-      events.push({
-        id: `evt_${events.length}`,
-        userId: e.userId,
-        type: e.type,
-        occurredAt: e.occurredAt,
-        payload: e.payload,
-      });
-    },
-    async countEvents(userId: string) {
-      return events.filter((e) => e.userId === userId).length;
-    },
-    async getConceptMastery(userId, conceptId) {
-      const w = mastery.get(`${userId}:${conceptId}`);
-      if (!w) return null;
-      return { ...w };
-    },
-    async upsertConceptMastery(userId, conceptId, write) {
-      mastery.set(`${userId}:${conceptId}`, write);
-    },
-    async getItemReviewState() {
-      throw new Error('not used in bootstrap');
-    },
-    async upsertItemReviewState() {
-      throw new Error('not used in bootstrap');
-    },
-    async deleteSnapshots(userId) {
-      for (const k of [...mastery.keys()]) {
-        if (k.startsWith(`${userId}:`)) mastery.delete(k);
-      }
-    },
-    async listEventsAsc(userId, cursor, limit) {
-      const rows = events
-        .filter((e) => e.userId === userId)
-        .sort((a, b) =>
-          a.occurredAt === b.occurredAt
-            ? a.id.localeCompare(b.id)
-            : a.occurredAt < b.occurredAt
-              ? -1
-              : 1,
-        );
-      const start = cursor
-        ? rows.findIndex(
-            (r) => r.occurredAt === cursor.occurredAt && r.id === cursor.id,
-          ) + 1
-        : 0;
-      return rows.slice(start, start + limit);
-    },
-  };
-
-  const db: LearnerModelDb = {
-    async getItemForOutcome() {
-      throw new Error('not used in bootstrap');
-    },
-    async runInTx(fn) {
-      return fn(tx);
-    },
-    async getMasterySnapshots() {
-      throw new Error('not used');
-    },
-    async getPrereqEdges() {
-      throw new Error('not used');
-    },
-    async getConceptEventCounts() {
-      throw new Error('not used');
-    },
-    async getCandidateItems() {
-      throw new Error('not used');
-    },
-  };
-
-  return { db, events, mastery };
-}
+import { parseEventRow } from '../event-store';
+import { createMemoryDb } from './memory-db';
 
 const CONCEPTS: BootstrapConcept[] = [
   { id: 'grammar.present_perfect', category: 'GRAMMAR', cefrLevel: 'B1' },
@@ -115,7 +25,7 @@ describe('createBootstrapService', () => {
   const at = 1_700_000_000_000n;
 
   it('writes one event and N ConceptMastery rows in a single tx', async () => {
-    const { db, events, mastery } = makeFakeDb();
+    const { db, events, masteries } = createMemoryDb();
     const svc = createBootstrapService(db);
 
     const res = await svc.bootstrapFromDiagnostic({
@@ -140,15 +50,15 @@ describe('createBootstrapService', () => {
       'grammar.present_perfect',
       'vocab.travel',
     ]);
-    expect(mastery.size).toBe(3);
+    expect(masteries.size).toBe(3);
 
     // grammar (strong) should start higher than vocab (weak)
-    const pp = mastery.get('u1:grammar.present_perfect')!;
-    const vt = mastery.get('u1:vocab.travel')!;
+    const pp = masteries.get('u1:grammar.present_perfect')!;
+    const vt = masteries.get('u1:vocab.travel')!;
     expect(pp.pKnown).toBeGreaterThan(vt.pKnown);
 
     // above-level concept (B2 grammar) discounted vs at-level (B1 grammar)
-    const cond = mastery.get('u1:grammar.conditionals')!;
+    const cond = masteries.get('u1:grammar.conditionals')!;
     expect(cond.pKnown).toBeLessThan(pp.pKnown);
 
     // ceiling respected
@@ -160,7 +70,7 @@ describe('createBootstrapService', () => {
   });
 
   it('is strictly-once: a second bootstrap is rejected and writes nothing', async () => {
-    const { db, events, mastery } = makeFakeDb();
+    const { db, events, masteries } = createMemoryDb();
     const svc = createBootstrapService(db);
 
     const first = await svc.bootstrapFromDiagnostic({
@@ -173,7 +83,7 @@ describe('createBootstrapService', () => {
     });
     expect(first.ok).toBe(true);
 
-    const snapshotBefore = new Map(mastery);
+    const snapshotBefore = new Map(masteries);
 
     const second = await svc.bootstrapFromDiagnostic({
       userId: 'u1',
@@ -190,11 +100,11 @@ describe('createBootstrapService', () => {
 
     // still exactly one event, mastery unchanged
     expect(events).toHaveLength(1);
-    expect([...mastery.entries()]).toEqual([...snapshotBefore.entries()]);
+    expect([...masteries.entries()]).toEqual([...snapshotBefore.entries()]);
   });
 
   it('returns NO_CONCEPTS_BOOTSTRAPPED when every axis is too sparse', async () => {
-    const { db, events } = makeFakeDb();
+    const { db, events } = createMemoryDb();
     const svc = createBootstrapService(db);
 
     const res = await svc.bootstrapFromDiagnostic({
@@ -216,7 +126,7 @@ describe('createBootstrapService', () => {
   });
 
   it('replay from the stored event reproduces the same ConceptMastery', async () => {
-    const { db, events, mastery } = makeFakeDb();
+    const { db, events, masteries } = createMemoryDb();
     const svc = createBootstrapService(db);
 
     await svc.bootstrapFromDiagnostic({
@@ -236,7 +146,7 @@ describe('createBootstrapService', () => {
     const rebuilt = applyLearnerBootstrapped(parsed.payload, parsed.occurredAt);
 
     for (const state of rebuilt) {
-      const live = mastery.get(`u1:${state.conceptId}`)!;
+      const live = masteries.get(`u1:${state.conceptId}`)!;
       expect(state.bkt.pKnown).toBeCloseTo(live.pKnown, 12);
       expect(state.bkt.pLearn).toBeCloseTo(live.pLearn, 12);
       expect(state.bkt.pSlip).toBeCloseTo(live.pSlip, 12);
@@ -253,8 +163,8 @@ describe('createBootstrapService', () => {
       a.correct ? a : { ...a, dontKnow: true },
     );
 
-    const plain = makeFakeDb();
-    const flagged = makeFakeDb();
+    const plain = createMemoryDb();
+    const flagged = createMemoryDb();
     const input = {
       userId: 'u1',
       diagnosticAttemptId: 'da1',
@@ -273,6 +183,6 @@ describe('createBootstrapService', () => {
 
     expect(b).toEqual(a);
     expect(flagged.events[0]?.payload).toEqual(plain.events[0]?.payload);
-    expect([...flagged.mastery.entries()]).toEqual([...plain.mastery.entries()]);
+    expect([...flagged.masteries.entries()]).toEqual([...plain.masteries.entries()]);
   });
 });

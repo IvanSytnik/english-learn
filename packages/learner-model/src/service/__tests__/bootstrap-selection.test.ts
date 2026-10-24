@@ -1,17 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { ConceptMasteryRow } from '../../adapters/concept-mastery';
-import type { ItemReviewStateRow } from '../../adapters/item-review-state';
 import type { BootstrapConcept, DiagnosticAnswerFact } from '../../diagnostic';
 import { createBootstrapService } from '../bootstrap-service';
-import type {
-  ItemForOutcome,
-  LearnerEventRow,
-  LearnerModelDb,
-  LearnerModelTx,
-  PrereqEdgeRow,
-} from '../db-port';
+import type { ItemForOutcome, LearnerModelDb, PrereqEdgeRow } from '../db-port';
 import { createLearnerService } from '../learner-service';
 import { createSelectionService } from '../selection-service';
+import { createMemoryDb } from './memory-db';
 
 /**
  * Integration: bootstrap → selectNext → recordOutcome → selectNext over ONE
@@ -41,93 +34,6 @@ const ANSWERS: DiagnosticAnswerFact[] = Array.from({ length: 5 }, () => ({
   correct: true,
 }));
 
-function createStore() {
-  const events: LearnerEventRow[] = [];
-  const masteries = new Map<string, ConceptMasteryRow>(); // `${userId}:${conceptId}`
-  const reviews = new Map<string, ItemReviewStateRow>(); // `${userId}:${itemId}`
-
-  const tx: LearnerModelTx = {
-    async appendEvent(event) {
-      events.push({
-        id: `evt_${String(events.length).padStart(6, '0')}`,
-        userId: event.userId,
-        type: event.type,
-        occurredAt: event.occurredAt,
-        payload: event.payload,
-      });
-    },
-    async countEvents(userId) {
-      return events.filter((e) => e.userId === userId).length;
-    },
-    async getConceptMastery(userId, conceptId) {
-      return masteries.get(`${userId}:${conceptId}`) ?? null;
-    },
-    async upsertConceptMastery(userId, conceptId, write) {
-      masteries.set(`${userId}:${conceptId}`, { ...write });
-    },
-    async getItemReviewState(userId, itemId) {
-      return reviews.get(`${userId}:${itemId}`) ?? null;
-    },
-    async upsertItemReviewState(userId, itemId, write) {
-      reviews.set(`${userId}:${itemId}`, { ...write });
-    },
-    async deleteSnapshots() {
-      throw new Error('not used');
-    },
-    async listEventsAsc() {
-      throw new Error('not used');
-    },
-  };
-
-  const db: LearnerModelDb = {
-    async getItemForOutcome(itemId) {
-      return ITEMS[itemId] ?? null;
-    },
-    async runInTx(fn) {
-      return fn(tx);
-    },
-    async getMasterySnapshots(userId) {
-      return [...masteries.entries()]
-        .filter(([key]) => key.startsWith(`${userId}:`))
-        .map(([key, row]) => ({
-          conceptId: key.slice(userId.length + 1),
-          pKnown: row.pKnown,
-          observationCount: row.observationCount,
-          lastUpdatedAt: row.lastUpdatedAt,
-          pForgetLambda: row.pForgetLambda,
-        }));
-    },
-    async getPrereqEdges() {
-      return EDGES;
-    },
-    async getConceptEventCounts(userId) {
-      const tally = new Map<string, { correct: number; incorrect: number }>();
-      for (const e of events) {
-        if (e.userId !== userId || e.type !== 'ITEM_ATTEMPTED') continue;
-        const p = e.payload as { conceptId: string; correct: boolean };
-        const t = tally.get(p.conceptId) ?? { correct: 0, incorrect: 0 };
-        if (p.correct) t.correct += 1;
-        else t.incorrect += 1;
-        tally.set(p.conceptId, t);
-      }
-      return [...tally.entries()].map(([conceptId, t]) => ({ conceptId, ...t }));
-    },
-    async getCandidateItems(userId) {
-      return Object.entries(ITEMS).map(([itemId, item]) => ({
-        itemId,
-        conceptId: item.conceptId,
-        irtDiscrimination: item.irtDiscrimination,
-        irtDifficulty: item.irtDifficulty,
-        cefrLevel: 'A2' as const,
-        dueAt: reviews.get(`${userId}:${itemId}`)?.dueAt ?? null,
-        lastReviewAt: reviews.get(`${userId}:${itemId}`)?.lastReviewAt ?? null,
-      }));
-    },
-  };
-
-  return { db, masteries };
-}
-
 const MINUTE = 60_000;
 const T0 = 1_700_000_000_000;
 
@@ -144,7 +50,7 @@ async function conceptsPicked(db: LearnerModelDb, nowMs: number): Promise<Set<st
 
 describe('bootstrap → selectNext integration', () => {
   it('bootstrap rows reach the selector but do not unlock a gated dependent', async () => {
-    const { db, masteries } = createStore();
+    const { db, masteries } = createMemoryDb({ items: ITEMS, edges: EDGES });
     const boot = await createBootstrapService(db).bootstrapFromDiagnostic({
       userId: 'u1',
       diagnosticAttemptId: 'da1',
@@ -164,7 +70,7 @@ describe('bootstrap → selectNext integration', () => {
   });
 
   it('practising the prerequisite past the threshold unlocks the dependent as a new concept', async () => {
-    const { db, masteries } = createStore();
+    const { db, masteries } = createMemoryDb({ items: ITEMS, edges: EDGES });
     await createBootstrapService(db).bootstrapFromDiagnostic({
       userId: 'u1',
       diagnosticAttemptId: 'da1',

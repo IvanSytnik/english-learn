@@ -46,14 +46,6 @@ export {
   type RevealSkillTag,
 } from './diagnostic';
 
-export {
-  createBootstrapService,
-  type BootstrapService,
-  type BootstrapInputData,
-  type BootstrapResult,
-  type BootstrapServiceDeps,
-} from './service/bootstrap-service';
-
 export { applyLearnerBootstrapped, type BootstrapConceptState } from './service/apply';
 
 export {

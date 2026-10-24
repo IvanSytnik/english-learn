@@ -38,14 +38,26 @@ export type LearnerEventRow = {
 
 /** Operations available inside a transaction. */
 export type LearnerModelTx = {
+  /**
+   * Serialize every learner-model write for this user: blocks until no other
+   * write transaction for the same user is open, released at commit/rollback
+   * (transaction-scoped — a session lock would leak through the pooler).
+   * MUST be the first call of every write transaction: under READ COMMITTED,
+   * reading a snapshot and upserting it is otherwise a lost update, and the
+   * event order would not match the order the projections were folded in.
+   */
+  lockUser(userId: string): Promise<void>;
+
   appendEvent(event: LearnerEventInsert): Promise<void>;
 
+  /** occurredAt of the user's latest event, or null if they have none. */
+  lastEventOccurredAt(userId: string): Promise<bigint | null>;
+
   /**
-   * Number of events already recorded for this user. Used by the bootstrap
-   * strictly-once guard (decision 7.a): bootstrap is only valid as the user's
-   * first event. Counted inside the tx so concurrent diagnostics can't race.
+   * Whether the user already has an event of this type. Used by the bootstrap
+   * strictly-once guard; race-free only because it runs after lockUser.
    */
-  countEvents(userId: string): Promise<number>;
+  hasEventOfType(userId: string, type: LearnerEventInsert['type']): Promise<boolean>;
 
   getConceptMastery(userId: string, conceptId: string): Promise<ConceptMasteryRow | null>;
   upsertConceptMastery(

@@ -1,87 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { ConceptMasteryRow } from '../../adapters/concept-mastery';
-import type { ItemReviewStateRow } from '../../adapters/item-review-state';
 import { BKT_DEFAULTS } from '../../core/bkt/constants';
-import type { ItemForOutcome, LearnerEventRow, LearnerModelDb, LearnerModelTx } from '../db-port';
+import type { ItemForOutcome } from '../db-port';
 import { createLearnerService, outcomeToRating } from '../learner-service';
 import { replayUser } from '../replay';
-
-/**
- * In-memory fake of LearnerModelDb. No atomicity (tests are sequential);
- * the point is to exercise the real service/replay logic end to end,
- * including the live-path-vs-replay determinism guarantee.
- */
-function createFakeDb(items: Record<string, ItemForOutcome>) {
-  const events: LearnerEventRow[] = [];
-  const masteries = new Map<string, ConceptMasteryRow>(); // `${userId}:${conceptId}`
-  const reviews = new Map<string, ItemReviewStateRow>(); // `${userId}:${itemId}`
-  let nextId = 0;
-
-  const tx: LearnerModelTx = {
-    async appendEvent(event) {
-      nextId += 1;
-      events.push({
-        id: `evt_${String(nextId).padStart(6, '0')}`,
-        userId: event.userId,
-        type: event.type,
-        occurredAt: event.occurredAt,
-        payload: event.payload,
-      });
-    },
-    async getConceptMastery(userId, conceptId) {
-      return masteries.get(`${userId}:${conceptId}`) ?? null;
-    },
-    async upsertConceptMastery(userId, conceptId, write) {
-      masteries.set(`${userId}:${conceptId}`, { ...write });
-    },
-    async getItemReviewState(userId, itemId) {
-      return reviews.get(`${userId}:${itemId}`) ?? null;
-    },
-    async upsertItemReviewState(userId, itemId, write) {
-      reviews.set(`${userId}:${itemId}`, { ...write });
-    },
-    async deleteSnapshots(userId) {
-      for (const key of [...masteries.keys()]) {
-        if (key.startsWith(`${userId}:`)) masteries.delete(key);
-      }
-      for (const key of [...reviews.keys()]) {
-        if (key.startsWith(`${userId}:`)) reviews.delete(key);
-      }
-    },
-    async listEventsAsc(userId, cursor, limit) {
-      const sorted = events
-        .filter((e) => e.userId === userId)
-        .sort((a, b) =>
-          a.occurredAt === b.occurredAt
-            ? a.id < b.id
-              ? -1
-              : 1
-            : a.occurredAt < b.occurredAt
-              ? -1
-              : 1,
-        );
-      const afterCursor = cursor
-        ? sorted.filter(
-            (e) =>
-              e.occurredAt > cursor.occurredAt ||
-              (e.occurredAt === cursor.occurredAt && e.id > cursor.id),
-          )
-        : sorted;
-      return afterCursor.slice(0, limit);
-    },
-  };
-
-  const db: LearnerModelDb = {
-    async getItemForOutcome(itemId) {
-      return items[itemId] ?? null;
-    },
-    async runInTx(fn) {
-      return fn(tx);
-    },
-  };
-
-  return { db, events, masteries, reviews };
-}
+import { createMemoryDb } from './memory-db';
 
 const ITEMS: Record<string, ItemForOutcome> = {
   'item.past_simple.regular_ed': {
@@ -114,7 +36,7 @@ describe('outcomeToRating', () => {
 
 describe('LearnerService.recordOutcome', () => {
   it('returns ITEM_NOT_FOUND for unknown item and writes nothing', async () => {
-    const { db, events, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, events, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     const result = await service.recordOutcome({
@@ -131,7 +53,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('appends a validated event with frozen rating + irt', async () => {
-    const { db, events } = createFakeDb(ITEMS);
+    const { db, events } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     const result = await service.recordOutcome({
@@ -157,7 +79,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('reports post-answer deltas that match the persisted projections (E3)', async () => {
-    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     // First ever outcome on the concept, wrong: cold prior, intra-day relearn step.
@@ -194,7 +116,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('reports a multi-day interval once the card graduates to REVIEW (E3)', async () => {
-    const { db, reviews } = createFakeDb(ITEMS);
+    const { db, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
     const itemId = 'item.present_perfect.for_since';
 
@@ -214,8 +136,8 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it("records don't-know as an incorrect AGAIN attempt and freezes the flag (E4)", async () => {
-    const flagged = createFakeDb(ITEMS);
-    const plain = createFakeDb(ITEMS);
+    const flagged = createMemoryDb({ items: ITEMS });
+    const plain = createMemoryDb({ items: ITEMS });
     const itemId = 'item.past_simple.regular_ed';
 
     const dk = await createLearnerService(flagged.db).recordOutcome({
@@ -244,7 +166,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it("replays a don't-know event to the same projections as the live path (E4)", async () => {
-    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
     await service.recordOutcome({
       userId: USER,
@@ -268,7 +190,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('persists displayStage from the fold and replays it identically (E5)', async () => {
-    const { db, masteries } = createFakeDb(ITEMS);
+    const { db, masteries } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
     const itemId = 'item.past_simple.regular_ed';
     const key = `${USER}:past_simple`;
@@ -304,7 +226,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('reports the stored stage before and after the outcome (U2)', async () => {
-    const { db, masteries } = createFakeDb(ITEMS);
+    const { db, masteries } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
     const itemId = 'item.past_simple.regular_ed';
     const first = await service.recordOutcome({
@@ -330,7 +252,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('uses ONE timestamp for event, BKT anchor and FSRS review', async () => {
-    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     await service.recordOutcome({
@@ -347,7 +269,7 @@ describe('LearnerService.recordOutcome', () => {
   });
 
   it('updates BKT per concept and FSRS per item independently', async () => {
-    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     await service.recordOutcome({
@@ -397,7 +319,7 @@ describe('LearnerService.recordOutcome', () => {
 
 describe('replayUser (determinism vs live path)', () => {
   it('rebuilds snapshots bit-exactly equal to the live path', async () => {
-    const { db, masteries, reviews } = createFakeDb(ITEMS);
+    const { db, masteries, reviews } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     const script: Array<[string, boolean, bigint]> = [
@@ -431,7 +353,7 @@ describe('replayUser (determinism vs live path)', () => {
   });
 
   it("does not touch other users' snapshots", async () => {
-    const { db, masteries } = createFakeDb(ITEMS);
+    const { db, masteries } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
 
     await service.recordOutcome({
@@ -447,7 +369,7 @@ describe('replayUser (determinism vs live path)', () => {
   });
 
   it('handles a user with zero events', async () => {
-    const { db } = createFakeDb(ITEMS);
+    const { db } = createMemoryDb({ items: ITEMS });
     const result = await replayUser(db, 'user_empty');
     expect(result).toEqual({
       eventsProcessed: 0,

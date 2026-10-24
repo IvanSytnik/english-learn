@@ -80,10 +80,11 @@ export type BootstrapConceptState = {
  * we persist the frozen result, we don't recompute it. The only value fold sets
  * is lastUpdatedAt = occurredAt, so forgetting decay is anchored correctly.
  *
- * Precondition (enforced by bootstrap-service, not here): this is the user's
- * FIRST event, so every concept in the payload has no prior BktState. Fold is
- * pure and does not read existing state — a stray second bootstrap would blindly
- * overwrite, which is exactly why the service guards strictly-once.
+ * bootstrap-service guarantees at most one LEARNER_BOOTSTRAPPED per user, but
+ * not that it is the user's first event. Fold is pure and does not read
+ * existing state, so a bootstrap after practice overwrites the practised
+ * concepts' BktState. KNOWN GAP until the fold skips concepts with
+ * observationCount > 0; no production caller bootstraps yet.
  */
 export function applyLearnerBootstrapped(
   payload: LearnerBootstrappedPayload,
