@@ -87,16 +87,20 @@ export type CefrLevelValue = z.infer<typeof CefrLevelValue>;
 /**
  * Per-axis ability estimate produced by the ThetaEstimator.
  *
- * `accuracy` is the raw signal (fraction correct on the axis). `answered` is
- * how many diagnostic items fed it — used downstream to decide whether the
- * axis carries enough signal to trust (sparse-pool guard, R4). Frozen so
- * replay is reproducible even if the estimator changes.
+ * `score` is the formula's [0,1] input — the fraction correct for the
+ * accuracy estimator, a level score (A2 0.25 … C1 1.0) for the ladder; never
+ * shown to the learner. `level` is the axis's own assessed level when the
+ * estimator measures one (ladder). `answered` is how many diagnostic items fed
+ * it — used downstream to decide whether the axis carries enough signal to
+ * trust (sparse-pool guard, R4). Frozen so replay is reproducible even if the
+ * estimator changes.
  */
 export const AxisEstimateSchema = z
   .object({
     axis: DiagnosticAxisValue,
-    accuracy: z.number().min(0).max(1),
+    score: z.number().min(0).max(1),
     answered: z.number().int().nonnegative(),
+    level: CefrLevelValue.optional(),
   })
   .strict();
 export type AxisEstimate = z.infer<typeof AxisEstimateSchema>;
@@ -141,8 +145,10 @@ export const LearnerBootstrappedPayloadSchema = z
   .object({
     /** Source diagnostic attempt (audit trail; not used by fold). */
     diagnosticAttemptId: z.string().min(1),
-    /** Global level from the pseudo-CAT branching (anchor for levelFactor). */
+    /** Global level of the attempt (anchor for axes without their own level). */
     assessedLevel: CefrLevelValue,
+    /** Which ThetaEstimator produced `axes` (audit only). */
+    estimator: z.enum(['accuracy', 'ladder']).optional(),
     /** Per-axis raw estimates that fed the mapping. */
     axes: z.array(AxisEstimateSchema),
     /** Mapping formula identifier — bump when the θ→pKnown formula changes. */
@@ -159,7 +165,21 @@ export const LearnerBootstrappedPayloadSchema = z
     /** Fully-computed per-concept snapshots — the thing fold persists. */
     snapshots: z.array(BootstrapConceptSnapshotSchema).min(1),
   })
-  .strict();
+  .strict()
+  // The ladder anchors every axis on its own level: an axis without one would
+  // silently fall back to the global level, so a ladder payload must carry it.
+  .superRefine((p, ctx) => {
+    if (p.estimator !== 'ladder') return;
+    p.axes.forEach((a, i) => {
+      if (a.answered > 0 && a.level === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['axes', i, 'level'],
+          message: 'a ladder estimate needs the axis level',
+        });
+      }
+    });
+  });
 export type LearnerBootstrappedPayload = z.infer<typeof LearnerBootstrappedPayloadSchema>;
 
 export function parseLearnerBootstrappedPayload(json: unknown): LearnerBootstrappedPayload {

@@ -5,11 +5,11 @@ import type {
 } from '@englishlearn/db/schemas';
 import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import {
-  accuracyBasedEstimator,
   type BootstrapConcept,
   buildBootstrapSnapshots,
   type DiagnosticAnswerFact,
   FORMULA_VERSION,
+  ladderEstimator,
   MAPPING_V1,
   type ThetaEstimator,
 } from '../diagnostic';
@@ -38,8 +38,8 @@ import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
 export type BootstrapInputData = {
   userId: string;
   diagnosticAttemptId: string;
-  /** Global level from the pseudo-CAT branching (must be non-null: caller
-   *  only bootstraps COMPLETED attempts with a resolved level). */
+  /** Global level of the attempt (must be non-null: caller only
+   *  bootstraps COMPLETED attempts with a resolved level). */
   assessedLevel: CefrLevelValue;
   /** Graded diagnostic answers (axis = DiagnosticItem.kind). */
   answers: readonly DiagnosticAnswerFact[];
@@ -67,14 +67,14 @@ export type BootstrapResult =
   | { ok: false; error: 'NO_CONCEPTS_BOOTSTRAPPED' };
 
 export type BootstrapServiceDeps = {
-  /** Swap-in point for the future irt2plEstimator. Defaults to accuracy. */
+  /** Swap-in point for the future irt2plEstimator. Defaults to the ladder. */
   estimator?: ThetaEstimator;
   /** Source of "now" when occurredAtMs is not given. */
   clock?: Clock;
 };
 
 export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServiceDeps = {}) {
-  const estimator = deps.estimator ?? accuracyBasedEstimator;
+  const estimator = deps.estimator ?? ladderEstimator;
   const clock = deps.clock ?? systemClock;
 
   return {
@@ -97,7 +97,13 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
       const payload: LearnerBootstrappedPayload = {
         diagnosticAttemptId: input.diagnosticAttemptId,
         assessedLevel: input.assessedLevel,
-        axes: axes.map((a) => ({ axis: a.axis, accuracy: a.accuracy, answered: a.answered })),
+        estimator: estimator.id,
+        axes: axes.map((a) => ({
+          axis: a.axis,
+          score: a.score,
+          answered: a.answered,
+          ...(a.level === null ? {} : { level: a.level }),
+        })),
         formulaVersion: FORMULA_VERSION,
         mappingConstants: {
           floor: MAPPING_V1.floor,

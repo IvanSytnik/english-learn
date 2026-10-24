@@ -24,9 +24,11 @@ const ITEMS: Record<string, ItemForOutcome> = {
   'item.b': { conceptId: 'grammar.b', irtDiscrimination: 1, irtDifficulty: 0 },
 };
 const CONCEPTS: BootstrapConcept[] = [{ id: 'grammar.a', category: 'GRAMMAR', cefrLevel: 'A2' }];
-const ANSWERS: DiagnosticAnswerFact[] = Array.from({ length: 3 }, () => ({
+const ANSWERS: DiagnosticAnswerFact[] = Array.from({ length: 3 }, (_, i) => ({
   axis: 'GRAMMAR' as const,
   correct: true,
+  itemLevel: 'B1' as const,
+  position: i * 2,
 }));
 
 const bootstrapInput = (occurredAtMs?: bigint) => ({

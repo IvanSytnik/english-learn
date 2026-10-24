@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { BootstrapConcept, DiagnosticAnswerFact } from '../../diagnostic';
+import {
+  accuracyBasedEstimator,
+  type BootstrapConcept,
+  type DiagnosticAnswerFact,
+} from '../../diagnostic';
 import { applyLearnerBootstrapped } from '../apply';
 import { createBootstrapService } from '../bootstrap-service';
 import { parseEventRow } from '../event-store';
+import { replayUser } from '../replay';
 import { createMemoryDb } from './memory-db';
 
 const CONCEPTS: BootstrapConcept[] = [
@@ -19,14 +24,21 @@ const ANSWERS: DiagnosticAnswerFact[] = [
   { axis: 'VOCAB', correct: false },
   { axis: 'VOCAB', correct: false },
   { axis: 'VOCAB', correct: true }, // vocab 1/3
-];
+].map((a, position) => ({
+  ...(a as Pick<DiagnosticAnswerFact, 'axis' | 'correct'>),
+  itemLevel: 'B1',
+  position,
+}));
+
+/** These cases are about the write path, written against fraction-correct scores. */
+const ACCURACY = { estimator: accuracyBasedEstimator };
 
 describe('createBootstrapService', () => {
   const at = 1_700_000_000_000n;
 
   it('writes one event and N ConceptMastery rows in a single tx', async () => {
     const { db, events, masteries } = createMemoryDb();
-    const svc = createBootstrapService(db);
+    const svc = createBootstrapService(db, ACCURACY);
 
     const res = await svc.bootstrapFromDiagnostic({
       userId: 'u1',
@@ -71,7 +83,7 @@ describe('createBootstrapService', () => {
 
   it('is strictly-once: a second bootstrap is rejected and writes nothing', async () => {
     const { db, events, masteries } = createMemoryDb();
-    const svc = createBootstrapService(db);
+    const svc = createBootstrapService(db, ACCURACY);
 
     const first = await svc.bootstrapFromDiagnostic({
       userId: 'u1',
@@ -105,15 +117,15 @@ describe('createBootstrapService', () => {
 
   it('returns NO_CONCEPTS_BOOTSTRAPPED when every axis is too sparse', async () => {
     const { db, events } = createMemoryDb();
-    const svc = createBootstrapService(db);
+    const svc = createBootstrapService(db, ACCURACY);
 
     const res = await svc.bootstrapFromDiagnostic({
       userId: 'u1',
       diagnosticAttemptId: 'da1',
       assessedLevel: 'B1',
       answers: [
-        { axis: 'GRAMMAR', correct: true }, // only 1 answer, below threshold
-        { axis: 'VOCAB', correct: true }, // only 1 answer
+        { axis: 'GRAMMAR', correct: true, itemLevel: 'B1', position: 0 }, // only 1 answer, below threshold
+        { axis: 'VOCAB', correct: true, itemLevel: 'B1', position: 1 }, // only 1 answer
       ],
       concepts: CONCEPTS,
       occurredAtMs: at,
@@ -127,7 +139,7 @@ describe('createBootstrapService', () => {
 
   it('replay from the stored event reproduces the same ConceptMastery', async () => {
     const { db, events, masteries } = createMemoryDb();
-    const svc = createBootstrapService(db);
+    const svc = createBootstrapService(db, ACCURACY);
 
     await svc.bootstrapFromDiagnostic({
       userId: 'u1',
@@ -173,11 +185,11 @@ describe('createBootstrapService', () => {
       concepts: CONCEPTS,
       occurredAtMs: at,
     };
-    const a = await createBootstrapService(plain.db).bootstrapFromDiagnostic({
+    const a = await createBootstrapService(plain.db, ACCURACY).bootstrapFromDiagnostic({
       ...input,
       answers: ANSWERS,
     });
-    const b = await createBootstrapService(flagged.db).bootstrapFromDiagnostic({
+    const b = await createBootstrapService(flagged.db, ACCURACY).bootstrapFromDiagnostic({
       ...input,
       answers: dontKnowAnswers,
     });
@@ -185,5 +197,59 @@ describe('createBootstrapService', () => {
     expect(b).toEqual(a);
     expect(flagged.events[0]?.payload).toEqual(plain.events[0]?.payload);
     expect([...flagged.masteries.entries()]).toEqual([...plain.masteries.entries()]);
+  });
+});
+
+describe('bootstrap with the ladder estimator (the default)', () => {
+  const at = 1_700_000_000_000n;
+  // GRAMMAR's last four questions were C1, VOCAB's were A2.
+  const answers: DiagnosticAnswerFact[] = [0, 1, 2, 3, 4, 5, 6, 7].map((position) => ({
+    axis: position % 2 === 0 ? 'GRAMMAR' : 'VOCAB',
+    correct: position % 2 === 0,
+    itemLevel: position % 2 === 0 ? 'C1' : 'A2',
+    position,
+  }));
+
+  it('freezes the estimator and per-axis levels, anchoring each axis on its own level', async () => {
+    const { db, events, masteries } = createMemoryDb();
+    const res = await createBootstrapService(db).bootstrapFromDiagnostic({
+      userId: 'u1',
+      diagnosticAttemptId: 'da1',
+      assessedLevel: 'B1',
+      answers,
+      concepts: CONCEPTS,
+      occurredAtMs: at,
+    });
+    expect(res.ok).toBe(true);
+
+    const payload = events[0]?.payload as { estimator: string; axes: unknown[] };
+    expect(payload.estimator).toBe('ladder');
+    expect(payload.axes).toEqual([
+      { axis: 'VOCAB', score: 0.25, answered: 4, level: 'A2' },
+      { axis: 'GRAMMAR', score: 1, answered: 4, level: 'C1' },
+      { axis: 'LISTENING', score: 0, answered: 0 },
+    ]);
+
+    // GRAMMAR at C1: B1 and B2 concepts both at/below → ceiling (the global
+    // B1 would have discounted the B2 one). VOCAB at A2: 0.15 + 0.25 · 0.45.
+    expect(masteries.get('u1:grammar.present_perfect')?.pKnown).toBeCloseTo(0.6, 12);
+    expect(masteries.get('u1:grammar.conditionals')?.pKnown).toBeCloseTo(0.6, 12);
+    expect(masteries.get('u1:vocab.travel')?.pKnown).toBeCloseTo(0.2625, 12);
+  });
+
+  it('replay from the stored ladder payload reproduces the live rows', async () => {
+    const { db, masteries } = createMemoryDb();
+    await createBootstrapService(db).bootstrapFromDiagnostic({
+      userId: 'u1',
+      diagnosticAttemptId: 'da1',
+      assessedLevel: 'B1',
+      answers,
+      concepts: CONCEPTS,
+      occurredAtMs: at,
+    });
+    const live = structuredClone([...masteries]);
+
+    await replayUser(db, 'u1');
+    expect([...masteries]).toEqual(live);
   });
 });

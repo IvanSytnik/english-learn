@@ -25,6 +25,19 @@ export interface Rng {
 }
 
 /**
+ * Cheap deterministic string hash (djb2) → uint32 seed for makeRng. Same
+ * string, same seed, on every platform. Not cryptographic: it only has to
+ * spread different keys (a user id, `${attemptId}:${position}`) apart.
+ */
+export function seedFromString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = (Math.imul(h, 33) ^ s.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
+/**
  * mulberry32 — seedable 32-bit generator.
  * Same seed => same infinite sequence, on every platform (pure integer math).
  */

@@ -16,7 +16,7 @@ export {
   effectiveStrategy,
   rewardForOutcome,
 } from './reward';
-export { makeRng, type Rng, sampleBeta } from './rng';
+export { makeRng, type Rng, sampleBeta, seedFromString } from './rng';
 export { select } from './select';
 export {
   type ConceptEventCounts,

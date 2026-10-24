@@ -19,6 +19,10 @@ export type DiagnosticAnswerFact = {
    * isCorrect); still counts toward `answered`, since it is a real signal.
    */
   dontKnow?: boolean;
+  /** Level of the question answered (DiagnosticAnswer.itemLevel). */
+  itemLevel: CefrLevelValue;
+  /** DiagnosticAnswer.position — order of the answer within the attempt. */
+  position: number;
 };
 
 /**
@@ -48,9 +52,19 @@ export type ConceptCategoryValue =
 /** Per-axis ability estimate. */
 export type AxisEstimate = {
   axis: DiagnosticAxisValue;
-  /** Fraction correct on this axis, in [0,1]. 0 when answered === 0. */
-  accuracy: number;
+  /**
+   * The formula's input, in [0,1]; 0 when answered === 0. What it measures is
+   * the estimator's business: the accuracy estimator puts the fraction
+   * correct here, the ladder estimator a level score (A2 0.25 … C1 1.0).
+   * Never shown to the learner.
+   */
+  score: number;
   answered: number;
+  /**
+   * The axis's own assessed level, if the estimator measures one (ladder);
+   * then it anchors levelFactor instead of the global assessedLevel.
+   */
+  level: CefrLevelValue | null;
 };
 
 /** Constants for the θ→pKnown mapping. Frozen into the event for audit. */

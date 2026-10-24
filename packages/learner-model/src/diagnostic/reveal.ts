@@ -28,7 +28,7 @@ export type RevealSkillTag = {
   category: string;
 };
 
-export type RevealAnswerFact = DiagnosticAnswerFact & {
+export type RevealAnswerFact = Pick<DiagnosticAnswerFact, 'axis' | 'correct' | 'dontKnow'> & {
   /** DiagnosticItem.skillTag, or null for an untagged item. */
   skillTag: RevealSkillTag | null;
 };
@@ -91,7 +91,9 @@ const BY_RANK = (Object.keys(CEFR_RANK) as CefrLevelValue[]).sort(
   (a, b) => CEFR_RANK[a] - CEFR_RANK[b],
 );
 
-function tally(answers: readonly DiagnosticAnswerFact[]): AnswerTally {
+function tally(
+  answers: readonly Pick<DiagnosticAnswerFact, 'correct' | 'dontKnow'>[],
+): AnswerTally {
   let correct = 0;
   let dontKnow = 0;
   for (const a of answers) {

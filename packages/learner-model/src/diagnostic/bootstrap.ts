@@ -5,6 +5,7 @@ import type {
 } from '@englishlearn/db/schemas';
 import { clampProb } from '../core/bkt/constants';
 import { initBktState } from '../core/bkt/model';
+import { CEFR_RANK } from '../core/graph/types';
 import type {
   AxisEstimate,
   BootstrapConcept,
@@ -35,16 +36,6 @@ export const MAPPING_V1: MappingConstants = {
 } as const;
 
 export const FORMULA_VERSION = 'v1' as const;
-
-/** CEFR ordering for the levelFactor comparison. */
-const CEFR_RANK: Record<CefrLevelValue, number> = {
-  A1: 0,
-  A2: 1,
-  B1: 2,
-  B2: 3,
-  C1: 4,
-  C2: 5,
-};
 
 /**
  * Map a ConceptCategory to the diagnostic axis that measures it.
@@ -83,22 +74,23 @@ export function categoryToAxis(category: ConceptCategoryValue): DiagnosticAxisVa
  * The v1 mapping formula. Pure arithmetic, isolated for unit testing.
  *
  *   pKnown = clamp(
- *     floor + accuracy · (ceiling − floor) · levelFactor,
+ *     floor + score · (ceiling − floor) · levelFactor,
  *     floor, ceiling
  *   )
  *
- * levelFactor = 1.0 if the concept is at or below assessedLevel, else
- * aboveLevelFactor (a B1 concept for an A2 learner is almost certainly not yet
- * acquired, so we discount it).
+ * `score` is the estimator's [0,1] input (AxisEstimate.score). levelFactor =
+ * 1.0 if the concept is at or below the anchor level, else aboveLevelFactor
+ * (a B1 concept for an A2 learner is almost certainly not yet acquired, so we
+ * discount it).
  */
-export function mapAccuracyToPKnown(
-  accuracy: number,
+export function mapScoreToPKnown(
+  score: number,
   conceptLevel: CefrLevelValue,
-  assessedLevel: CefrLevelValue,
+  anchorLevel: CefrLevelValue,
   c: MappingConstants,
 ): number {
-  const levelFactor = CEFR_RANK[conceptLevel] <= CEFR_RANK[assessedLevel] ? 1.0 : c.aboveLevelFactor;
-  const raw = c.floor + accuracy * (c.ceiling - c.floor) * levelFactor;
+  const levelFactor = CEFR_RANK[conceptLevel] <= CEFR_RANK[anchorLevel] ? 1.0 : c.aboveLevelFactor;
+  const raw = c.floor + score * (c.ceiling - c.floor) * levelFactor;
   // clampProb guards NaN; the explicit ceiling/floor clamp enforces policy.
   return Math.min(c.ceiling, Math.max(c.floor, clampProb(raw)));
 }
@@ -132,6 +124,7 @@ function snapshotForConcept(
 export type BootstrapInput = {
   concepts: readonly BootstrapConcept[];
   axes: readonly AxisEstimate[];
+  /** Global level; anchors levelFactor for axes without their own level. */
   assessedLevel: CefrLevelValue;
   constants?: MappingConstants;
 };
@@ -150,7 +143,9 @@ export type BootstrapOutput = {
  *   2. If the axis has < minAnswersPerAxis answers → skip (R4 sparse guard):
  *      a noisy estimate from 1-2 answers is worse than the informative prior
  *      the selection policy already applies to un-bootstrapped concepts.
- *   3. Otherwise map accuracy → pKnown (conservative v1) → full snapshot.
+ *   3. Otherwise map score → pKnown (conservative v1) → full snapshot,
+ *      anchoring levelFactor on the axis's own level when the estimator
+ *      measured one (ladder), else on the global assessedLevel.
  *
  * Skipped concepts get NO ConceptMastery row — selection's cold-start prior
  * handles them. This keeps the payload honest: we only assert mastery we
@@ -178,10 +173,10 @@ export function buildBootstrapSnapshots(input: BootstrapInput): BootstrapOutput 
       continue;
     }
 
-    const pKnown = mapAccuracyToPKnown(
-      estimate.accuracy,
+    const pKnown = mapScoreToPKnown(
+      estimate.score,
       concept.cefrLevel,
-      input.assessedLevel,
+      estimate.level ?? input.assessedLevel,
       c,
     );
     snapshots.push(snapshotForConcept(concept.id, pKnown, axis));

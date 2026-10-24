@@ -28,10 +28,13 @@ const CONCEPTS: BootstrapConcept[] = [
   { id: DEPENDENT, category: 'GRAMMAR', cefrLevel: 'A2' },
 ];
 
-// Perfect grammar diagnostic → both concepts bootstrapped at the 0.6 ceiling.
-const ANSWERS: DiagnosticAnswerFact[] = Array.from({ length: 5 }, () => ({
+// Perfect grammar diagnostic (ladder settles on C1) → both concepts
+// bootstrapped at the 0.6 ceiling.
+const ANSWERS: DiagnosticAnswerFact[] = Array.from({ length: 5 }, (_, i) => ({
   axis: 'GRAMMAR' as const,
   correct: true,
+  itemLevel: 'C1' as const,
+  position: i * 2,
 }));
 
 const MINUTE = 60_000;

@@ -34,9 +34,15 @@ const CONCEPTS: BootstrapConcept[] = [
   { id: Y, category: 'GRAMMAR', cefrLevel: 'A2' },
   { id: Z, category: 'VOCAB', cefrLevel: 'A2' },
 ];
-// A perfect diagnostic on both axes → every bootstrapped concept at the 0.6 ceiling.
-const ANSWERS: DiagnosticAnswerFact[] = (['GRAMMAR', 'VOCAB'] as const).flatMap((axis) =>
-  Array.from({ length: 3 }, () => ({ axis, correct: true })),
+// A perfect diagnostic on both axes (ladder settles on C1) → every
+// bootstrapped concept at the 0.6 ceiling.
+const ANSWERS: DiagnosticAnswerFact[] = (['GRAMMAR', 'VOCAB'] as const).flatMap((axis, offset) =>
+  Array.from({ length: 3 }, (_, i) => ({
+    axis,
+    correct: true,
+    itemLevel: 'C1' as const,
+    position: i * 2 + offset,
+  })),
 );
 
 // Seconds apart: X's learning step after a miss is minutes long, so right

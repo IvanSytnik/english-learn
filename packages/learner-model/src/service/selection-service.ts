@@ -1,4 +1,4 @@
-import { makeRng } from '../policy/rng';
+import { makeRng, seedFromString } from '../policy/rng';
 import { select } from '../policy/select';
 import {
   DEFAULT_POLICY_CONFIG,
@@ -50,7 +50,7 @@ export function createSelectionService(db: LearnerModelDb) {
 
       // Derive a seed if none given. Truncation to uint32 is fine — mulberry32
       // coerces internally; we only need per-call variation in prod.
-      const seed = input.seed ?? (now ^ hashString(input.userId)) >>> 0;
+      const seed = input.seed ?? (now ^ seedFromString(input.userId)) >>> 0;
       const rng = makeRng(seed);
 
       const [masteryRows, prereqRows, countRows, candidateRows] = await Promise.all([
@@ -102,12 +102,3 @@ export function createSelectionService(db: LearnerModelDb) {
 }
 
 export type SelectionService = ReturnType<typeof createSelectionService>;
-
-/** Cheap deterministic string hash (djb2) — used only to vary the prod seed. */
-function hashString(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = (Math.imul(h, 33) ^ s.charCodeAt(i)) | 0;
-  }
-  return h >>> 0;
-}
