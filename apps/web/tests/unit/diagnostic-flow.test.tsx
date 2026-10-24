@@ -171,15 +171,42 @@ describe('DiagnosticFlow', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('the last answer leads to Done with a link to practice', async () => {
-    submitDiagnosticAnswerAction.mockResolvedValue(
-      reply({ kind: 'completed', attemptId: 'att-1' }),
-    );
+  const result = {
+    level: 'B1' as const,
+    axes: [
+      { axis: 'GRAMMAR' as const, level: 'A2' as const },
+      { axis: 'VOCAB' as const, level: 'B2' as const },
+    ],
+    startConcept: { title: 'Past Simple' },
+  };
+
+  it('the last answer leads to the result: level, axes, a suggested topic, practice', async () => {
+    submitDiagnosticAnswerAction.mockResolvedValue(reply({ kind: 'completed', result }));
     renderFlow(asStep(question(15)));
     key('1');
     key('Enter');
     const heading = await screen.findByRole('heading', { name: 'Done!' });
     await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(screen.getByRole('heading', { name: 'Your level' })).toBeTruthy();
+    expect(screen.getByText('B1')).toBeTruthy();
+    expect(screen.getByText('Grammar A2 · Vocabulary B2')).toBeTruthy();
+    expect(screen.getByText('We suggest starting with “Past Simple”.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Go to practice' }).getAttribute('href')).toBe(
+      '/exercises',
+    );
+  });
+
+  it('a result without a suggested topic shows the level only', () => {
+    renderFlow({ kind: 'completed', result: { ...result, startConcept: null } });
+    expect(screen.getByText('B1')).toBeTruthy();
+    expect(screen.queryByText(/We suggest/)).toBeNull();
+  });
+
+  it('a result without a level: no level, no topic, still a way to practice', () => {
+    renderFlow({ kind: 'completed', result: { level: null, axes: [], startConcept: null } });
+    expect(screen.getByRole('heading', { name: 'Done!' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Your level' })).toBeNull();
+    expect(screen.getByText(/can’t show the result right now/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Go to practice' }).getAttribute('href')).toBe(
       '/exercises',
     );

@@ -11,12 +11,18 @@ import {
   getDiagnosticPool,
   startOrResumeAttempt,
 } from '@englishlearn/db/queries/diagnostic-attempt';
-import { getDiagnosticRevealFacts } from '@englishlearn/db/queries/diagnostic-reveal';
+import {
+  type DiagnosticRevealFacts,
+  getDiagnosticRevealFacts,
+  getPlacementContext,
+} from '@englishlearn/db/queries/diagnostic-reveal';
 import {
   checkDiagnosticAnswer,
+  getConceptTitles,
   getDiagnosticItemForStudent,
 } from '@englishlearn/db/queries/exercises';
-import { nextLadderStep, TOTAL_QUESTIONS } from '@englishlearn/learner-model';
+import type { CefrLevelValue, DiagnosticAxisValue, Locale } from '@englishlearn/db/schemas';
+import { buildPlacementReveal, nextLadderStep, TOTAL_QUESTIONS } from '@englishlearn/learner-model';
 import { bootstrapService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 
@@ -27,7 +33,8 @@ import type { Result } from '@/lib/result';
  * question to answer next is recomputed, never trusted from the client.
  *
  * No feedback during the test: nothing returned here carries the verdict,
- * the key, an explanation or the question's level.
+ * the key, an explanation or the question's level. The result after the test
+ * carries levels only — per axis and overall — and a suggested first topic.
  */
 
 /** What the learner sees of a question. */
@@ -39,9 +46,27 @@ export type DiagnosticQuestionView = {
   item: { id: string; stem: string; choices: string[] };
 };
 
+/**
+ * The result screen. Built field by field from the placement reveal — an
+ * allowlist, never a spread: the reveal also carries per-tag tallies
+ * (correct, dontKnow, accuracy) that must not reach the learner as a "level".
+ */
+export type DiagnosticResultView = {
+  /** Null when the attempt has no level to show; the screen still offers practice. */
+  level: CefrLevelValue | null;
+  axes: { axis: DiagnosticAxisValue; level: CefrLevelValue }[];
+  /** A suggestion, not a promise: the first exercise is still the policy's pick. */
+  startConcept: { title: string } | null;
+};
+
+const NO_RESULT: DiagnosticResultView = { level: null, axes: [], startConcept: null };
+
+/** Display order on the result screen: "Grammar B1 · Vocabulary B2". */
+const AXIS_DISPLAY_ORDER: readonly DiagnosticAxisValue[] = ['GRAMMAR', 'VOCAB', 'LISTENING'];
+
 export type DiagnosticStep =
   | { kind: 'question'; question: DiagnosticQuestionView }
-  | { kind: 'completed'; attemptId: string };
+  | { kind: 'completed'; result: DiagnosticResultView };
 
 /** What a visit to /diagnostic shows; `intro` until the learner presses Start. */
 export type DiagnosticPeek = DiagnosticStep | { kind: 'intro' };
@@ -66,6 +91,17 @@ export type DiagnosticSubmitOutcome = {
 };
 
 /**
+ * Whether the learner has finished the diagnostic: a COMPLETED attempt — the
+ * signal /diagnostic itself shows the result on. Every CTA asks this, so they
+ * never disagree: a completed attempt whose bootstrap did not land (a failure,
+ * NO_CONCEPTS_BOOTSTRAPPED) is still done, and /diagnostic retries that
+ * bootstrap. Read-only.
+ */
+export async function isDiagnosticDone(userId: string): Promise<boolean> {
+  return (await getCompletedAttempt(prisma, userId)) !== null;
+}
+
+/**
  * What the learner sees on arrival — without starting anything: their result,
  * the question of the attempt they left, or the intro. Merely opening the
  * page must not create an attempt.
@@ -73,30 +109,30 @@ export type DiagnosticSubmitOutcome = {
 export async function peekDiagnosticStep(
   userId: string,
   now: Date,
+  locale: Locale,
 ): Promise<Result<DiagnosticPeek, DiagnosticError>> {
   const completed = await getCompletedAttempt(prisma, userId);
   if (completed) {
-    await ensureBootstrapped(userId, completed.attemptId);
-    return { ok: true, value: { kind: 'completed', attemptId: completed.attemptId } };
+    return { ok: true, value: await completedStep(userId, completed.attemptId, locale, true) };
   }
   const active = await getActiveAttempt(prisma, userId, now);
   if (!active) return { ok: true, value: { kind: 'intro' } };
-  return stepOf(userId, active.attemptId, now);
+  return stepOf(userId, active.attemptId, now, locale);
 }
 
 /** Start (or resume) the attempt: the completed result, or the next question. */
 export async function getDiagnosticStep(
   userId: string,
   now: Date,
+  locale: Locale,
 ): Promise<Result<DiagnosticStep, DiagnosticError>> {
   const completed = await getCompletedAttempt(prisma, userId);
   if (completed) {
     // A bootstrap that failed right after completion is finished here.
-    await ensureBootstrapped(userId, completed.attemptId);
-    return { ok: true, value: { kind: 'completed', attemptId: completed.attemptId } };
+    return { ok: true, value: await completedStep(userId, completed.attemptId, locale, true) };
   }
   const { attemptId } = await startOrResumeAttempt(prisma, userId, now);
-  return stepOf(userId, attemptId, now);
+  return stepOf(userId, attemptId, now, locale);
 }
 
 /**
@@ -108,8 +144,9 @@ export async function submitDiagnosticAnswer(
   userId: string,
   input: DiagnosticAnswerInput,
   now: Date,
+  locale: Locale,
 ): Promise<Result<DiagnosticSubmitOutcome, DiagnosticError>> {
-  const current = await stepOf(userId, input.attemptId, now);
+  const current = await stepOf(userId, input.attemptId, now, locale);
   if (!current.ok) return current;
   const expected = current.value;
   if (
@@ -141,7 +178,7 @@ export async function submitDiagnosticAnswer(
     return { ok: false, error: appended.error };
   }
 
-  const next = await stepOf(userId, input.attemptId, now);
+  const next = await stepOf(userId, input.attemptId, now, locale);
   return next.ok ? { ok: true, value: { stale: false, step: next.value } } : next;
 }
 
@@ -150,11 +187,11 @@ async function stepOf(
   userId: string,
   attemptId: string,
   now: Date,
+  locale: Locale,
 ): Promise<Result<DiagnosticStep, DiagnosticError>> {
   const state = await getAttemptState(prisma, attemptId, userId);
   if (state?.status === 'COMPLETED') {
-    await ensureBootstrapped(userId, attemptId);
-    return { ok: true, value: { kind: 'completed', attemptId } };
+    return { ok: true, value: await completedStep(userId, attemptId, locale, true) };
   }
   if (state?.status !== 'IN_PROGRESS') return { ok: false, error: 'NOT_IN_PROGRESS' };
 
@@ -182,26 +219,79 @@ async function stepOf(
         },
       };
     }
-    case 'complete':
+    case 'complete': {
       // Reached by the last submit, or by the next visit if the process died
       // between storing the last answer and completing the attempt.
-      await finalize(userId, attemptId, step.assessedLevel, now);
-      return { ok: true, value: { kind: 'completed', attemptId } };
+      const won = await finalize(userId, attemptId, step.assessedLevel, now);
+      return { ok: true, value: await completedStep(userId, attemptId, locale, won) };
+    }
     case 'exhausted':
       console.error(`[diagnostic] bank exhausted on ${step.axis} (attempt ${attemptId})`);
       return { ok: false, error: 'BANK_EXHAUSTED' };
   }
 }
 
-/** Close the attempt; only the call that actually closed it bootstraps. */
+/** Close the attempt; true for the call that actually closed it (and so bootstraps). */
 async function finalize(
   userId: string,
   attemptId: string,
   assessedLevel: Parameters<typeof completeAttempt>[1]['assessedLevel'],
   now: Date,
-): Promise<void> {
+): Promise<boolean> {
   const { won } = await completeAttempt(prisma, { attemptId, userId, assessedLevel, now });
-  if (won) await ensureBootstrapped(userId, attemptId);
+  return won;
+}
+
+/**
+ * The completed step: bootstrap first when asked (the start concept reads
+ * the post-bootstrap mastery), then the result. Never throws — a failure
+ * shows the level-less result, which still leads to practice.
+ */
+async function completedStep(
+  userId: string,
+  attemptId: string,
+  locale: Locale,
+  bootstrap: boolean,
+): Promise<DiagnosticStep> {
+  try {
+    const facts = await getDiagnosticRevealFacts(prisma, { userId, attemptId });
+    if (!facts) {
+      console.error(`[diagnostic] no completed attempt ${attemptId} to show`);
+      return { kind: 'completed', result: NO_RESULT };
+    }
+    if (bootstrap) await ensureBootstrapped(userId, attemptId, facts);
+    return { kind: 'completed', result: await resultOf(userId, attemptId, facts, locale) };
+  } catch (e) {
+    console.error(`[diagnostic] result failed for attempt ${attemptId}`, e);
+    return { kind: 'completed', result: NO_RESULT };
+  }
+}
+
+async function resultOf(
+  userId: string,
+  attemptId: string,
+  facts: DiagnosticRevealFacts,
+  locale: Locale,
+): Promise<DiagnosticResultView> {
+  const context = await getPlacementContext(prisma, userId);
+  const reveal = buildPlacementReveal({ answers: facts.answers, ...context });
+  if (reveal.level !== facts.assessedLevel) {
+    // Both come from the ladder's formula; a mismatch means it changed after
+    // the attempt was stored. The screen shows the recomputed level.
+    console.warn(
+      `[diagnostic] level mismatch for attempt ${attemptId}: stored ${facts.assessedLevel}, recomputed ${reveal.level}`,
+    );
+  }
+  const title = reveal.startConcept
+    ? (await getConceptTitles([reveal.startConcept], locale)).get(reveal.startConcept)
+    : undefined;
+  return {
+    level: reveal.level,
+    axes: reveal.axes
+      .map((a) => ({ axis: a.axis, level: a.level }))
+      .sort((x, y) => AXIS_DISPLAY_ORDER.indexOf(x.axis) - AXIS_DISPLAY_ORDER.indexOf(y.axis)),
+    startConcept: title ? { title } : null,
+  };
 }
 
 /**
@@ -209,14 +299,17 @@ async function finalize(
  * writes at most one LEARNER_BOOTSTRAPPED per user (ALREADY_BOOTSTRAPPED is
  * success). Never throws — a failure is logged and retried on the next visit
  * to the result, so the learner is never stuck on it.
+ *
+ * Takes the facts it was read with instead of reading them again: safe only
+ * because they belong to a COMPLETED attempt (getDiagnosticRevealFacts loads
+ * nothing else), whose answers can no longer change.
  */
-async function ensureBootstrapped(userId: string, attemptId: string): Promise<void> {
+async function ensureBootstrapped(
+  userId: string,
+  attemptId: string,
+  facts: DiagnosticRevealFacts,
+): Promise<void> {
   try {
-    const facts = await getDiagnosticRevealFacts(prisma, { userId, attemptId });
-    if (!facts) {
-      console.error(`[diagnostic] no completed attempt ${attemptId} to bootstrap from`);
-      return;
-    }
     const result = await bootstrapService.bootstrapFromDiagnostic({
       userId,
       diagnosticAttemptId: attemptId,

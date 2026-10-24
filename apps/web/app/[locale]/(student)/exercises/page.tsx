@@ -3,6 +3,8 @@ import { buttonVariants, SessionLengthPicker } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
+import { isDiagnosticDone } from '@/lib/diagnostic';
+import { exercisesFallback } from '@/lib/exercise/fallback';
 import { loadNextExercise } from '@/lib/exercise/load';
 import {
   DEFAULT_SESSION_MINUTES,
@@ -48,16 +50,25 @@ export default async function ExercisesPage({
 
   if (first) return <ExercisePlayer initial={first} sessionLength={SESSION_ITEMS[minutes]} />;
 
-  // Nothing selectable (no published practice items, or everything gated):
-  // point the learner at the diagnostic instead of an empty player.
+  // Nothing selectable (no published practice items, or everything gated).
+  // Before the diagnostic: point the learner at it. After it, the diagnostic
+  // only shows the result and leads back here — so say so instead of looping.
   const t = await getTranslations('student.exercises');
+  const fallback = exercisesFallback(await isDiagnosticDone(session.user.id));
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="mb-4 text-2xl font-semibold">{t('title')}</h1>
-      <p className="mb-6 text-ink-muted">{t('comingSoon')}</p>
-      <Link href="/diagnostic" className={buttonVariants()}>
-        {t('startDiagnostic')}
-      </Link>
+      <p className="mb-6 text-ink-muted">{t(fallback.text)}</p>
+      {fallback.href === '/diagnostic' ? (
+        // No prefetch: /diagnostic may write for a finished attempt.
+        <Link href="/diagnostic" prefetch={false} className={buttonVariants()}>
+          {t(fallback.cta)}
+        </Link>
+      ) : (
+        <Link href="/dashboard" className={buttonVariants()}>
+          {t(fallback.cta)}
+        </Link>
+      )}
     </main>
   );
 }

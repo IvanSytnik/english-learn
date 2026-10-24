@@ -3,6 +3,7 @@ import { Button, buttonVariants, Card, CardContent, CardHeader, CardTitle } from
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
+import { isDiagnosticDone } from '@/lib/diagnostic';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -14,6 +15,10 @@ export default async function DashboardPage() {
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: session.user.id },
   });
+  // A learner without a diagnostic yet is sent to find their level first.
+  // Read-only: GET /dashboard never writes.
+  const needsDiagnostic =
+    session.user.role === 'STUDENT' && !(await isDiagnosticDone(session.user.id));
 
   async function logout() {
     'use server';
@@ -40,13 +45,20 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('startPractice')}</CardTitle>
+          <CardTitle>{needsDiagnostic ? t('findLevel') : t('startPractice')}</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Until the diagnostic UI ships, the primary CTA leads to practice. */}
-          <Link href="/exercises" className={buttonVariants()}>
-            {t('startPractice')}
-          </Link>
+          {needsDiagnostic ? (
+            // No prefetch: rendering /diagnostic for a finished attempt writes
+            // (ensureBootstrapped), so it must run only when the learner clicks.
+            <Link href="/diagnostic" prefetch={false} className={buttonVariants()}>
+              {t('findLevel')}
+            </Link>
+          ) : (
+            <Link href="/exercises" className={buttonVariants()}>
+              {t('startPractice')}
+            </Link>
+          )}
         </CardContent>
       </Card>
     </main>

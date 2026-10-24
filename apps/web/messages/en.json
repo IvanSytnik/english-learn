@@ -13,7 +13,7 @@
       "title": "Learn English with AI and real tutors",
       "subtitle": "Adaptive lessons that focus on your weak spots, plus live tutoring when you need it.",
       "cta": "Start free diagnostic",
-      "startPractice": "Start practising"
+      "findLevel": "Find your level"
     }
   },
   "auth": {
@@ -63,7 +63,8 @@
       "nextExercise": "Continue learning",
       "takeDiagnostic": "Take diagnostic test",
       "level": "Your level: {level}",
-      "startPractice": "Start practising"
+      "startPractice": "Start practising",
+      "findLevel": "Find your level"
     },
     "diagnostic": {
       "title": "Diagnostic test",
@@ -82,12 +83,18 @@
       "doneText": "Thank you — your answers are in. Practice now starts from your level.",
       "unavailableTitle": "The diagnostic test is unavailable",
       "unavailable": "The diagnostic test is temporarily unavailable. You can practise in the meantime.",
-      "goToPractice": "Go to practice"
+      "goToPractice": "Go to practice",
+      "resultTitle": "Your level",
+      "axisLevel": "{axis, select, GRAMMAR {Grammar} VOCAB {Vocabulary} other {Listening}} {level}",
+      "recommendStart": "We suggest starting with “{title}”.",
+      "resultUnavailable": "Your answers are saved, but we can’t show the result right now. You can go on to practice."
     },
     "exercises": {
       "title": "Exercises",
       "comingSoon": "Exercises are coming soon. Start with the diagnostic test so we can tailor them to your level.",
-      "startDiagnostic": "Take the diagnostic test"
+      "startDiagnostic": "Take the diagnostic test",
+      "noExercisesYet": "There are no new exercises for you right now. Check back later.",
+      "toDashboard": "Back to the dashboard"
     }
   },
   "admin": {

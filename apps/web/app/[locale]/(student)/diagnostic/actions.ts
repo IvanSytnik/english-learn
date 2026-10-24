@@ -1,5 +1,7 @@
 'use server';
 
+import { isLocale, type Locale } from '@englishlearn/db/schemas';
+import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import {
@@ -31,13 +33,18 @@ async function studentId(): Promise<Result<string, DiagnosticActionError>> {
   return { ok: true, value: session.user.id };
 }
 
+async function currentLocale(): Promise<Locale> {
+  const locale = await getLocale();
+  return isLocale(locale) ? locale : 'en';
+}
+
 /** Start (Start button) or resume the signed-in learner's diagnostic. */
 export async function startDiagnosticAction(): Promise<
   Result<DiagnosticStep, DiagnosticActionError>
 > {
   const user = await studentId();
   if (!user.ok) return user;
-  return getDiagnosticStep(user.value, new Date());
+  return getDiagnosticStep(user.value, new Date(), await currentLocale());
 }
 
 /**
@@ -51,5 +58,5 @@ export async function submitDiagnosticAnswerAction(
   if (!user.ok) return user;
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  return submitDiagnosticAnswer(user.value, parsed.data, new Date());
+  return submitDiagnosticAnswer(user.value, parsed.data, new Date(), await currentLocale());
 }

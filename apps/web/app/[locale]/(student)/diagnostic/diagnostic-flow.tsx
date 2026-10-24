@@ -12,7 +12,11 @@ import {
   useTransition,
 } from 'react';
 import { Link } from '@/i18n/navigation';
-import type { DiagnosticPeek, DiagnosticQuestionView } from '@/lib/diagnostic';
+import type {
+  DiagnosticPeek,
+  DiagnosticQuestionView,
+  DiagnosticResultView,
+} from '@/lib/diagnostic';
 import { focusKind, resolveShortcut } from '@/lib/exercise/shortcuts';
 import { startDiagnosticAction, submitDiagnosticAnswerAction } from './actions';
 
@@ -56,7 +60,7 @@ export function DiagnosticFlow({ initial }: { initial: View }) {
         />
       );
     case 'completed':
-      return <Done />;
+      return <Done result={view.result} />;
     case 'unavailable':
       return <Unavailable />;
   }
@@ -285,7 +289,8 @@ function Player({
   );
 }
 
-function Done() {
+/** The result: levels in words and CEFR codes only — no counts, no scores. */
+function Done({ result }: { result: DiagnosticResultView }) {
   const t = useTranslations('student.diagnostic');
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => headingRef.current?.focus(), []);
@@ -294,7 +299,31 @@ function Done() {
       <h1 ref={headingRef} tabIndex={-1} className="font-content text-3xl text-ink outline-none">
         {t('doneTitle')}
       </h1>
-      <p className="text-ink">{t('doneText')}</p>
+      {result.level ? (
+        <>
+          <p className="text-ink">{t('doneText')}</p>
+          <section aria-labelledby="diagnostic-level" className="flex flex-col gap-2">
+            <h2 id="diagnostic-level" className="text-sm text-ink-muted">
+              {t('resultTitle')}
+            </h2>
+            <p className="font-content text-5xl text-ink" data-result-level>
+              {result.level}
+            </p>
+            {result.axes.length > 0 ? (
+              <p className="text-ink">
+                {result.axes
+                  .map((a) => t('axisLevel', { axis: a.axis, level: a.level }))
+                  .join(' · ')}
+              </p>
+            ) : null}
+          </section>
+          {result.startConcept ? (
+            <p className="text-ink">{t('recommendStart', { title: result.startConcept.title })}</p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-ink">{t('resultUnavailable')}</p>
+      )}
       <div>
         <Link href="/exercises" className={primaryButton}>
           {t('goToPractice')}

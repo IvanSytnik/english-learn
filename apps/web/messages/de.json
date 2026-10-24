@@ -13,7 +13,7 @@
       "title": "Englisch lernen mit KI und echten Lehrern",
       "subtitle": "Adaptive Übungen, die genau deine Schwachstellen trainieren.",
       "cta": "Diagnose starten",
-      "startPractice": "Jetzt üben"
+      "findLevel": "Niveau bestimmen"
     }
   },
   "auth": {
@@ -63,7 +63,8 @@
       "nextExercise": "Weiterlernen",
       "takeDiagnostic": "Einstufungstest machen",
       "level": "Niveau: {level}",
-      "startPractice": "Jetzt üben"
+      "startPractice": "Jetzt üben",
+      "findLevel": "Niveau bestimmen"
     },
     "diagnostic": {
       "title": "Einstufungstest",
@@ -82,12 +83,18 @@
       "doneText": "Danke — deine Antworten sind da. Das Üben beginnt jetzt auf deinem Niveau.",
       "unavailableTitle": "Der Einstufungstest ist nicht verfügbar",
       "unavailable": "Der Einstufungstest ist vorübergehend nicht verfügbar. Bis dahin kannst du üben.",
-      "goToPractice": "Zum Üben"
+      "goToPractice": "Zum Üben",
+      "resultTitle": "Dein Niveau",
+      "axisLevel": "{axis, select, GRAMMAR {Grammatik} VOCAB {Wortschatz} other {Hörverstehen}} {level}",
+      "recommendStart": "Wir empfehlen, mit „{title}“ zu beginnen.",
+      "resultUnavailable": "Deine Antworten sind gespeichert, aber das Ergebnis lässt sich gerade nicht anzeigen. Du kannst trotzdem üben."
     },
     "exercises": {
       "title": "Übungen",
       "comingSoon": "Übungen kommen bald. Mach zuerst den Einstufungstest, damit wir sie an dein Niveau anpassen können.",
-      "startDiagnostic": "Einstufungstest machen"
+      "startDiagnostic": "Einstufungstest machen",
+      "noExercisesYet": "Gerade gibt es keine neuen Übungen für dich. Schau später wieder vorbei.",
+      "toDashboard": "Zum Dashboard"
     }
   },
   "admin": {

@@ -1,5 +1,6 @@
 import { prisma } from '@englishlearn/db';
 import { ensureStudentProfile } from '@englishlearn/db/queries/student-profile';
+import { isLocale } from '@englishlearn/db/schemas';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
@@ -12,15 +13,20 @@ import { DiagnosticFlow, type DiagnosticView } from './diagnostic-flow';
  * Start button does.
  */
 export default async function DiagnosticPage() {
+  const locale = await getLocale();
   const session = await auth();
-  if (!session?.user) return redirect({ href: '/login', locale: await getLocale() });
+  if (!session?.user) return redirect({ href: '/login', locale });
 
   let initial: DiagnosticView = { kind: 'unavailable' };
   // The placement test is for learners; other roles see "unavailable".
   if (session.user.role === 'STUDENT') {
     await ensureStudentProfile(prisma, session.user.id);
     try {
-      const step = await peekDiagnosticStep(session.user.id, new Date());
+      const step = await peekDiagnosticStep(
+        session.user.id,
+        new Date(),
+        isLocale(locale) ? locale : 'en',
+      );
       if (step.ok) initial = step.value;
       else console.error(`[diagnostic] page: ${step.error}`);
     } catch (e) {

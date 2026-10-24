@@ -1,8 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
 
-// Until the diagnostic result (reveal) ships, every primary CTA leads to
-// practice and nothing points the learner at /diagnostic.
+// Primary CTAs: a new learner finds their level first (the diagnostic), and
+// practises once the diagnostic has seeded the learner model.
 
 // A fresh account per test: runs are parallel and must not share a learner.
 async function registerFreshStudent(page: Page) {
@@ -14,20 +14,32 @@ async function registerFreshStudent(page: Page) {
   await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
 }
 
-test('/ru: the primary CTA offers practice and leads to registration', async ({ page }) => {
-  await page.goto('/ru');
-  const cta = page.getByRole('link', { name: 'Начать практику' });
-  await expect(cta).toHaveAttribute('href', '/ru/register');
-  await expect(page.locator('main')).not.toContainText('диагностик');
-});
-
-test('/ru/dashboard: the primary CTA leads to /ru/exercises, not the diagnostic', async ({
+test('/ru: the primary CTA offers to find your level and leads to registration', async ({
   page,
 }) => {
+  await page.goto('/ru');
+  const cta = page.getByRole('link', { name: 'Определить уровень' });
+  await expect(cta).toHaveAttribute('href', '/ru/register');
+});
+
+test('/ru/dashboard: before the diagnostic the CTA leads to /ru/diagnostic, never prefetched', async ({
+  page,
+}) => {
+  // Rendering /diagnostic for a finished attempt writes (ensureBootstrapped):
+  // the link must not be fetched until the learner clicks it.
+  const diagnosticRequests: string[] = [];
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname.startsWith('/ru/diagnostic')) diagnosticRequests.push(r.url());
+  });
   await registerFreshStudent(page);
-  const cta = page.getByRole('link', { name: 'Начать практику' });
-  await expect(cta).toHaveAttribute('href', '/ru/exercises');
-  await expect(page.locator('main a[href="/ru/diagnostic"]')).toHaveCount(0);
+  const cta = page.getByRole('link', { name: 'Определить уровень' });
+  await expect(cta).toHaveAttribute('href', '/ru/diagnostic');
+  await expect(cta).toBeInViewport();
+  await page.waitForLoadState('networkidle');
+  // Viewport prefetch fires shortly after hydration; give it room to happen.
+  await page.waitForTimeout(1_500);
+  expect(diagnosticRequests).toEqual([]);
+  await expect(page.locator('main a[href="/ru/exercises"]')).toHaveCount(0);
 });
 
 test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) => {

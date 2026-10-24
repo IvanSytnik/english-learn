@@ -72,7 +72,7 @@ test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ pa
   expect((await diagnosticFootprint(email)).attempts).toEqual([]);
 });
 
-test('/ru/diagnostic: a full pass by keyboard, all right → done, and the bootstrap ran', async ({
+test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the bootstrap ran', async ({
   page,
 }) => {
   // 16 server actions in a row: 16–18 s locally against Neon dev, too close
@@ -85,12 +85,18 @@ test('/ru/diagnostic: a full pass by keyboard, all right → done, and the boots
 
   const done = page.getByRole('heading', { name: 'Готово!' });
   await expect(done).toBeFocused(AFTER_SUBMIT);
-  await expect(page.getByRole('link', { name: 'К практике' })).toHaveAttribute(
-    'href',
-    '/ru/exercises',
-  );
+  // The result: levels only — overall, then per axis — and a suggested topic.
+  await expect(page.getByRole('heading', { name: 'Ваш уровень' })).toBeVisible();
+  await expect(page.locator('[data-result-level]')).toHaveText('C1');
+  await expect(page.getByText('Грамматика C1 · Словарь C1')).toBeVisible();
+  await expect(page.getByText(/^Рекомендуем начать с темы «.+»\.$/)).toBeVisible();
+  await expect(page.getByText('%')).toHaveCount(0);
+  const toPractice = page.getByRole('link', { name: 'К практике' });
+  await expect(toPractice).toHaveAttribute('href', '/ru/exercises');
   // No verdict was ever shown.
   await expect(page.locator('[data-verdict]')).toHaveCount(0);
+  const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
+  expect(violations.map((v) => v.help)).toEqual([]);
 
   const footprint = await diagnosticFootprint(email);
   expect(footprint.attempts).toEqual([{ status: 'COMPLETED', assessedLevel: 'C1', answers: 16 }]);
@@ -101,7 +107,22 @@ test('/ru/diagnostic: a full pass by keyboard, all right → done, and the boots
   // Coming back shows the result, not a new attempt.
   await page.goto('/ru/diagnostic');
   await expect(page.getByRole('heading', { name: 'Готово!' })).toBeVisible();
+  await expect(page.locator('[data-result-level]')).toHaveText('C1');
   expect((await diagnosticFootprint(email)).attempts).toHaveLength(1);
+
+  // After the diagnostic the dashboard CTA is practice…
+  await page.goto('/ru/dashboard');
+  await expect(page.getByRole('link', { name: 'Начать практику' })).toHaveAttribute(
+    'href',
+    '/ru/exercises',
+  );
+  await expect(page.locator('main a[href="/ru/diagnostic"]')).toHaveCount(0);
+
+  // …and the result's CTA lands on practice, not back on the diagnostic.
+  await page.goto('/ru/diagnostic');
+  await page.getByRole('link', { name: 'К практике' }).click();
+  await expect(page).toHaveURL(/\/ru\/exercises$/, AFTER_SUBMIT);
+  await expect(page.getByRole('button', { name: 'Начать' })).toBeVisible();
 });
 
 test('/ru/diagnostic: a reload resumes at the next question', async ({ page }) => {
@@ -124,6 +145,8 @@ test('/ru/diagnostic: "I don\'t know" all the way → done at A2', async ({ page
   await start(page);
   for (let n = 1; n <= 16; n++) await answer(page, n, 'dontKnow');
   await expect(page.getByRole('heading', { name: 'Готово!' })).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('[data-result-level]')).toHaveText('A2');
+  await expect(page.getByText('Грамматика A2 · Словарь A2')).toBeVisible();
   const footprint = await diagnosticFootprint(email);
   expect(footprint.attempts).toEqual([{ status: 'COMPLETED', assessedLevel: 'A2', answers: 16 }]);
   expect(footprint.bootstrapEvents).toBe(1);

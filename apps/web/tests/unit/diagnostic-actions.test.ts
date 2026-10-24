@@ -54,20 +54,46 @@ const store = vi.hoisted(() => ({
     key: number;
   }[],
   nextId: 0,
+  /** Give every answered question a skill tag (the real bank has none yet). */
+  tagged: false,
+  context: {
+    concepts: [] as { id: string; cefrLevel: string }[],
+    masteries: [] as {
+      conceptId: string;
+      pKnown: number;
+      observationCount: number;
+      lastUpdatedAt: number;
+      pForgetLambda: number;
+    }[],
+    prereqEdges: [] as { from: string; to: string; kind: 'PREREQUISITE' }[],
+  },
+  lastFacts: null as null | { answers: { skillTag: unknown }[] },
 }));
 
-const { auth, bootstrapFromDiagnostic, startOrResumeAttempt, appendAnswer, completeAttempt } =
-  vi.hoisted(() => ({
-    auth: vi.fn(),
-    bootstrapFromDiagnostic: vi.fn(),
-    startOrResumeAttempt: vi.fn(),
-    appendAnswer: vi.fn(),
-    completeAttempt: vi.fn(),
-  }));
+const {
+  auth,
+  bootstrapFromDiagnostic,
+  startOrResumeAttempt,
+  appendAnswer,
+  completeAttempt,
+  getPlacementContext,
+} = vi.hoisted(() => ({
+  auth: vi.fn(),
+  bootstrapFromDiagnostic: vi.fn(),
+  startOrResumeAttempt: vi.fn(),
+  appendAnswer: vi.fn(),
+  completeAttempt: vi.fn(),
+  getPlacementContext: vi.fn(),
+}));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: {} }));
 vi.mock('@/lib/auth', () => ({ auth }));
+vi.mock('next-intl/server', () => ({ getLocale: async () => 'ru' }));
+// No LEARNER_BOOTSTRAPPED in these scenarios: "done" must not depend on it.
+vi.mock('@englishlearn/db/queries/learner-activity', () => ({
+  hasLearnerBootstrapped: async () => false,
+}));
 vi.mock('@/lib/learner', () => ({ bootstrapService: { bootstrapFromDiagnostic } }));
 vi.mock('@englishlearn/db/queries/diagnostic-attempt', () => ({
   startOrResumeAttempt,
@@ -103,7 +129,7 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
       (x) => x.id === args.attemptId && x.userId === args.userId && x.status === 'COMPLETED',
     );
     if (!a?.assessedLevel) return null;
-    return {
+    const facts = {
       assessedLevel: a.assessedLevel,
       answers: a.answers.map((x) => ({
         position: x.position,
@@ -111,10 +137,20 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
         itemLevel: x.itemLevel,
         correct: x.correct,
         dontKnow: x.dontKnow,
-        skillTag: null,
+        skillTag: store.tagged
+          ? {
+              id: `tag.${x.axis}`,
+              slug: x.axis.toLowerCase(),
+              title: `Tag ${x.axis}`,
+              category: x.axis,
+            }
+          : null,
       })),
     };
+    store.lastFacts = facts;
+    return facts;
   },
+  getPlacementContext,
 }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({
   // The real query returns cefrLevel and kind too; the orchestrator must drop them.
@@ -128,12 +164,14 @@ vi.mock('@englishlearn/db/queries/exercises', () => ({
     const q = store.bank.find((x) => x.id === id);
     return q ? { correct: choiceIndex === q.key } : null;
   },
+  getConceptTitles: async (ids: string[], locale: string) =>
+    new Map(ids.map((id) => [id, `${locale}:${id}`])),
 }));
 
 const { startDiagnosticAction, submitDiagnosticAnswerAction } = await import(
   '@/app/[locale]/(student)/diagnostic/actions'
 );
-const { peekDiagnosticStep } = await import('@/lib/diagnostic');
+const { isDiagnosticDone, peekDiagnosticStep } = await import('@/lib/diagnostic');
 
 /** The in-memory attempt queries, with the database's semantics. */
 function useMemoryAttempts() {
@@ -226,11 +264,34 @@ function expectNoLeak(payload: unknown) {
   }
 }
 
+/** All 16 answered right: both axes, and so the attempt, at C1. */
+const RESULT_ALL_RIGHT = {
+  level: 'C1',
+  // Grammar first, as on the screen.
+  axes: [
+    { axis: 'GRAMMAR', level: 'C1' },
+    { axis: 'VOCAB', level: 'C1' },
+  ],
+  // The concept nearest C1 among the practisable ones, titled in the request locale.
+  startConcept: { title: 'ru:vocab.b' },
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   store.attempts = [];
   store.bank = BANK.map(({ explanation: _, ...q }) => q);
   store.nextId = 0;
+  store.tagged = false;
+  store.lastFacts = null;
+  store.context = {
+    concepts: [
+      { id: 'grammar.a', cefrLevel: 'A2' },
+      { id: 'vocab.b', cefrLevel: 'B1' },
+    ],
+    masteries: [],
+    prereqEdges: [],
+  };
+  getPlacementContext.mockImplementation(async () => store.context);
   useMemoryAttempts();
   bootstrapFromDiagnostic.mockResolvedValue({
     ok: true,
@@ -394,7 +455,7 @@ describe('completion', () => {
     const attemptId = store.attempts[0]?.id;
     expect(last).toEqual({
       ok: true,
-      value: { stale: false, step: { kind: 'completed', attemptId } },
+      value: { stale: false, step: { kind: 'completed', result: RESULT_ALL_RIGHT } },
     });
     expect(store.attempts[0]).toMatchObject({ status: 'COMPLETED', assessedLevel: 'C1' });
 
@@ -421,7 +482,7 @@ describe('completion', () => {
     const step = await startDiagnosticAction();
     expect(step).toEqual({
       ok: true,
-      value: { kind: 'completed', attemptId: store.attempts[0]?.id },
+      value: { kind: 'completed', result: RESULT_ALL_RIGHT },
     });
     expect(startOrResumeAttempt).not.toHaveBeenCalled();
     expect(store.attempts).toHaveLength(1);
@@ -458,7 +519,7 @@ describe('completion', () => {
     const step = await startDiagnosticAction();
     expect(step).toEqual({
       ok: true,
-      value: { kind: 'completed', attemptId: store.attempts[0]?.id },
+      value: { kind: 'completed', result: RESULT_ALL_RIGHT },
     });
     expect(store.attempts[0]).toMatchObject({ status: 'COMPLETED' });
     expect(bootstrapFromDiagnostic).toHaveBeenCalledTimes(1);
@@ -467,7 +528,7 @@ describe('completion', () => {
 
 describe('peek (opening /diagnostic)', () => {
   it('a learner who never started gets the intro, and nothing is created', async () => {
-    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
       ok: true,
       value: { kind: 'intro' },
     });
@@ -480,7 +541,7 @@ describe('peek (opening /diagnostic)', () => {
     await answer(false);
     const current = await currentQuestion();
     startOrResumeAttempt.mockClear();
-    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
       ok: true,
       value: { kind: 'question', question: current },
     });
@@ -489,9 +550,146 @@ describe('peek (opening /diagnostic)', () => {
 
   it('a completed attempt shows the result', async () => {
     for (let i = 0; i < 16; i++) await answer(true);
-    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
       ok: true,
-      value: { kind: 'completed', attemptId: store.attempts[0]?.id },
+      value: { kind: 'completed', result: RESULT_ALL_RIGHT },
     });
+  });
+});
+
+describe('the result', () => {
+  async function passAll(how: (i: number) => 'right' | 'dontKnow' = () => 'right') {
+    let last: Awaited<ReturnType<typeof answer>> | undefined;
+    for (let i = 0; i < 16; i++) {
+      if (how(i) === 'right') last = await answer(true);
+      else {
+        const q = await currentQuestion();
+        last = await submitDiagnosticAnswerAction({
+          attemptId: q.attemptId,
+          position: q.position,
+          itemId: q.item.id,
+          dontKnow: true,
+        });
+      }
+    }
+    if (!last?.ok || last.value.step.kind !== 'completed') throw new Error('not completed');
+    return last.value.step;
+  }
+
+  it('carries levels and a start topic only, even when the reveal has tag tallies', async () => {
+    store.tagged = true;
+    const step = await passAll((i) => (i % 3 === 0 ? 'dontKnow' : 'right'));
+    // The fixture is not vacuous: the reveal was fed tagged answers.
+    expect(store.lastFacts?.answers.length).toBe(16);
+    expect(store.lastFacts?.answers.every((a) => a.skillTag !== null)).toBe(true);
+
+    expectNoLeak(step);
+    const json = JSON.stringify(step);
+    for (const word of ['accuracy', 'dontKnow', 'answered', 'skillTag', 'Tag ', 'untagged']) {
+      expect(json, word).not.toContain(word);
+    }
+    expect(Object.keys(step.result).sort()).toEqual(['axes', 'level', 'startConcept']);
+    for (const axis of step.result.axes)
+      expect(Object.keys(axis).sort()).toEqual(['axis', 'level']);
+  });
+
+  it('reads the placement context after the bootstrap', async () => {
+    await passAll();
+    expect(bootstrapFromDiagnostic.mock.invocationCallOrder[0]).toBeLessThan(
+      getPlacementContext.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it('never recommends a practised topic, even the weakest one', async () => {
+    const weak = { conceptId: 'vocab.weak', pKnown: 0.05, lastUpdatedAt: 0, pForgetLambda: 0.01 };
+    store.context = {
+      concepts: [
+        { id: 'vocab.weak', cefrLevel: 'B1' },
+        { id: 'vocab.fresh', cefrLevel: 'B1' },
+      ],
+      masteries: [
+        { ...weak, observationCount: 3 },
+        {
+          conceptId: 'vocab.fresh',
+          pKnown: 0.3,
+          observationCount: 0,
+          lastUpdatedAt: 0,
+          pForgetLambda: 0.01,
+        },
+      ],
+      prereqEdges: [],
+    };
+    expect((await passAll()).result.startConcept).toEqual({ title: 'ru:vocab.fresh' });
+
+    // Control: unpractised, the weaker prior would have won.
+    store.context.masteries[0] = { ...weak, observationCount: 0 };
+    const again = await peekDiagnosticStep('u1', new Date(), 'ru');
+    expect(again.ok && again.value.kind === 'completed' && again.value.result.startConcept).toEqual(
+      {
+        title: 'ru:vocab.weak',
+      },
+    );
+  });
+
+  it('no topic to suggest: the level without a recommendation', async () => {
+    store.context.concepts = [];
+    expect((await passAll()).result).toEqual({ ...RESULT_ALL_RIGHT, startConcept: null });
+  });
+
+  it('a completed attempt with no level shows the level-less result, not a crash', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    store.attempts.push({ id: 'att-x', userId: 'u1', status: 'COMPLETED', answers: [] });
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
+      ok: true,
+      value: { kind: 'completed', result: { level: null, axes: [], startConcept: null } },
+    });
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
+  it('a stored level that differs from the recomputed one is a warning with ids and levels only', async () => {
+    await passAll();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const attempt = store.attempts[0];
+    if (!attempt) throw new Error('no attempt');
+    attempt.assessedLevel = 'A2';
+    const step = await peekDiagnosticStep('u1', new Date(), 'ru');
+    // The screen shows the recomputed level.
+    expect(step.ok && step.value.kind === 'completed' && step.value.result.level).toBe('C1');
+    expect(warn).toHaveBeenCalledTimes(1);
+    const args = warn.mock.calls[0] ?? [];
+    expect(args).toHaveLength(1);
+    expect(args[0]).toBe(
+      `[diagnostic] level mismatch for attempt ${attempt.id}: stored A2, recomputed C1`,
+    );
+    warn.mockRestore();
+  });
+
+  it('a failing result lookup still completes, without a level', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getPlacementContext.mockRejectedValue(new Error('db down'));
+    expect((await passAll()).result).toEqual({ level: null, axes: [], startConcept: null });
+    expect(store.attempts[0]).toMatchObject({ status: 'COMPLETED' });
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
+  });
+});
+
+describe('isDiagnosticDone (the one "done" signal for every CTA)', () => {
+  it('not started or in progress: not done', async () => {
+    expect(await isDiagnosticDone('u1')).toBe(false);
+    await answer(true);
+    expect(await isDiagnosticDone('u1')).toBe(false);
+  });
+
+  it('a completed attempt is done even when its bootstrap wrote no event', async () => {
+    bootstrapFromDiagnostic.mockResolvedValue({ ok: false, error: 'NO_CONCEPTS_BOOTSTRAPPED' });
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    for (let i = 0; i < 16; i++) await answer(true);
+    expect(store.attempts[0]).toMatchObject({ status: 'COMPLETED' });
+    expect(await isDiagnosticDone('u1')).toBe(true);
+    // Someone else's completed attempt is not this learner's.
+    expect(await isDiagnosticDone('u2')).toBe(false);
+    errors.mockRestore();
   });
 });
