@@ -107,6 +107,7 @@ jobs:
       # Concepts + items (with practice questions) for the exercise player e2e.
       - run: pnpm --filter @englishlearn/learner-model seed:concepts
       - run: pnpm --filter @englishlearn/learner-model seed:items
+      - run: pnpm --filter @englishlearn/learner-model seed:diagnostic
 
       - name: Install Playwright browsers
         run: pnpm --filter @englishlearn/web exec playwright install --with-deps chromium

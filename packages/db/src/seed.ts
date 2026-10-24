@@ -10,12 +10,7 @@
 
 import { hash } from 'bcryptjs';
 import { createPrismaClient } from './create-client';
-import {
-  type DiagnosticContent,
-  DiagnosticContentSchema,
-  type GrammarContent,
-  type VocabContent,
-} from './schemas';
+import type { GrammarContent, VocabContent } from './schemas';
 
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 
@@ -176,89 +171,6 @@ async function seedGrammar(adminId: string) {
   }
 }
 
-// Diagnostic items use fixed ids so the seed upserts instead of duplicating on
-// every run.
-async function seedDiagnostic(adminId: string) {
-  const samples: Array<{
-    id: string;
-    kind: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
-    level: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-    content: DiagnosticContent;
-  }> = [
-    {
-      id: 'seed-diag-grammar-a2-01',
-      kind: 'GRAMMAR',
-      level: 'A2',
-      content: {
-        source: {
-          stem: 'I ___ a student.',
-          choices: ['am', 'is', 'are', 'be'],
-          correctIndex: 0,
-        },
-        localized: {
-          explanation: {
-            en: "1st person singular uses 'am'.",
-            ru: "1-е лицо единственного числа использует 'am'.",
-          },
-        },
-      },
-    },
-    {
-      id: 'seed-diag-grammar-b1-01',
-      kind: 'GRAMMAR',
-      level: 'B1',
-      content: {
-        source: {
-          stem: 'If I ___ rich, I would travel the world.',
-          choices: ['was', 'were', 'am', 'be'],
-          correctIndex: 1,
-        },
-        localized: {
-          explanation: {
-            en: "Second conditional uses 'were' for all persons.",
-            ru: "Второе условное использует 'were' для всех лиц.",
-          },
-        },
-      },
-    },
-    {
-      id: 'seed-diag-vocab-b2-01',
-      kind: 'VOCAB',
-      level: 'B2',
-      content: {
-        source: {
-          stem: "The professor's explanation was so ___ that nobody understood.",
-          choices: ['lucid', 'convoluted', 'concise', 'simple'],
-          correctIndex: 1,
-        },
-        localized: {
-          explanation: {
-            en: "'Convoluted' means complicated and hard to follow.",
-            ru: "'Convoluted' означает запутанный и трудный для понимания.",
-          },
-        },
-      },
-    },
-  ];
-
-  for (const s of samples) {
-    const data = {
-      cefrLevel: s.level,
-      kind: s.kind,
-      source: 'CURATED' as const,
-      status: 'PUBLISHED' as const,
-      content: DiagnosticContentSchema.parse(s.content) as object,
-      createdById: adminId,
-      reviewedById: adminId,
-    };
-    await prisma.diagnosticItem.upsert({
-      where: { id: s.id },
-      create: { id: s.id, ...data },
-      update: data,
-    });
-  }
-}
-
 async function main() {
   console.log('→ Seeding users…');
   const { admin } = await seedUsers();
@@ -269,9 +181,6 @@ async function main() {
 
   console.log('→ Seeding grammar exercises…');
   await seedGrammar(admin.id);
-
-  console.log('→ Seeding diagnostic items…');
-  await seedDiagnostic(admin.id);
 
   console.log('✓ Seed complete.');
 }

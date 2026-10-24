@@ -144,6 +144,22 @@ describe('nextLadderStep — scenarios', () => {
     }
   });
 
+  it('right/wrong alternating with 8 B1 questions per axis (the real bank) → B1', () => {
+    const b1x8: LadderPoolItem[] = LADDER_AXES.flatMap((axis) =>
+      LADDER_LEVELS.flatMap((level) =>
+        Array.from({ length: level === 'B1' ? 8 : 6 }, (_, i) => ({
+          id: `bank-${axis}-${level}-${i}`,
+          axis,
+          cefrLevel: level,
+        })),
+      ),
+    );
+    const { answers, last } = run((p) => (Math.floor(p / 2) % 2 === 0 ? 'right' : 'wrong'), b1x8);
+    expect(new Set(answers.map((a) => a.itemLevel))).toEqual(new Set(['B1']));
+    expect(last).toMatchObject({ kind: 'complete', assessedLevel: 'B1' });
+  });
+
+  // Fallback with a 6-question B1 cell (the bank before 2026-10-24).
   it('Р4: right/wrong alternating stays on B1, runs out of its 6 B1 questions, falls back to A2', () => {
     // Per axis: right, wrong, right, wrong, … — never two alike in a row.
     const { answers, steps, last } = run((p) => (Math.floor(p / 2) % 2 === 0 ? 'right' : 'wrong'));
