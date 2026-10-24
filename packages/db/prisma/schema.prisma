@@ -423,7 +423,15 @@ model DiagnosticAttempt {
   startedAt   DateTime         @default(now())
   completedAt DateTime?
 
-  // Pseudo-CAT state
+  /// At most one IN_PROGRESS attempt per user: equals userId while the attempt
+  /// is IN_PROGRESS, NULL once it is COMPLETED or ABANDONED (NULLs never clash
+  /// under @unique). The migration adds CHECK ("activeUserId" IS NULL OR
+  /// ("activeUserId" = "userId" AND "status" = 'IN_PROGRESS')), which Prisma
+  /// does not model.
+  activeUserId String? @unique
+
+  // Pseudo-CAT state — no longer written: the ladder state is rebuilt from
+  // DiagnosticAnswer (itemLevel, position). Dropped in a later migration.
   currentLevel       CefrLevel   @default(B1)
   consecutiveCorrect Int         @default(0)
   consecutiveWrong   Int         @default(0)
@@ -458,6 +466,7 @@ model DiagnosticAnswer {
   item    DiagnosticItem    @relation(fields: [itemId], references: [id])
 
   @@unique([attemptId, position])
+  @@unique([attemptId, itemId])
   @@index([attemptId])
 }
 
