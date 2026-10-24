@@ -39,6 +39,9 @@ describe('message catalogues', () => {
       expect(t('sessionLength.items', { count })).toContain(String(count));
     }
     expect(t('sessionLength.option', { minutes: 20 })).toContain('20');
+    for (const done of [0, 1, 3, 4]) {
+      expect(t('week.progress', { done, goal: 3 })).toMatch(new RegExp(`${done}\\D+3`));
+    }
   });
 
   it('uses the right Slavic plural forms', () => {
@@ -52,5 +55,7 @@ describe('message catalogues', () => {
     expect(ru('sessionLength.items', { count: 6 })).toBe('6 вопросов');
     expect(ru('sessionLength.items', { count: 24 })).toBe('24 вопроса');
     expect(uk('sessionLength.items', { count: 12 })).toBe('12 запитань');
+    expect(ru('week.progress', { done: 2, goal: 3 })).toBe('2 из 3 сессий');
+    expect(uk('week.progress', { done: 1, goal: 3 })).toBe('1 з 3 сесій');
   });
 });

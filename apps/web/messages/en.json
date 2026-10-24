@@ -156,6 +156,15 @@
       "dontKnow": "I don't know",
       "progressTitle": "Moved up",
       "reviewTitle": "Coming back for review"
+    },
+    "week": {
+      "title": "This week",
+      "progress": "{done} of {goal, plural, one {# session} other {# sessions}}",
+      "rule": "A day counts once you answer 5 questions.",
+      "goalMet": "Weekly goal reached. Anything more is a bonus.",
+      "dayDone": "session done",
+      "dayOpen": "no session",
+      "today": "today"
     }
   }
 }

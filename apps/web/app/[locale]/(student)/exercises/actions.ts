@@ -2,10 +2,12 @@
 
 import { getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
 import { getConceptTitle, isLocale } from '@englishlearn/db/schemas';
+import type { WeekRhythm } from '@englishlearn/learner-model';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { loadNextExercise } from '@/lib/exercise/load';
+import { loadWeekRhythm } from '@/lib/exercise/rhythm';
 import {
   consequenceFor,
   correctAnswerOf,
@@ -20,7 +22,7 @@ import {
 import { learnerService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 
-export type ExerciseActionError = 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND';
+export type ExerciseActionError = 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'UNAVAILABLE';
 
 const ItemIdSchema = z.string().min(1).max(200);
 
@@ -106,4 +108,22 @@ export async function submitExerciseAttempt(
       review: reviewFor(recorded.scheduledDays),
     },
   };
+}
+
+/**
+ * This week's sessions for the session summary. `timeZone` is the client's
+ * IANA zone; anything invalid is treated as UTC (never trusted as-is).
+ */
+export async function weekRhythm(
+  timeZone: unknown,
+): Promise<Result<WeekRhythm, ExerciseActionError>> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: 'UNAUTHENTICATED' };
+  try {
+    return { ok: true, value: await loadWeekRhythm({ userId: session.user.id, timeZone }) };
+  } catch (err) {
+    // The summary just hides the rhythm; the cause belongs in the server log.
+    console.error('weekRhythm failed', err);
+    return { ok: false, error: 'UNAVAILABLE' };
+  }
 }

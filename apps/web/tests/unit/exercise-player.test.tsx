@@ -5,14 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExerciseFeedback, ExerciseView } from '@/lib/exercise/view';
 import en from '../../messages/en.json';
 
-const { submitExerciseAttempt, nextExercise, push } = vi.hoisted(() => ({
+const { submitExerciseAttempt, nextExercise, weekRhythm, push } = vi.hoisted(() => ({
   submitExerciseAttempt: vi.fn(),
   nextExercise: vi.fn(),
+  weekRhythm: vi.fn(),
   push: vi.fn(),
 }));
 vi.mock('@/app/[locale]/(student)/exercises/actions', () => ({
   submitExerciseAttempt,
   nextExercise,
+  weekRhythm,
 }));
 vi.mock('@/i18n/navigation', () => ({
   Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
@@ -55,6 +57,19 @@ const feedback: ExerciseFeedback = {
   review: { kind: 'backInDays', days: 3 },
 };
 
+const week = {
+  days: ['19', '20', '21', '22', '23', '24', '25'].map((d, i) => ({
+    date: `2026-10-${d}`,
+    attempts: i === 0 || i === 2 ? 6 : 0,
+    counted: i === 0 || i === 2,
+    isToday: i === 2,
+    isFuture: i > 2,
+  })),
+  sessions: 2,
+  goal: 3,
+  timeZone: 'Europe/Vienna',
+};
+
 function renderPlayer(initial: ExerciseView, sessionLength = 12) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
@@ -70,6 +85,7 @@ const key = (k: string, target: Element | Window = window) =>
 beforeEach(() => {
   vi.clearAllMocks();
   submitExerciseAttempt.mockResolvedValue({ ok: true, value: feedback });
+  weekRhythm.mockResolvedValue({ ok: true, value: week });
 });
 
 describe('ExercisePlayer', () => {
@@ -206,6 +222,13 @@ describe('ExercisePlayer', () => {
     ).toEqual(['Past Simple']);
     // Progress, not a replay of the answers.
     expect(document.body).not.toHaveTextContent(/went|boxes/);
+
+    // This week's rhythm, asked for in the browser's own time zone.
+    const rhythm = await screen.findByRole('region', { name: 'This week' });
+    expect(weekRhythm).toHaveBeenCalledWith(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    expect(rhythm).toHaveTextContent('2 of 3 sessions');
+    expect(rhythm).toHaveTextContent('Wed, today, session done');
+    expect(rhythm).toHaveTextContent('A day counts once you answer 5 questions.');
   });
 
   it('Another session starts over from zero', async () => {

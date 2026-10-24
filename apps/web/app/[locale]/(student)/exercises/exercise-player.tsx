@@ -15,6 +15,7 @@ import type {
 } from '@/lib/exercise/view';
 import { nextExercise, submitExerciseAttempt } from './actions';
 import { SessionSummary } from './session-summary';
+import { WeekRhythmPanel } from './week-rhythm-panel';
 
 const GAP = '___';
 
@@ -178,7 +179,9 @@ export function ExercisePlayer({
         onAgain={startAgain}
         primaryClassName={primaryButton}
         quietClassName={quietButton}
-      />
+      >
+        <WeekRhythmPanel />
+      </SessionSummary>
     );
   }
 

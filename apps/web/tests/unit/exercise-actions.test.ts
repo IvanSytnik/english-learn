@@ -1,18 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { auth, getPublishedPracticeItem, recordOutcome, loadNextExercise } = vi.hoisted(() => ({
-  auth: vi.fn(),
-  getPublishedPracticeItem: vi.fn(),
-  recordOutcome: vi.fn(),
-  loadNextExercise: vi.fn(),
-}));
+const { auth, getPublishedPracticeItem, recordOutcome, loadNextExercise, getAttemptEvents } =
+  vi.hoisted(() => ({
+    auth: vi.fn(),
+    getPublishedPracticeItem: vi.fn(),
+    recordOutcome: vi.fn(),
+    loadNextExercise: vi.fn(),
+    getAttemptEvents: vi.fn(),
+  }));
+vi.mock('server-only', () => ({}));
+vi.mock('@englishlearn/db', () => ({ prisma: {} }));
+vi.mock('@englishlearn/db/queries/learner-activity', () => ({ getAttemptEvents }));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@/lib/learner', () => ({ learnerService: { recordOutcome } }));
 vi.mock('@/lib/exercise/load', () => ({ loadNextExercise }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({ getPublishedPracticeItem }));
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'ru' }));
 
-const { nextExercise, submitExerciseAttempt } = await import(
+const { nextExercise, submitExerciseAttempt, weekRhythm } = await import(
   '@/app/[locale]/(student)/exercises/actions'
 );
 
@@ -152,5 +157,65 @@ describe('nextExercise', () => {
   it('rejects anonymous callers', async () => {
     auth.mockResolvedValue(null);
     expect(await nextExercise([])).toEqual({ ok: false, error: 'UNAUTHENTICATED' });
+  });
+});
+
+describe('weekRhythm', () => {
+  // Five answers at Tue 2026-10-20 00:30 in Vienna (= Mon 22:30 UTC).
+  const tuesdayInVienna = Array.from({ length: 5 }, (_, i) => ({
+    type: 'ITEM_ATTEMPTED',
+    occurredAt: Date.parse('2026-10-19T22:30:00Z') + i * 1000,
+  }));
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-21T10:00:00Z'));
+    getAttemptEvents.mockResolvedValue(tuesdayInVienna);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects anonymous callers without reading events', async () => {
+    auth.mockResolvedValue(null);
+    expect(await weekRhythm('Europe/Vienna')).toEqual({ ok: false, error: 'UNAUTHENTICATED' });
+    expect(getAttemptEvents).not.toHaveBeenCalled();
+  });
+
+  it("reads only the caller's events, in a window covering the week", async () => {
+    await weekRhythm('Europe/Vienna');
+    const now = Date.parse('2026-10-21T10:00:00Z');
+    expect(getAttemptEvents).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'user_1',
+      fromMs: now - 8 * 86_400_000,
+      toMs: now,
+    });
+  });
+
+  it("counts days in the client's time zone", async () => {
+    const res = await weekRhythm('Europe/Vienna');
+    expect(res.ok && res.value.timeZone).toBe('Europe/Vienna');
+    expect(res.ok && res.value.days.filter((d) => d.counted).map((d) => d.date)).toEqual([
+      '2026-10-20',
+    ]);
+  });
+
+  it('logs a failed read on the server and returns UNAVAILABLE instead of throwing', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const boom = new Error('connection reset');
+    getAttemptEvents.mockRejectedValue(boom);
+    expect(await weekRhythm('Europe/Vienna')).toEqual({ ok: false, error: 'UNAVAILABLE' });
+    expect(error).toHaveBeenCalledWith('weekRhythm failed', boom);
+    error.mockRestore();
+  });
+
+  it('treats an invalid time zone as UTC instead of trusting it', async () => {
+    for (const tz of ['Not/AZone', 42, { toString: () => 'Europe/Vienna' }]) {
+      const res = await weekRhythm(tz);
+      expect(res.ok && res.value.timeZone).toBe('UTC');
+      expect(res.ok && res.value.days.filter((d) => d.counted).map((d) => d.date)).toEqual([
+        '2026-10-19',
+      ]);
+    }
   });
 });

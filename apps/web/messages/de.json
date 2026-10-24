@@ -156,6 +156,15 @@
       "dontKnow": "Weiß ich nicht",
       "progressTitle": "Aufgestiegen",
       "reviewTitle": "Kommt zur Wiederholung"
+    },
+    "week": {
+      "title": "Diese Woche",
+      "progress": "{done} von {goal, plural, one {# Sitzung} other {# Sitzungen}}",
+      "rule": "Ein Tag zählt ab 5 Antworten.",
+      "goalMet": "Wochenziel erreicht. Alles Weitere ist ein Bonus.",
+      "dayDone": "Sitzung erledigt",
+      "dayOpen": "keine Sitzung",
+      "today": "heute"
     }
   }
 }

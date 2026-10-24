@@ -15,6 +15,7 @@ export * from './core/graph';
 export * from './core/graph/types';
 export * from './policy';
 export * from './mastery';
+export * from './rhythm';
 export { createSelectionService, type SelectionService } from './service/selection-service';
 
 // Diagnostic v2: bootstrap pipeline (pure) + write-path service.

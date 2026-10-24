@@ -17,3 +17,4 @@ export {
 } from './session-length-picker';
 export { StageLabel, type StageLabelProps, type StageValue } from './stage-label';
 export { cn } from './utils';
+export { WeekRhythm, type WeekRhythmDayView, type WeekRhythmProps } from './week-rhythm';
