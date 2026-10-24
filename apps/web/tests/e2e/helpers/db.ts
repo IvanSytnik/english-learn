@@ -1,0 +1,54 @@
+import { createPrismaClient } from '@englishlearn/db/create-client';
+
+/**
+ * Read-only database checks for e2e: what the UI cannot show (yet) — that an
+ * attempt was or was not created, that the bootstrap reached the learner
+ * model. Never writes.
+ *
+ * CI sets DATABASE_URL for the job; locally it comes from apps/web/.env, the
+ * same database the production build under test uses.
+ */
+
+if (!process.env.DATABASE_URL) {
+  try {
+    process.loadEnvFile('.env');
+  } catch {
+    // No .env: createPrismaClient reports the missing URL on first use.
+  }
+}
+
+let client: ReturnType<typeof createPrismaClient> | undefined;
+
+function db() {
+  client ??= createPrismaClient(process.env.DATABASE_URL);
+  return client;
+}
+
+/** Call from afterAll in every spec that uses these checks. */
+export async function closeDb() {
+  await client?.$disconnect();
+  client = undefined;
+}
+
+/** The learner's diagnostic footprint, by e-mail. */
+export async function diagnosticFootprint(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const [attempts, bootstrapEvents, priors] = await Promise.all([
+    db().diagnosticAttempt.findMany({
+      where: { userId: user.id },
+      select: { status: true, assessedLevel: true, _count: { select: { answers: true } } },
+    }),
+    db().learnerEvent.count({ where: { userId: user.id, type: 'LEARNER_BOOTSTRAPPED' } }),
+    // Only a bootstrap writes ConceptMastery rows with no observation.
+    db().conceptMastery.count({ where: { userId: user.id, observationCount: 0 } }),
+  ]);
+  return {
+    attempts: attempts.map((a) => ({
+      status: a.status,
+      assessedLevel: a.assessedLevel,
+      answers: a._count.answers,
+    })),
+    bootstrapEvents,
+    priors,
+  };
+}

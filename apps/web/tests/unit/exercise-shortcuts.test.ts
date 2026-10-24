@@ -62,4 +62,14 @@ describe('focusKind', () => {
     expect(focusKind(option)).toEqual({ inTextField: false, onActivatable: false });
     expect(focusKind(null)).toEqual({ inTextField: false, onActivatable: false });
   });
+
+  it('a radio option is not a text field: digits and Enter still act on it', () => {
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.dataset.playerOption = '';
+    expect(focusKind(radio)).toEqual({ inTextField: false, onActivatable: false });
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    expect(focusKind(checkbox).inTextField).toBe(false);
+  });
 });

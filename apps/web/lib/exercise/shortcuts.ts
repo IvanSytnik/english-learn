@@ -64,8 +64,11 @@ export function focusKind(target: EventTarget | null): {
 } {
   if (!(target instanceof HTMLElement)) return { inTextField: false, onActivatable: false };
   const tag = target.tagName;
+  // A radio or checkbox takes no typing: digits on it are still shortcuts.
+  const typed =
+    tag === 'INPUT' && !['radio', 'checkbox'].includes((target as HTMLInputElement).type);
   const inTextField =
-    tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true;
+    typed || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable === true;
   // Option rows are buttons too, but Enter on a just-clicked option means
   // "check", not "click this option again".
   const onActivatable = (tag === 'BUTTON' || tag === 'A') && !('playerOption' in target.dataset);

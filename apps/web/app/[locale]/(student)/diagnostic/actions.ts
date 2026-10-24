@@ -31,8 +31,8 @@ async function studentId(): Promise<Result<string, DiagnosticActionError>> {
   return { ok: true, value: session.user.id };
 }
 
-/** Start or resume the signed-in learner's diagnostic. */
-export async function getDiagnosticStepAction(): Promise<
+/** Start (Start button) or resume the signed-in learner's diagnostic. */
+export async function startDiagnosticAction(): Promise<
   Result<DiagnosticStep, DiagnosticActionError>
 > {
   const user = await studentId();

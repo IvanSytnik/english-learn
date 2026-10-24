@@ -1,8 +1,8 @@
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
 
-// Until the diagnostic UI ships, every primary CTA leads to practice and
-// nothing points the learner at the stub /diagnostic.
+// Until the diagnostic result (reveal) ships, every primary CTA leads to
+// practice and nothing points the learner at /diagnostic.
 
 // A fresh account per test: runs are parallel and must not share a learner.
 async function registerFreshStudent(page: Page) {
@@ -30,13 +30,9 @@ test('/ru/dashboard: the primary CTA leads to /ru/exercises, not the diagnostic'
   await expect(page.locator('main a[href="/ru/diagnostic"]')).toHaveCount(0);
 });
 
-test('/ru/diagnostic: no dead button, a link to practice instead', async ({ page }) => {
+test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) => {
   await registerFreshStudent(page);
   await page.goto('/ru/diagnostic');
-  await expect(page.locator('main')).toBeVisible();
-  await expect(page.locator('main button')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'К практике' })).toHaveAttribute(
-    'href',
-    '/ru/exercises',
-  );
+  await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Начать' })).toBeEnabled();
 });

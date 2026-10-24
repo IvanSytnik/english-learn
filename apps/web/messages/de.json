@@ -67,9 +67,21 @@
     },
     "diagnostic": {
       "title": "Einstufungstest",
-      "intro": "Wir stellen dir ~15-20 Fragen unterschiedlicher Schwierigkeit, um dein Niveau zu ermitteln.",
+      "intro": "16 kurze Fragen, etwa 5 Minuten. Die Schwierigkeit passt sich deinen Antworten an, um dein Niveau zu finden.",
+      "introNoGrades": "Während des Tests siehst du nicht, ob eine Antwort richtig war.",
+      "introDontKnow": "Nicht sicher? Wähle „Weiß ich nicht“ — das ist eine echte Antwort und besser als Raten.",
       "start": "Starten",
-      "comingSoon": "Der Einstufungstest kommt bald. Bis dahin kannst du direkt üben: Die Übungen passen sich dir unterwegs an.",
+      "progress": "Testfortschritt",
+      "progressValue": "{done} von {total} beantwortet",
+      "questionOf": "Frage {n} von {total}",
+      "chooseInstruction": "Wähle die Option, die in die Lücke passt.",
+      "answer": "Antworten",
+      "dontKnow": "Weiß ich nicht",
+      "error": "Deine Antwort wurde nicht gesendet. Versuch es noch einmal.",
+      "doneTitle": "Fertig!",
+      "doneText": "Danke — deine Antworten sind da. Das Üben beginnt jetzt auf deinem Niveau.",
+      "unavailableTitle": "Der Einstufungstest ist nicht verfügbar",
+      "unavailable": "Der Einstufungstest ist vorübergehend nicht verfügbar. Bis dahin kannst du üben.",
       "goToPractice": "Zum Üben"
     },
     "exercises": {

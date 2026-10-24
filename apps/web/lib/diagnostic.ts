@@ -4,6 +4,7 @@ import { prisma } from '@englishlearn/db';
 import {
   appendAnswer,
   completeAttempt,
+  getActiveAttempt,
   getAttemptState,
   getBootstrapConcepts,
   getCompletedAttempt,
@@ -42,6 +43,9 @@ export type DiagnosticStep =
   | { kind: 'question'; question: DiagnosticQuestionView }
   | { kind: 'completed'; attemptId: string };
 
+/** What a visit to /diagnostic shows; `intro` until the learner presses Start. */
+export type DiagnosticPeek = DiagnosticStep | { kind: 'intro' };
+
 export type DiagnosticError =
   /** Unknown, foreign or abandoned attempt. */
   | 'NOT_IN_PROGRESS'
@@ -61,7 +65,26 @@ export type DiagnosticSubmitOutcome = {
   step: DiagnosticStep;
 };
 
-/** The learner's current step: their completed result, or the next question. */
+/**
+ * What the learner sees on arrival — without starting anything: their result,
+ * the question of the attempt they left, or the intro. Merely opening the
+ * page must not create an attempt.
+ */
+export async function peekDiagnosticStep(
+  userId: string,
+  now: Date,
+): Promise<Result<DiagnosticPeek, DiagnosticError>> {
+  const completed = await getCompletedAttempt(prisma, userId);
+  if (completed) {
+    await ensureBootstrapped(userId, completed.attemptId);
+    return { ok: true, value: { kind: 'completed', attemptId: completed.attemptId } };
+  }
+  const active = await getActiveAttempt(prisma, userId, now);
+  if (!active) return { ok: true, value: { kind: 'intro' } };
+  return stepOf(userId, active.attemptId, now);
+}
+
+/** Start (or resume) the attempt: the completed result, or the next question. */
 export async function getDiagnosticStep(
   userId: string,
   now: Date,

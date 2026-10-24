@@ -28,6 +28,45 @@ function isUniqueViolation(e: unknown): boolean {
 }
 
 /**
+ * The user's IN_PROGRESS attempt with whether it is still fresh: idle (no
+ * answer, or start) for at most ATTEMPT_IDLE_LIMIT_MS.
+ */
+async function findActive(
+  db: Pick<PrismaClient, 'diagnosticAttempt'>,
+  userId: string,
+  now: Date,
+): Promise<{ id: string; fresh: boolean } | null> {
+  const active = await db.diagnosticAttempt.findUnique({
+    where: { activeUserId: userId },
+    select: {
+      id: true,
+      startedAt: true,
+      answers: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+    },
+  });
+  if (!active) return null;
+  const lastActivity = Math.max(
+    active.startedAt.getTime(),
+    active.answers[0]?.createdAt.getTime() ?? 0,
+  );
+  return { id: active.id, fresh: now.getTime() - lastActivity <= ATTEMPT_IDLE_LIMIT_MS };
+}
+
+/**
+ * The attempt the learner would resume, without writing anything: null when
+ * there is none or it has been idle too long (startOrResumeAttempt abandons
+ * that one and starts over).
+ */
+export async function getActiveAttempt(
+  db: Pick<PrismaClient, 'diagnosticAttempt'>,
+  userId: string,
+  now: Date,
+): Promise<{ attemptId: string } | null> {
+  const active = await findActive(db, userId, now);
+  return active?.fresh ? { attemptId: active.id } : null;
+}
+
+/**
  * The user's IN_PROGRESS attempt, or a new one. An attempt idle for over 24 h
  * (no answer, or start, since) is abandoned first, so the learner starts over.
  * Two tabs racing to create both end up on the same attempt.
@@ -37,23 +76,9 @@ export async function startOrResumeAttempt(
   userId: string,
   now: Date,
 ): Promise<{ attemptId: string; resumed: boolean }> {
-  const active = await db.diagnosticAttempt.findUnique({
-    where: { activeUserId: userId },
-    select: {
-      id: true,
-      startedAt: true,
-      answers: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
-    },
-  });
-
+  const active = await findActive(db, userId, now);
+  if (active?.fresh) return { attemptId: active.id, resumed: true };
   if (active) {
-    const lastActivity = Math.max(
-      active.startedAt.getTime(),
-      active.answers[0]?.createdAt.getTime() ?? 0,
-    );
-    if (now.getTime() - lastActivity <= ATTEMPT_IDLE_LIMIT_MS) {
-      return { attemptId: active.id, resumed: true };
-    }
     await db.diagnosticAttempt.updateMany({
       where: { id: active.id, status: 'IN_PROGRESS' },
       data: { status: 'ABANDONED', activeUserId: null },

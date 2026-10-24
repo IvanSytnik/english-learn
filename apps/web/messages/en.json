@@ -67,9 +67,21 @@
     },
     "diagnostic": {
       "title": "Diagnostic test",
-      "intro": "We will ask you ~15-20 questions of varying difficulty to determine your level.",
+      "intro": "16 short questions, about 5 minutes. They get easier or harder as you go, to find your level.",
+      "introNoGrades": "You won't see whether an answer was right during the test.",
+      "introDontKnow": "Not sure? Choose “I don't know” — it is a real answer, and a better one than a guess.",
       "start": "Start",
-      "comingSoon": "The diagnostic test is coming soon. Meanwhile you can start practising right away: exercises adapt to you as you go.",
+      "progress": "Test progress",
+      "progressValue": "{done} of {total} answered",
+      "questionOf": "Question {n} of {total}",
+      "chooseInstruction": "Choose the option that fits the gap.",
+      "answer": "Answer",
+      "dontKnow": "I don't know",
+      "error": "Your answer didn't go through. Try again.",
+      "doneTitle": "Done!",
+      "doneText": "Thank you — your answers are in. Practice now starts from your level.",
+      "unavailableTitle": "The diagnostic test is unavailable",
+      "unavailable": "The diagnostic test is temporarily unavailable. You can practise in the meantime.",
       "goToPractice": "Go to practice"
     },
     "exercises": {

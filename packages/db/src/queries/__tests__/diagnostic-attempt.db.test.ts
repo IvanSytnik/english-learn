@@ -5,6 +5,7 @@ import {
   ATTEMPT_IDLE_LIMIT_MS,
   appendAnswer,
   completeAttempt,
+  getActiveAttempt,
   getAttemptState,
   getBootstrapConcepts,
   getCompletedAttempt,
@@ -124,6 +125,24 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
       expect(
         await db.diagnosticAttempt.findUniqueOrThrow({ where: { id: old.attemptId } }),
       ).toMatchObject({ status: 'ABANDONED', activeUserId: null });
+    });
+
+    it('getActiveAttempt peeks without writing: fresh → the attempt, idle or none → null', async () => {
+      const userId = await newUser();
+      const t0 = new Date('2026-10-01T10:00:00Z');
+      expect(await getActiveAttempt(db, userId, t0)).toBeNull();
+      expect(await db.diagnosticAttempt.count({ where: { userId } })).toBe(0);
+
+      const { attemptId } = await startOrResumeAttempt(db, userId, t0);
+      expect(await getActiveAttempt(db, userId, new Date(t0.getTime() + HOUR))).toEqual({
+        attemptId,
+      });
+      const idle = new Date(t0.getTime() + ATTEMPT_IDLE_LIMIT_MS + 1);
+      expect(await getActiveAttempt(db, userId, idle)).toBeNull();
+      // Peeking never abandons: the row is untouched.
+      expect(
+        await db.diagnosticAttempt.findUniqueOrThrow({ where: { id: attemptId } }),
+      ).toMatchObject({ status: 'IN_PROGRESS', activeUserId: userId });
     });
 
     it('a recent answer keeps an old attempt alive', async () => {

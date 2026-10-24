@@ -73,6 +73,11 @@ vi.mock('@englishlearn/db/queries/diagnostic-attempt', () => ({
   startOrResumeAttempt,
   appendAnswer,
   completeAttempt,
+  // The 24 h idle rule is the query's (covered in packages/db); here every open attempt is fresh.
+  getActiveAttempt: async (_db: unknown, userId: string) => {
+    const a = store.attempts.find((x) => x.userId === userId && x.status === 'IN_PROGRESS');
+    return a ? { attemptId: a.id } : null;
+  },
   getCompletedAttempt: async (_db: unknown, userId: string) => {
     const a = store.attempts.find((x) => x.userId === userId && x.status === 'COMPLETED');
     return a ? { attemptId: a.id } : null;
@@ -126,9 +131,10 @@ vi.mock('@englishlearn/db/queries/exercises', () => ({
   },
 }));
 
-const { getDiagnosticStepAction, submitDiagnosticAnswerAction } = await import(
+const { startDiagnosticAction, submitDiagnosticAnswerAction } = await import(
   '@/app/[locale]/(student)/diagnostic/actions'
 );
+const { peekDiagnosticStep } = await import('@/lib/diagnostic');
 
 /** The in-memory attempt queries, with the database's semantics. */
 function useMemoryAttempts() {
@@ -187,7 +193,7 @@ function useMemoryAttempts() {
 const asStudent = (id = 'u1') => auth.mockResolvedValue({ user: { id, role: 'STUDENT' } });
 
 async function currentQuestion() {
-  const step = await getDiagnosticStepAction();
+  const step = await startDiagnosticAction();
   if (!step.ok || step.value.kind !== 'question')
     throw new Error(`no question: ${JSON.stringify(step)}`);
   return step.value.question;
@@ -239,10 +245,10 @@ beforeEach(() => {
 describe('access', () => {
   it('requires a signed-in student', async () => {
     auth.mockResolvedValue(null);
-    expect(await getDiagnosticStepAction()).toEqual({ ok: false, error: 'UNAUTHENTICATED' });
+    expect(await startDiagnosticAction()).toEqual({ ok: false, error: 'UNAUTHENTICATED' });
     for (const role of ['TUTOR', 'ADMIN']) {
       auth.mockResolvedValue({ user: { id: 'u1', role } });
-      expect(await getDiagnosticStepAction()).toEqual({ ok: false, error: 'FORBIDDEN' });
+      expect(await startDiagnosticAction()).toEqual({ ok: false, error: 'FORBIDDEN' });
       expect(
         await submitDiagnosticAnswerAction({
           attemptId: 'a',
@@ -287,7 +293,7 @@ describe('access', () => {
 
 describe('no feedback during the test', () => {
   it('a question carries its stem and choices only', async () => {
-    const step = await getDiagnosticStepAction();
+    const step = await startDiagnosticAction();
     expect(
       step.ok && step.value.kind === 'question' && Object.keys(step.value.question.item),
     ).toEqual(['id', 'stem', 'choices']);
@@ -378,7 +384,7 @@ describe('the attempt', () => {
   it('a bank that runs dry is an error, not a crash', async () => {
     store.bank = store.bank.filter((q) => q.kind === 'GRAMMAR');
     await answer(true);
-    expect(await getDiagnosticStepAction()).toEqual({ ok: false, error: 'BANK_EXHAUSTED' });
+    expect(await startDiagnosticAction()).toEqual({ ok: false, error: 'BANK_EXHAUSTED' });
   });
 });
 
@@ -413,7 +419,7 @@ describe('completion', () => {
   it('a learner with a completed attempt gets the result, never a new attempt', async () => {
     for (let i = 0; i < 16; i++) await answer(true);
     startOrResumeAttempt.mockClear();
-    const step = await getDiagnosticStepAction();
+    const step = await startDiagnosticAction();
     expect(step).toEqual({
       ok: true,
       value: { kind: 'completed', attemptId: store.attempts[0]?.id },
@@ -431,7 +437,7 @@ describe('completion', () => {
     expect(last?.ok && last.value.step.kind).toBe('completed');
     expect(errors).toHaveBeenCalled();
 
-    await getDiagnosticStepAction();
+    await startDiagnosticAction();
     expect(bootstrapFromDiagnostic).toHaveBeenCalledTimes(2);
     expect(bootstrapFromDiagnostic.mock.calls[1]?.[0]).toEqual(
       bootstrapFromDiagnostic.mock.calls[0]?.[0],
@@ -450,12 +456,43 @@ describe('completion', () => {
     expect(store.attempts[0]?.answers).toHaveLength(16);
     expect(bootstrapFromDiagnostic).not.toHaveBeenCalled();
 
-    const step = await getDiagnosticStepAction();
+    const step = await startDiagnosticAction();
     expect(step).toEqual({
       ok: true,
       value: { kind: 'completed', attemptId: store.attempts[0]?.id },
     });
     expect(store.attempts[0]).toMatchObject({ status: 'COMPLETED' });
     expect(bootstrapFromDiagnostic).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('peek (opening /diagnostic)', () => {
+  it('a learner who never started gets the intro, and nothing is created', async () => {
+    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+      ok: true,
+      value: { kind: 'intro' },
+    });
+    expect(startOrResumeAttempt).not.toHaveBeenCalled();
+    expect(store.attempts).toHaveLength(0);
+  });
+
+  it('an attempt in progress resumes at its current question', async () => {
+    await answer(true);
+    await answer(false);
+    const current = await currentQuestion();
+    startOrResumeAttempt.mockClear();
+    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+      ok: true,
+      value: { kind: 'question', question: current },
+    });
+    expect(startOrResumeAttempt).not.toHaveBeenCalled();
+  });
+
+  it('a completed attempt shows the result', async () => {
+    for (let i = 0; i < 16; i++) await answer(true);
+    expect(await peekDiagnosticStep('u1', new Date())).toEqual({
+      ok: true,
+      value: { kind: 'completed', attemptId: store.attempts[0]?.id },
+    });
   });
 });
