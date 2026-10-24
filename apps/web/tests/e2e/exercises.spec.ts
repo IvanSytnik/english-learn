@@ -14,10 +14,30 @@ async function registerFreshLearner(page: Page) {
   await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
 }
 
+/**
+ * The question type is Thompson's pick, not the test's. A cloze question has a
+ * text field, and the input guard (correctly) sends `0` there as a character,
+ * so `0` only means "I don't know" on a choice question.
+ */
+const answerField = (page: Page) => page.getByRole('textbox', { name: 'Ваш ответ' });
+
+/**
+ * Wait until a question is interactive (its text field or its options), so a
+ * type check never runs while the next question is still loading.
+ */
+async function questionType(page: Page): Promise<'cloze' | 'choice'> {
+  const field = answerField(page);
+  await expect(field.or(page.locator('[data-player-option]').first())).toBeVisible(AFTER_SUBMIT);
+  return (await field.isVisible()) ? 'cloze' : 'choice';
+}
+
+/** "I don't know" on any question type: the visible button, not the key. */
+const dontKnowButton = (page: Page) => page.getByRole('button', { name: /^Не знаю/ });
+
 /** Answer whatever question is on screen using only the keyboard. */
 async function answerWithKeyboard(page: Page) {
-  const field = page.getByRole('textbox', { name: 'Ваш ответ' });
-  if (await field.isVisible()) {
+  const field = answerField(page);
+  if ((await questionType(page)) === 'cloze') {
     await field.fill('answer');
     await field.press('Enter');
   } else {
@@ -50,16 +70,28 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   await expect(prompt).toHaveAttribute('lang', 'en');
   await expect(prompt).toContainText(/\S/);
 
+  // The `0` key needs a choice question: answer cloze questions until one
+  // comes up (54 of the 60 items are choice, so this is at most a step or two).
+  const status = page.getByRole('status');
+  let answered = 0;
+  while ((await questionType(page)) === 'cloze') {
+    expect(answered, 'no choice question within the session').toBeLessThan(4);
+    await answerWithKeyboard(page);
+    await expect(status.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
+    answered += 1;
+    await page.keyboard.press('Enter');
+    await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+  }
+
   // 0 = "I don't know": answer revealed inline, prompt stays visible.
   await page.keyboard.press('0');
-  const status = page.getByRole('status');
   await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText('Вот ответ', AFTER_SUBMIT);
   await expect(status).toContainText('Ответ:');
   await expect(status.locator('[data-consequence]')).toHaveText(
     /Скоро вернёмся к этому|Вернёмся через/,
   );
   await expect(prompt).toBeVisible();
-  await expect(progress).toHaveAttribute('aria-valuenow', '1');
+  await expect(progress).toHaveAttribute('aria-valuenow', String(answered + 1));
 
   // Enter = Continue → a new question.
   await page.keyboard.press('Enter');
@@ -67,7 +99,7 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
 
   await answerWithKeyboard(page);
   await expect(status.locator('[data-verdict]')).toHaveText(/Верно|Не совсем/, AFTER_SUBMIT);
-  await expect(progress).toHaveAttribute('aria-valuenow', '2');
+  await expect(progress).toHaveAttribute('aria-valuenow', String(answered + 2));
 
   // Esc = pause → dashboard.
   await page.keyboard.press('Escape');
@@ -105,7 +137,7 @@ test.describe('session summary (Europe/Vienna)', () => {
     const status = page.getByRole('status');
 
     for (let done = 1; done <= 6; done++) {
-      if (done % 2 === 0) await page.keyboard.press('0');
+      if (done % 2 === 0) await dontKnowButton(page).click();
       else await answerWithKeyboard(page);
       await expect(status.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
       await expect(progress).toHaveAttribute('aria-valuenow', String(done));
