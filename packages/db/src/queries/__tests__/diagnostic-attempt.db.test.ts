@@ -6,6 +6,8 @@ import {
   appendAnswer,
   completeAttempt,
   getAttemptState,
+  getBootstrapConcepts,
+  getCompletedAttempt,
   getDiagnosticPool,
   startOrResumeAttempt,
 } from '../diagnostic-attempt';
@@ -34,6 +36,7 @@ const ITEM = {
   vocabB1: `test-diag-${RUN}-v-b1`,
   draft: `test-diag-${RUN}-g-draft`,
 } as const;
+const CONCEPT = `test-diag-${RUN}.concept`;
 const HOUR = 60 * 60 * 1000;
 
 describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
@@ -77,6 +80,7 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
     // Cascades to attempts and answers, which must go before their items.
     await db.user.deleteMany({ where: { id: { in: userIds } } });
     await db.diagnosticItem.deleteMany({ where: { id: { in: Object.values(ITEM) } } });
+    await db.concept.deleteMany({ where: { id: CONCEPT } });
     await db.$disconnect();
   });
 
@@ -287,6 +291,27 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
         ],
       });
       expect(await getAttemptState(db, attemptId, await newUser())).toBeNull();
+    });
+
+    it('completed attempt: none until completion, then that attempt', async () => {
+      const userId = await newUser();
+      const { attemptId } = await startOrResumeAttempt(db, userId, new Date());
+      expect(await getCompletedAttempt(db, userId)).toBeNull();
+      await completeAttempt(db, { attemptId, userId, assessedLevel: 'B1', now: new Date() });
+      expect(await getCompletedAttempt(db, userId)).toEqual({ attemptId });
+      expect(await getCompletedAttempt(db, await newUser())).toBeNull();
+    });
+
+    it('bootstrap concepts: id, category and level of every concept', async () => {
+      await db.concept.create({
+        data: { id: CONCEPT, name: 'Test concept', cefrLevel: 'B2', category: 'VOCAB' },
+      });
+      const concepts = await getBootstrapConcepts(db);
+      expect(concepts.find((c) => c.id === CONCEPT)).toEqual({
+        id: CONCEPT,
+        category: 'VOCAB',
+        cefrLevel: 'B2',
+      });
     });
 
     it('pool: PUBLISHED questions only, without content', async () => {

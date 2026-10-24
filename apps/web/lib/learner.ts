@@ -2,6 +2,7 @@ import 'server-only';
 
 import { prisma } from '@englishlearn/db';
 import {
+  createBootstrapService,
   createLearnerService,
   createPrismaLearnerDb,
   createSelectionService,
@@ -9,10 +10,12 @@ import {
 
 /**
  * The learner model wired to the app's single Prisma client. The only place
- * apps/web constructs learner-model services: recordOutcome (write path) and
- * selectNext (read path) both go through these.
+ * apps/web constructs learner-model services: recordOutcome and the
+ * diagnostic bootstrap (write paths) and selectNext (read path) all go
+ * through these.
  */
 const db = createPrismaLearnerDb(prisma);
 
 export const learnerService = createLearnerService(db);
 export const selectionService = createSelectionService(db);
+export const bootstrapService = createBootstrapService(db);

@@ -78,6 +78,40 @@ export async function startOrResumeAttempt(
   }
 }
 
+/**
+ * The user's completed attempt, if any. The diagnostic is taken once in MVP:
+ * with a completed attempt there is nothing to start.
+ */
+export async function getCompletedAttempt(
+  db: Pick<PrismaClient, 'diagnosticAttempt'>,
+  userId: string,
+): Promise<{ attemptId: string } | null> {
+  const row = await db.diagnosticAttempt.findFirst({
+    where: { userId, status: 'COMPLETED' },
+    orderBy: { completedAt: 'desc' },
+    select: { id: true },
+  });
+  return row ? { attemptId: row.id } : null;
+}
+
+/**
+ * Every concept, as the diagnostic bootstrap maps it to an axis and a level.
+ * The one source of the bootstrap's concept list (the learner-model service
+ * takes it as input).
+ */
+export async function getBootstrapConcepts(db: Pick<PrismaClient, 'concept'>): Promise<
+  {
+    id: string;
+    category: 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'PHONETICS' | 'DISCOURSE' | 'PRAGMATICS';
+    cefrLevel: CefrLevel;
+  }[]
+> {
+  return db.concept.findMany({
+    select: { id: true, category: true, cefrLevel: true },
+    orderBy: { id: 'asc' },
+  });
+}
+
 export type DiagnosticAttemptState = {
   attemptId: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
