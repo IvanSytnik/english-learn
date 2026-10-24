@@ -41,7 +41,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["DIAG_DB_TEST_URL", "CI"]
     },
     "test:e2e": {
       "cache": false,

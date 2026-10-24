@@ -13,8 +13,12 @@ import type { PrismaClient } from '../generated/client/client';
 export type DiagnosticRevealFacts = {
   assessedLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   levelTrajectory: ('A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2')[];
+  /** In position order. */
   answers: {
+    position: number;
     axis: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
+    /** Level of the question answered (DiagnosticAnswer.itemLevel). */
+    itemLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
     correct: boolean;
     dontKnow: boolean;
     skillTag: { id: string; slug: string; title: string; category: string } | null;
@@ -33,6 +37,8 @@ export async function getDiagnosticRevealFacts(
       answers: {
         orderBy: { position: 'asc' },
         select: {
+          position: true,
+          itemLevel: true,
           isCorrect: true,
           dontKnow: true,
           item: {
@@ -51,7 +57,9 @@ export async function getDiagnosticRevealFacts(
     assessedLevel: attempt.assessedLevel,
     levelTrajectory: attempt.levelTrajectory,
     answers: attempt.answers.map((a) => ({
+      position: a.position,
       axis: a.item.kind,
+      itemLevel: a.itemLevel,
       correct: a.isCorrect,
       dontKnow: a.dontKnow,
       skillTag: a.item.skillTag,

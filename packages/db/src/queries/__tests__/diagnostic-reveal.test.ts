@@ -29,14 +29,26 @@ describe('getDiagnosticRevealFacts', () => {
     ).toBeNull();
   });
 
-  it('maps answers to axis/correct/dontKnow/skillTag facts in position order', async () => {
+  it('maps answers to position/axis/itemLevel/correct/dontKnow/skillTag facts in position order', async () => {
     const tag = { id: 't1', slug: 'past-simple', title: 'Past simple', category: 'GRAMMAR' };
     const { db, findFirst } = dbWith({
       assessedLevel: 'A2',
       levelTrajectory: ['B1', 'A2'],
       answers: [
-        { isCorrect: true, dontKnow: false, item: { kind: 'GRAMMAR', skillTag: tag } },
-        { isCorrect: false, dontKnow: true, item: { kind: 'VOCAB', skillTag: null } },
+        {
+          position: 0,
+          itemLevel: 'B1',
+          isCorrect: true,
+          dontKnow: false,
+          item: { kind: 'GRAMMAR', skillTag: tag },
+        },
+        {
+          position: 1,
+          itemLevel: 'B1',
+          isCorrect: false,
+          dontKnow: true,
+          item: { kind: 'VOCAB', skillTag: null },
+        },
       ],
     });
     const facts = await getDiagnosticRevealFacts(db, { userId: 'u1', attemptId: 'da1' });
@@ -45,8 +57,22 @@ describe('getDiagnosticRevealFacts', () => {
       assessedLevel: 'A2',
       levelTrajectory: ['B1', 'A2'],
       answers: [
-        { axis: 'GRAMMAR', correct: true, dontKnow: false, skillTag: tag },
-        { axis: 'VOCAB', correct: false, dontKnow: true, skillTag: null },
+        {
+          position: 0,
+          axis: 'GRAMMAR',
+          itemLevel: 'B1',
+          correct: true,
+          dontKnow: false,
+          skillTag: tag,
+        },
+        {
+          position: 1,
+          axis: 'VOCAB',
+          itemLevel: 'B1',
+          correct: false,
+          dontKnow: true,
+          skillTag: null,
+        },
       ],
     });
   });

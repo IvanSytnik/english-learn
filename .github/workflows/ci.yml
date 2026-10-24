@@ -33,6 +33,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/englishlearn_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/englishlearn_test
+      # Migrated before `pnpm test`: the diagnostic DB tests run against it.
+      DIAG_DB_TEST_URL: postgresql://postgres:postgres@localhost:5432/englishlearn_test
       AUTH_SECRET: ci-secret-do-not-use-in-prod-32chars
 
     steps:
