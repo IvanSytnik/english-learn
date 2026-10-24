@@ -210,6 +210,32 @@ describe('ExercisePlayer', () => {
     await waitFor(() => expect(nextExercise).toHaveBeenCalledTimes(1));
   });
 
+  // Two presses in one tick, raw (no act): no re-render in between, so only a
+  // guard that does not wait for state can stop the second one.
+  const doubleEnter = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+  };
+
+  it('two Enters in the same tick send one answer', async () => {
+    renderPlayer(choiceView);
+    key('4');
+    doubleEnter();
+    await onFeedback('Correct');
+    expect(submitExerciseAttempt).toHaveBeenCalledTimes(1);
+  });
+
+  it('two Enters in the same tick on feedback load one next item', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: clozeView });
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    doubleEnter();
+    await onClozeQuestion();
+    expect(nextExercise).toHaveBeenCalledTimes(1);
+  });
+
   it('a double Enter sends one answer', async () => {
     renderPlayer(choiceView);
     key('4');

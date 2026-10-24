@@ -75,6 +75,9 @@ test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ pa
 test('/ru/diagnostic: a full pass by keyboard, all right → done, and the bootstrap ran', async ({
   page,
 }) => {
+  // 16 server actions in a row: 16–18 s locally against Neon dev, too close
+  // to the 30 s default.
+  test.setTimeout(60_000);
   const email = await registerFreshLearner(page);
   await start(page);
   await expect(stem(page)).toHaveAttribute('lang', 'en');
@@ -114,6 +117,9 @@ test('/ru/diagnostic: a reload resumes at the next question', async ({ page }) =
 });
 
 test('/ru/diagnostic: "I don\'t know" all the way → done at A2', async ({ page }) => {
+  // 16 server actions in a row: 16–18 s locally against Neon dev, too close
+  // to the 30 s default.
+  test.setTimeout(60_000);
   const email = await registerFreshLearner(page);
   await start(page);
   for (let n = 1; n <= 16; n++) await answer(page, n, 'dontKnow');

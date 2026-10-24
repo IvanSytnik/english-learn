@@ -58,6 +58,10 @@ export function ExercisePlayer({
   const [error, setError] = useState(false);
 
   const shownAt = useRef(Date.now());
+  // One request at a time. Set synchronously before calling an action, so a
+  // second key in the same tick — before `phase` re-renders — is refused;
+  // cleared as soon as the reply is in. `phase` keeps driving the UI.
+  const busy = useRef(false);
   const promptRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
@@ -77,12 +81,14 @@ export function ExercisePlayer({
 
   const submit = useCallback(
     (answer: ExerciseAnswer) => {
-      if (phase !== 'answering') return;
+      if (phase !== 'answering' || busy.current) return;
+      busy.current = true;
       setPhase('submitting');
       setError(false);
       const timeMs = Math.max(1, Date.now() - shownAt.current);
       startTransition(async () => {
         const res = await submitExerciseAttempt({ itemId: view.itemId, answer, timeMs });
+        busy.current = false;
         if (!res.ok) {
           setError(true);
           setPhase('answering');
@@ -106,10 +112,13 @@ export function ExercisePlayer({
   }, [question.type, selected, text, submit]);
 
   const loadNext = useCallback((recentIds: string[]) => {
+    if (busy.current) return;
+    busy.current = true;
     setPhase('loading');
     setError(false);
     startTransition(async () => {
       const res = await nextExercise(recentIds);
+      busy.current = false;
       if (!res.ok) {
         setError(true);
         setPhase('feedback');
