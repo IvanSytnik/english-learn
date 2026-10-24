@@ -99,6 +99,23 @@ const onClozeQuestion = async () => {
   return field;
 };
 
+/**
+ * Press `k` the instant `shown()` turns true — from a MutationObserver
+ * callback, i.e. right after React commits that DOM and before it runs the
+ * commit's effects. A raw dispatch, no act(): nothing may flush effects first.
+ */
+function pressWhenShown(k: string, shown: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (!shown()) return;
+      observer.disconnect();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+      resolve();
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   // Reset implementations too: a test that fails midway must not leave its
@@ -180,6 +197,26 @@ describe('ExercisePlayer', () => {
     key('Enter');
     await waitFor(() => expect(nextExercise).toHaveBeenCalledWith(['item.a']));
     expect(await onClozeQuestion()).toBeInTheDocument();
+  });
+
+  it('a key pressed the instant feedback shows already acts on the feedback', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: clozeView });
+    renderPlayer(choiceView);
+    key('4');
+    const pressed = pressWhenShown('Enter', () => screen.queryByText('Correct') !== null);
+    key('Enter');
+    await pressed;
+    // Enter on feedback = continue: the next item is requested.
+    await waitFor(() => expect(nextExercise).toHaveBeenCalledTimes(1));
+  });
+
+  it('a double Enter sends one answer', async () => {
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    key('Enter');
+    await screen.findByText('Correct');
+    expect(submitExerciseAttempt).toHaveBeenCalledTimes(1);
   });
 
   it('Esc pauses back to the dashboard', () => {

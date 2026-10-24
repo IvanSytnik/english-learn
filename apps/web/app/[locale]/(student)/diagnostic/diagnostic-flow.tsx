@@ -2,7 +2,15 @@
 
 import { cn, KeyHint, SegmentedProgress } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { Link } from '@/i18n/navigation';
 import type { DiagnosticPeek, DiagnosticQuestionView } from '@/lib/diagnostic';
 import { focusKind, resolveShortcut } from '@/lib/exercise/shortcuts';
@@ -138,34 +146,41 @@ function Player({
     if (selected !== null) send({ choiceIndex: selected });
   }, [selected, send]);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const action = resolveShortcut(event, {
-        phase: pending ? 'submitting' : 'answering',
-        ...focusKind(event.target),
-        optionCount: question.item.choices.length,
-        hasHint: false,
-      });
-      if (!action) return;
-      switch (action.type) {
-        case 'select':
-          event.preventDefault();
-          setSelected(action.index);
-          break;
-        case 'dontKnow':
-          event.preventDefault();
-          send({ dontKnow: true });
-          break;
-        case 'enter':
-          event.preventDefault();
-          answer();
-          break;
-        // No pause, hint or "why" in the test: Esc, H and ? do nothing here.
-      }
+  // Reads the current question and state even for a key pressed right after a
+  // commit, before effects run — attached once, never a frame behind.
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    const action = resolveShortcut(event, {
+      // The ref, not `pending`: it is set the moment an answer goes out and
+      // cleared before the next question shows, while the transition's
+      // `pending` can still read true for a moment after that.
+      phase: sending.current ? 'submitting' : 'answering',
+      ...focusKind(event.target),
+      optionCount: question.item.choices.length,
+      hasHint: false,
+    });
+    if (!action) return;
+    switch (action.type) {
+      case 'select':
+        event.preventDefault();
+        setSelected(action.index);
+        break;
+      case 'dontKnow':
+        event.preventDefault();
+        send({ dontKnow: true });
+        break;
+      case 'enter':
+        event.preventDefault();
+        answer();
+        break;
+      // No pause, hint or "why" in the test: Esc, H and ? do nothing here.
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [pending, question.item.choices.length, send, answer]);
+  });
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onKeyDown(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   const [before, after] = question.item.stem.split(GAP);
   const gap = (

@@ -42,8 +42,28 @@ function renderFlow(initial: Parameters<typeof DiagnosticFlow>[0]['initial']) {
 
 const key = (k: string) => fireEvent.keyDown(window, { key: k });
 
+/**
+ * Press `k` the instant `shown()` turns true — from a MutationObserver
+ * callback, i.e. right after React commits that DOM and before it runs the
+ * commit's effects. A raw dispatch, no act(): nothing may flush effects first.
+ */
+function pressWhenShown(k: string, shown: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (!shown()) return;
+      observer.disconnect();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+      resolve();
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  // A test that fails midway must not leave its *Once replies to the next one.
+  startDiagnosticAction.mockReset();
+  submitDiagnosticAnswerAction.mockReset();
 });
 
 describe('DiagnosticFlow', () => {
@@ -125,6 +145,21 @@ describe('DiagnosticFlow', () => {
     expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(1);
     await act(async () => resolve(reply(asStep(question(1)))));
     expect(await screen.findByText('Question 2 of 16')).toBeTruthy();
+  });
+
+  it('a key pressed the instant the next question shows answers that question', async () => {
+    submitDiagnosticAnswerAction
+      .mockResolvedValueOnce(reply(asStep(question(1))))
+      .mockResolvedValueOnce(reply(asStep(question(2))));
+    renderFlow(asStep(question(0)));
+    const pressed = pressWhenShown('0', () => screen.queryByText('Question 2 of 16') !== null);
+    key('1');
+    key('Enter');
+    await pressed;
+    await waitFor(() => expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(2));
+    expect(submitDiagnosticAnswerAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ position: 1, itemId: 'q1', dontKnow: true }),
+    );
   });
 
   it('stale: silently shows the step the server says is current', async () => {

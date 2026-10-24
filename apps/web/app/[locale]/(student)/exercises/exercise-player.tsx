@@ -3,7 +3,15 @@
 import { cn, KeyHint, ReasonChip, SegmentedProgress } from '@englishlearn/ui';
 import { Check, CircleHelp, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { focusKind, type PlayerPhase, resolveShortcut } from '@/lib/exercise/shortcuts';
 import { type SessionEntry, summarizeSession, toSessionEntry } from '@/lib/exercise/summary';
@@ -136,41 +144,46 @@ export function ExercisePlayer({
     loadNext(recent);
   }, [loadNext, recent]);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const action = resolveShortcut(event, {
-        phase,
-        ...focusKind(event.target),
-        optionCount,
-        hasHint: view.hint !== null,
-      });
-      if (!action) return;
-      event.preventDefault();
-      switch (action.type) {
-        case 'pause':
-          router.push('/dashboard');
-          break;
-        case 'enter':
-          if (phase === 'answering') check();
-          else goOn();
-          break;
-        case 'select':
-          setSelected(action.index);
-          break;
-        case 'dontKnow':
-          submit({ type: 'dontKnow' });
-          break;
-        case 'toggleHint':
-          setHintOpen((open) => !open);
-          break;
-        case 'toggleWhy':
-          setWhyOpen((open) => !open);
-          break;
-      }
+  // Reads the phase and actions of the latest render, even for a key pressed
+  // right after a commit and before effects run — so it is attached once, not
+  // re-attached per phase (a re-attached listener lagged a frame behind).
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    const action = resolveShortcut(event, {
+      phase,
+      ...focusKind(event.target),
+      optionCount,
+      hasHint: view.hint !== null,
+    });
+    if (!action) return;
+    event.preventDefault();
+    switch (action.type) {
+      case 'pause':
+        router.push('/dashboard');
+        break;
+      case 'enter':
+        if (phase === 'answering') check();
+        else goOn();
+        break;
+      case 'select':
+        setSelected(action.index);
+        break;
+      case 'dontKnow':
+        submit({ type: 'dontKnow' });
+        break;
+      case 'toggleHint':
+        setHintOpen((open) => !open);
+        break;
+      case 'toggleWhy':
+        setWhyOpen((open) => !open);
+        break;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [phase, optionCount, view.hint, router, check, goOn, submit]);
+  });
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onKeyDown(event);
+    window.addEventListener('keydown', listener);
+    return () => window.removeEventListener('keydown', listener);
+  }, []);
 
   if (phase === 'done') {
     return (
