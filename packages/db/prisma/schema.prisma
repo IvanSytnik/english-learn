@@ -430,13 +430,8 @@ model DiagnosticAttempt {
   /// does not model.
   activeUserId String? @unique
 
-  // Pseudo-CAT state — no longer written: the ladder state is rebuilt from
-  // DiagnosticAnswer (itemLevel, position). Dropped in a later migration.
-  currentLevel       CefrLevel   @default(B1)
-  consecutiveCorrect Int         @default(0)
-  consecutiveWrong   Int         @default(0)
-  itemsAnswered      Int         @default(0)
-  levelTrajectory    CefrLevel[] @default([])
+  // No per-attempt ladder state: it is rebuilt from DiagnosticAnswer
+  // (itemLevel, position) on every step. The pseudo-CAT columns are gone.
 
   assessedLevel CefrLevel?
 

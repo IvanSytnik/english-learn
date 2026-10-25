@@ -52,8 +52,6 @@ describe('getDiagnosticRevealFacts', () => {
     });
     const facts = await getDiagnosticRevealFacts(db, { userId: 'u1', attemptId: 'da1' });
     expect(findFirst.mock.calls[0]?.[0].select.answers.orderBy).toEqual({ position: 'asc' });
-    // The pseudo-CAT trajectory is no longer written; the reveal reads levels from the answers.
-    expect(findFirst.mock.calls[0]?.[0].select).not.toHaveProperty('levelTrajectory');
     expect(facts).toEqual({
       assessedLevel: 'A2',
       answers: [
