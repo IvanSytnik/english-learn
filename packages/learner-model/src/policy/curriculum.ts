@@ -23,6 +23,13 @@ import type { ConceptMasterySnapshot, PolicyConfig, PrereqEdge } from './types';
  * O(edges) and avoids graph traversal on the hot path.
  */
 
+/**
+ * What the gate reads from a mastery snapshot. Narrower than
+ * ConceptMasterySnapshot so read models that never load the BKT anchors
+ * (the dashboard) gate with exactly the same code as selection.
+ */
+export type GateMastery = Pick<ConceptMasterySnapshot, 'conceptId' | 'pKnown' | 'observationCount'>;
+
 export interface UnlockResult {
   /** Concepts eligible for selection this turn. */
   readonly unlocked: ReadonlySet<ConceptId>;
@@ -42,17 +49,17 @@ export interface UnlockResult {
  * not practice. Shared by the gate and SelectionResult.isNewConcept so the
  * two can never disagree.
  */
-export function isStarted(mastery: ConceptMasterySnapshot | undefined): boolean {
+export function isStarted(mastery: Pick<GateMastery, 'observationCount'> | undefined): boolean {
   return (mastery?.observationCount ?? 0) > 0;
 }
 
 export function computeUnlocked(
   candidateConceptIds: readonly ConceptId[],
-  masteries: readonly ConceptMasterySnapshot[],
+  masteries: readonly GateMastery[],
   prereqEdges: readonly PrereqEdge[],
   config: PolicyConfig,
 ): UnlockResult {
-  const masteryById = new Map<ConceptId, ConceptMasterySnapshot>();
+  const masteryById = new Map<ConceptId, GateMastery>();
   for (const m of masteries) masteryById.set(m.conceptId, m);
 
   // Direct PREREQUISITE parents of each concept (to = dependent).

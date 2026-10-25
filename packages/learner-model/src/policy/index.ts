@@ -5,7 +5,7 @@
  * and hands plain objects to `select`; nothing here does I/O.
  */
 
-export { computeUnlocked, type UnlockResult } from './curriculum';
+export { computeUnlocked, type GateMastery, type UnlockResult } from './curriculum';
 export {
   type BetaParams,
   betaParamsForConcept,

@@ -1,12 +1,7 @@
 import type { CefrLevelValue, DiagnosticAxisValue } from '@englishlearn/db/schemas';
 import { CEFR_RANK, type ConceptId } from '../core/graph/types';
-import { computeUnlocked, isStarted } from '../policy/curriculum';
-import {
-  type ConceptMasterySnapshot,
-  DEFAULT_POLICY_CONFIG,
-  type PolicyConfig,
-  type PrereqEdge,
-} from '../policy/types';
+import { computeUnlocked, type GateMastery, isStarted } from '../policy/curriculum';
+import { DEFAULT_POLICY_CONFIG, type PolicyConfig, type PrereqEdge } from '../policy/types';
 import { MAPPING_V1 } from './bootstrap';
 import { ladderAssessedLevel, ladderAxisLevel } from './ladder';
 import type { DiagnosticAnswerFact } from './types';
@@ -54,7 +49,7 @@ export type PlacementRevealInput = {
    */
   concepts: readonly RevealConcept[];
   /** The learner's ConceptMastery snapshots right after bootstrap. */
-  masteries: readonly ConceptMasterySnapshot[];
+  masteries: readonly GateMastery[];
   prereqEdges: readonly PrereqEdge[];
   config?: PolicyConfig;
 };
