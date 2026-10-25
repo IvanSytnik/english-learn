@@ -1,14 +1,17 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import { getPlacementContext } from '@englishlearn/db/queries/diagnostic-reveal';
+import { getConceptProgress } from '@englishlearn/db/queries/learner-progress';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaLearnerDb } from '../service/prisma-db';
 
 /**
  * "Something to practise" is written twice: selection's getCandidateItems
- * (this package's port) and the reveal's getPlacementContext (packages/db).
- * A start concept the policy can never serve would be a dead end, so both
- * must see the same concepts. Real Postgres, same gate as the other DB tests.
+ * (this package's port) and packages/db's PRACTISABLE_ITEM, read by the
+ * reveal's getPlacementContext and the dashboard's getConceptProgress. A
+ * start concept or a dashboard topic the policy can never serve would be a
+ * dead end, so all three must see the same concepts. Real Postgres, same gate
+ * as the other DB tests.
  */
 
 const url = process.env.DIAG_DB_TEST_URL;
@@ -57,13 +60,15 @@ describe.skipIf(!url)('placement concepts = selection candidates (real Postgres)
     await db.$disconnect();
   });
 
-  it('getPlacementContext and getCandidateItems agree on the concept set', async () => {
+  it('getPlacementContext, getConceptProgress and getCandidateItems agree on the concept set', async () => {
     const ours = (ids: string[]) => [...new Set(ids.filter((id) => id.startsWith(RUN)))].sort();
     const placement = ours((await getPlacementContext(db, 'nobody')).concepts.map((c) => c.id));
     const candidates = ours(
       (await createPrismaLearnerDb(db).getCandidateItems('nobody')).map((r) => r.conceptId),
     );
+    const progress = ours((await getConceptProgress(db, 'nobody', 'en')).concepts.map((c) => c.id));
     expect(placement).toEqual([`${RUN}.published-practice`]);
     expect(candidates).toEqual(placement);
+    expect(progress).toEqual(placement);
   });
 });

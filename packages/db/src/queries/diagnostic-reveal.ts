@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../generated/client/client';
+import { PRACTISABLE_ITEM } from './practisable';
 
 /**
  * Facts for the placement reveal of ONE completed diagnostic attempt.
@@ -70,9 +71,7 @@ export async function getDiagnosticRevealFacts(
  * snapshots (read after the bootstrap) and the prerequisite edges. Read-only.
  *
  * "Something to practise" is the selection policy's candidate filter — a
- * PUBLISHED item with a practice question (learner-model `getCandidateItems`).
- * The SQL is duplicated there on purpose (learner-model owns its port); a DB
- * test in learner-model pins both to the same concept set.
+ * PUBLISHED item with a practice question (`PRACTISABLE_ITEM`).
  *
  * Shapes match @englishlearn/learner-model `RevealConcept`,
  * `ConceptMasterySnapshot` and `PrereqEdge` structurally.
@@ -100,9 +99,7 @@ export async function getPlacementContext(
       FROM "Concept" c
       WHERE EXISTS (
         SELECT 1 FROM "Item" i
-        WHERE i."conceptId" = c."id"
-          AND i."status" = 'PUBLISHED'
-          AND i."content" -> 'practice' IS NOT NULL
+        WHERE i."conceptId" = c."id" AND ${PRACTISABLE_ITEM}
       )
       ORDER BY c."id"
     `,

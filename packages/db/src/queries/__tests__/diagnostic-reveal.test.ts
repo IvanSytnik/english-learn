@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getDiagnosticRevealFacts, getPlacementContext } from '../diagnostic-reveal';
+import { PRACTISABLE_ITEM } from '../practisable';
 
 type Db = Parameters<typeof getDiagnosticRevealFacts>[0];
 const dbWith = (row: unknown) => {
@@ -108,9 +109,9 @@ describe('getPlacementContext', () => {
   it('filters concepts to a PUBLISHED item with a practice question', async () => {
     const { db, $queryRaw } = setup();
     await getPlacementContext(db, 'u1');
-    const sql = ($queryRaw.mock.calls[0]?.[0] as TemplateStringsArray).join('?');
-    expect(sql).toContain(`i."status" = 'PUBLISHED'`);
-    expect(sql).toContain(`i."content" -> 'practice' IS NOT NULL`);
+    expect($queryRaw.mock.calls[0]?.slice(1)).toContain(PRACTISABLE_ITEM);
+    expect(PRACTISABLE_ITEM.sql).toContain(`i."status" = 'PUBLISHED'`);
+    expect(PRACTISABLE_ITEM.sql).toContain(`i."content" -> 'practice' IS NOT NULL`);
   });
 
   it('returns plain-number timestamps and from/to edges', async () => {
