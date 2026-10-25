@@ -90,10 +90,6 @@ vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: {} }));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'ru' }));
-// No LEARNER_BOOTSTRAPPED in these scenarios: "done" must not depend on it.
-vi.mock('@englishlearn/db/queries/learner-activity', () => ({
-  hasLearnerBootstrapped: async () => false,
-}));
 vi.mock('@/lib/learner', () => ({ bootstrapService: { bootstrapFromDiagnostic } }));
 vi.mock('@englishlearn/db/queries/diagnostic-attempt', () => ({
   startOrResumeAttempt,

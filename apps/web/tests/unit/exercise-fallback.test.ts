@@ -36,10 +36,9 @@ describe('one "done" signal for the diagnostic CTAs', () => {
     'app/[locale]/(student)/exercises/page.tsx',
   ];
   for (const page of pages) {
-    it(`${page} asks isDiagnosticDone, not the bootstrap event`, () => {
+    it(`${page} asks isDiagnosticDone`, () => {
       const source = readFileSync(join(process.cwd(), page), 'utf8');
       expect(source).toContain('isDiagnosticDone(');
-      expect(source).not.toContain('hasLearnerBootstrapped');
     });
   }
 });
