@@ -16,3 +16,9 @@ export {
   localized,
   presentLocales,
 } from './localized-string';
+export {
+  isNativeLanguage,
+  NATIVE_LANGUAGES,
+  type NativeLanguage,
+  NativeLanguageSchema,
+} from './native-language';
