@@ -206,7 +206,9 @@ describe('LearnerService.recordOutcome', () => {
       seen.push(masteries.get(key)?.displayStage ?? 'missing');
     }
     expect(seen[0]).not.toBe('NOT_STARTED');
-    expect(seen).toContain('SOLID');
+    // The climb tops out (with the 4PL of §8 #19 it may jump DEVELOPING →
+    // HIGH_SOLID in one answer, skipping SOLID).
+    expect(seen.at(-1)).toBe('HIGH_SOLID');
     // Ladder only moves up on a run of correct answers.
     const order = ['EMERGING', 'DEVELOPING', 'SOLID', 'HIGH_SOLID'];
     for (let i = 1; i < seen.length; i++) {

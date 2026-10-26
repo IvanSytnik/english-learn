@@ -29,9 +29,11 @@ export type MasteryStage = (typeof MASTERY_STAGES)[number];
 export type EffectiveStage = 'NOT_STARTED' | 'EMERGING' | 'DEVELOPING' | 'SOLID' | 'SECURE';
 
 /**
- * Upgrade thresholds on pKnown. SOLID's 0.70 is the prereq gate
- * (DEFAULT_POLICY_CONFIG.prereqThreshold) — the ladder and the curriculum
- * must agree on what "Solid" means.
+ * Upgrade thresholds on pKnown. SOLID's 0.70 is the prereq gate's pKnown
+ * threshold (DEFAULT_POLICY_CONFIG.prereqThreshold) — the ladder and the
+ * curriculum must agree on what "Solid" means. The gate also wants
+ * prereqMinObservations outcomes (§8 #19), so a concept that turns Solid on
+ * its first or second answer keeps its dependents locked until the third.
  */
 export const STAGE_THRESHOLDS = Object.freeze({
   DEVELOPING: 0.4,

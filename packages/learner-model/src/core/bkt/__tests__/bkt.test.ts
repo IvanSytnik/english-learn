@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { BKT_DEFAULTS, clampProb, PROB_MAX, PROB_MIN } from '../constants';
+import { BKT_DEFAULTS, clampProb, PROB_MAX, PROB_MIN, THETA_KNOWN } from '../constants';
 import { applyForgetting } from '../forgetting';
-import { pCorrectGivenKnown, pKnownToTheta, sigmoid } from '../irt';
+import { pCorrectGivenKnown, sigmoid } from '../irt';
 import { batchUpdate, initBktState, predictCorrect, update } from '../model';
 import type { BktOutcome, BktState, IrtParams } from '../types';
 
@@ -109,40 +109,122 @@ describe('sigmoid', () => {
   });
 });
 
-describe('pKnownToTheta', () => {
-  it('maps 0.5 to ~0', () => {
-    expect(pKnownToTheta(0.5)).toBeCloseTo(0, 10);
+describe('pCorrectGivenKnown (4PL, §8 #19)', () => {
+  it('sits halfway between pGuess and 1 − pSlip when b = θ_K', () => {
+    const item: IrtParams = { a: 1.7, b: THETA_KNOWN };
+    expect(pCorrectGivenKnown(item, 0.1, 0.25)).toBeCloseTo((0.25 + 0.9) / 2, 10);
   });
 
-  it('is monotonically increasing', () => {
-    fc.assert(
-      fc.property(probArb, probArb, (p1, p2) => {
-        // Skip pairs too close to be distinguishable in double precision —
-        // logit(1e-6 + 1e-22) ≡ logit(1e-6) bit-exact, and that's correct.
-        if (Math.abs(p2 - p1) < 1e-9) return;
-        if (p1 < p2) {
-          expect(pKnownToTheta(p1)).toBeLessThanOrEqual(pKnownToTheta(p2));
-        }
-      }),
+  it('increases with θ_K', () => {
+    const item: IrtParams = { a: 1.5, b: 0 };
+    expect(pCorrectGivenKnown(item, 0.1, 0.25, -1)).toBeLessThan(
+      pCorrectGivenKnown(item, 0.1, 0.25, 1),
+    );
+  });
+
+  it('higher b → lower p', () => {
+    const easy: IrtParams = { a: 1, b: -1 };
+    const hard: IrtParams = { a: 1, b: 2 };
+    expect(pCorrectGivenKnown(easy, 0.1, 0.25)).toBeGreaterThan(
+      pCorrectGivenKnown(hard, 0.1, 0.25),
     );
   });
 });
 
-describe('pCorrectGivenKnown', () => {
-  it('equals 0.5 when θ = b', () => {
-    const item: IrtParams = { a: 1, b: 0.7 };
-    expect(pCorrectGivenKnown(0.7, item)).toBeCloseTo(0.5, 6);
+// ---------------------------------------------------------------------------
+// Observation-model invariants (§8 #19). The old likelihood σ(a(logit(pKnown)
+// − b)) fell below pGuess for b > 0 or a cold prior, and a right answer then
+// LOWERED pKnown. A correct answer raises the posterior iff
+// P(correct | known) > pGuess, so invariant 1 is the root of 2–4.
+// ---------------------------------------------------------------------------
+
+/** Away from the clamp bounds, where PROB_MAX would turn ">" into "=". */
+const priorArb = fc.double({ min: 1e-3, max: 1 - 1e-3, noNaN: true, noDefaultInfinity: true });
+
+/** Non-degenerate BKT params: 1 − pSlip exceeds pGuess by a usable margin. */
+const paramsArb = fc
+  .record({
+    pSlip: fc.double({ min: 0.01, max: 0.3, noNaN: true, noDefaultInfinity: true }),
+    pGuess: fc.double({ min: 0.01, max: 0.5, noNaN: true, noDefaultInfinity: true }),
+    pLearn: fc.double({ min: 0, max: 0.5, noNaN: true, noDefaultInfinity: true }),
+  })
+  .filter(({ pSlip, pGuess }) => 1 - pSlip - pGuess >= 0.05);
+
+const stateAt = (pKnown: number, params: { pSlip: number; pGuess: number; pLearn: number }) => ({
+  ...initBktState(0),
+  ...params,
+  pKnown,
+});
+
+const answer = (state: BktState, correct: boolean, item: IrtParams) =>
+  update(state, { correct, timestamp: 60_000, item }).pKnown;
+
+describe('observation model invariants (§8 #19)', () => {
+  it('1. likelihood: pGuess < P(correct | known) < 1 − pSlip for every a, b', () => {
+    fc.assert(
+      fc.property(itemArb, paramsArb, (item, { pSlip, pGuess }) => {
+        const s = pCorrectGivenKnown(item, pSlip, pGuess);
+        expect(s).toBeGreaterThan(pGuess);
+        expect(s).toBeLessThan(1 - pSlip);
+      }),
+    );
   });
 
-  it('increases with θ', () => {
-    const item: IrtParams = { a: 1.5, b: 0 };
-    expect(pCorrectGivenKnown(-1, item)).toBeLessThan(pCorrectGivenKnown(1, item));
+  it('2. evidence: before learning, a right answer raises the prior and a miss lowers it', () => {
+    fc.assert(
+      fc.property(priorArb, itemArb, paramsArb, (p, item, params) => {
+        // pLearn = 0 isolates the Bayes step from the learning transition.
+        const s = stateAt(p, { ...params, pLearn: 0 });
+        expect(answer(s, true, item)).toBeGreaterThan(p);
+        expect(answer(s, false, item)).toBeLessThan(p);
+      }),
+    );
   });
 
-  it('higher b → lower p at fixed θ', () => {
-    const easy: IrtParams = { a: 1, b: -1 };
-    const hard: IrtParams = { a: 1, b: 2 };
-    expect(pCorrectGivenKnown(0, easy)).toBeGreaterThan(pCorrectGivenKnown(0, hard));
+  it('3. result: a right answer strictly raises pKnown and beats a miss', () => {
+    fc.assert(
+      fc.property(priorArb, itemArb, paramsArb, (p, item, params) => {
+        const s = stateAt(p, params);
+        const right = answer(s, true, item);
+        expect(right).toBeGreaterThan(p);
+        expect(right).toBeGreaterThan(answer(s, false, item));
+      }),
+    );
+  });
+
+  it('4. monotone in b: a harder item gives no larger gain on a right answer and no larger drop on a miss', () => {
+    const bArb = fc.double({ min: -3, max: 3, noNaN: true, noDefaultInfinity: true });
+    fc.assert(
+      fc.property(
+        priorArb,
+        fc.double({ min: 0.1, max: 3, noNaN: true, noDefaultInfinity: true }),
+        bArb,
+        bArb,
+        paramsArb,
+        (p, a, b1, b2, params) => {
+          const [easy, hard] = b1 <= b2 ? [b1, b2] : [b2, b1];
+          const s = stateAt(p, params);
+          // 1e-12 absorbs rounding when easy ≈ hard.
+          expect(answer(s, true, { a, b: hard })).toBeLessThanOrEqual(
+            answer(s, true, { a, b: easy }) + 1e-12,
+          );
+          expect(answer(s, false, { a, b: hard })).toBeGreaterThanOrEqual(
+            answer(s, false, { a, b: easy }) - 1e-12,
+          );
+        },
+      ),
+    );
+  });
+
+  it('§8 #19 regressions: b > 0 no longer traps a cold learner or pushes a B1 prior down', () => {
+    // Before: a cold learner stuck at 0.16 with b = 0.6; B1 prior 0.26 → 0.19 with b = 1.0.
+    let s: BktState = initBktState(0);
+    for (let i = 0; i < 5; i++)
+      s = update(s, { correct: true, timestamp: i, item: { a: 1, b: 0.6 } });
+    expect(s.pKnown).toBeGreaterThan(0.7);
+
+    const b1 = { ...initBktState(0), pKnown: 0.26 };
+    expect(answer(b1, true, { a: 1, b: 1 })).toBeGreaterThan(0.26);
   });
 });
 
@@ -246,6 +328,13 @@ describe('predictCorrect', () => {
     const easy: IrtParams = { a: 1, b: -5 };
     const hard: IrtParams = { a: 1, b: 5 };
     expect(predictCorrect(s, 1000, easy)).toBeGreaterThan(predictCorrect(s, 1000, hard));
+  });
+
+  it('with item: the same 4PL observation model as update (§8 #19)', () => {
+    const s: BktState = { ...initBktState(1000), pKnown: 0.3, pForgetLambda: 0 };
+    const item: IrtParams = { a: 1.2, b: 1.5 };
+    const known = pCorrectGivenKnown(item, s.pSlip, s.pGuess);
+    expect(predictCorrect(s, 1000, item)).toBeCloseTo(0.3 * known + 0.7 * s.pGuess, 12);
   });
 
   it('decays pKnown before computing prediction', () => {

@@ -46,6 +46,19 @@ describe('computeUnlocked', () => {
     expect(unlocked.has('present_perfect')).toBe(true);
   });
 
+  it('a parent past the threshold opens the gate only from its third outcome (§8 #19)', () => {
+    const edges = [prereq('past_simple', 'present_perfect')];
+    const gateAt = (observationCount: number) =>
+      computeUnlocked(
+        ['present_perfect'],
+        [{ ...mastery('past_simple', 0.95), observationCount }],
+        edges,
+        DEFAULT_POLICY_CONFIG,
+      ).unlocked.has('present_perfect');
+    expect(DEFAULT_POLICY_CONFIG.prereqMinObservations).toBe(3);
+    expect([0, 1, 2, 3, 4].map(gateAt)).toEqual([false, false, false, true, true]);
+  });
+
   it('review regime: an already-started concept is NEVER gated', () => {
     // present_perfect already has a mastery snapshot but its prereq is weak.
     const edges = [prereq('past_simple', 'present_perfect')];

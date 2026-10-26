@@ -12,7 +12,7 @@ import {
   isFading,
   type MasteryStage,
 } from '../mastery';
-import { computeUnlocked, type GateMastery, isStarted } from '../policy/curriculum';
+import { computeUnlocked, type GateMastery, isMastered, isStarted } from '../policy/curriculum';
 import { DEFAULT_POLICY_CONFIG, type PolicyConfig, type PrereqEdge } from '../policy/types';
 
 /**
@@ -119,7 +119,6 @@ export function buildConceptProgress(input: ConceptProgressInput): ConceptProgre
   const config = input.config ?? DEFAULT_POLICY_CONFIG;
   const titleById = new Map(input.concepts.map((c) => [c.id, c.title]));
   const masteryById = new Map(input.masteries.map((m) => [m.conceptId, m]));
-  const pKnownOf = (id: ConceptId) => masteryById.get(id)?.pKnown ?? 0;
 
   const reviewsByConcept = new Map<ConceptId, ConceptProgressInput['reviews'][number][]>();
   for (const r of input.reviews) {
@@ -183,7 +182,7 @@ export function buildConceptProgress(input: ConceptProgressInput): ConceptProgre
       ),
       isLocked,
       lockedBy: isLocked
-        ? refs(parentsOf.get(c.id)?.filter((p) => pKnownOf(p) < config.prereqThreshold))
+        ? refs(parentsOf.get(c.id)?.filter((p) => !isMastered(masteryById.get(p), config)))
         : [],
       isRecommendedStart: c.id === recommended,
       practicedItemCount: Math.min(reviews.length, c.itemCount),

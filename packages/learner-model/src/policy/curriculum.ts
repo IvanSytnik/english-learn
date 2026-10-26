@@ -9,8 +9,9 @@ import type { ConceptMasterySnapshot, PolicyConfig, PrereqEdge } from './types';
  *  - INTRODUCTION (concept never attempted — no mastery snapshot, or one with
  *    observationCount = 0, e.g. a LEARNER_BOOTSTRAPPED prior): HARD gate. The
  *    concept is only eligible if every PREREQUISITE ancestor is mastered
- *    (pKnown ≥ prereqThreshold). We don't drop someone into Present Perfect
- *    before Past Simple.
+ *    (pKnown ≥ prereqThreshold AND observationCount ≥ prereqMinObservations
+ *    — see isMastered). We don't drop someone into Present Perfect before
+ *    Past Simple.
  *
  *  - REVIEW (concept has at least one folded outcome): NOT gated. Once a concept
  *    has been started, its due reviews must keep flowing regardless of prereq
@@ -53,6 +54,23 @@ export function isStarted(mastery: Pick<GateMastery, 'observationCount'> | undef
   return (mastery?.observationCount ?? 0) > 0;
 }
 
+/**
+ * A parent opens its PREREQUISITE dependents: pKnown at the threshold AND
+ * enough folded outcomes behind it (§8 #19). A diagnostic prior alone
+ * (observationCount = 0) never qualifies. Shared by the gate and the
+ * dashboard's lockedBy so the two can never disagree.
+ */
+export function isMastered(
+  mastery: Pick<GateMastery, 'pKnown' | 'observationCount'> | undefined,
+  config: Pick<PolicyConfig, 'prereqThreshold' | 'prereqMinObservations'>,
+): boolean {
+  return (
+    mastery !== undefined &&
+    mastery.pKnown >= config.prereqThreshold &&
+    mastery.observationCount >= config.prereqMinObservations
+  );
+}
+
 export function computeUnlocked(
   candidateConceptIds: readonly ConceptId[],
   masteries: readonly GateMastery[],
@@ -88,10 +106,9 @@ export function computeUnlocked(
 
     // INTRODUCTION regime: hard gate on direct prerequisites.
     const parents = parentsOf.get(conceptId) ?? [];
-    const allParentsMastered = parents.every((parentId) => {
-      const pm = masteryById.get(parentId);
-      return pm !== undefined && pm.pKnown >= config.prereqThreshold;
-    });
+    const allParentsMastered = parents.every((parentId) =>
+      isMastered(masteryById.get(parentId), config),
+    );
 
     if (allParentsMastered) {
       unlocked.add(conceptId);

@@ -24,6 +24,15 @@ export const BKT_DEFAULTS = {
   pForgetLambda: 0.01,
 } as const;
 
+/**
+ * Ability θ_K of a learner who knows the concept, on the IRT b scale
+ * (typical −3..+3) — feeds the 4PL in pCorrectGivenKnown (§8 #19). At 3 a
+ * knower answers a b = 0 item with P ≈ pGuess + 0.95 · (1 − pSlip − pGuess)
+ * and a b = 3 item halfway between pGuess and 1 − pSlip. Placeholder until
+ * calibration; stage 2 of §8 #19 replaces it with the learner's own θ.
+ */
+export const THETA_KNOWN = 3;
+
 /** Numerical safety bounds — clamp probabilities away from absorbing 0/1. */
 export const PROB_EPSILON = 1e-6;
 export const PROB_MIN = PROB_EPSILON;

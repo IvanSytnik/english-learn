@@ -43,6 +43,15 @@ export interface PolicyConfig {
   readonly prereqThreshold: number;
 
   /**
+   * Folded outcomes a parent needs, on top of prereqThreshold, before it
+   * unlocks its PREREQUISITE dependents. Decision 2026-10-27 (§8 #19): with
+   * the 4PL observation model a cold learner reaches 0.7 after 3 correct
+   * answers and a diagnostic prior after 1–2 — the count keeps a lucky guess or
+   * two from opening the gate. The BKT maths itself stays undamped.
+   */
+  readonly prereqMinObservations: number;
+
+  /**
    * Minimum outcomes/concept before "learning_gain" is trusted. Below this,
    * the effective strategy is forced to "bernoulli" regardless of `strategy`.
    * Decision 2026-07-08: 500 (consistent with the BKT calibration gate).
@@ -59,6 +68,7 @@ export interface PolicyConfig {
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
   strategy: 'learning_gain',
   prereqThreshold: 0.7,
+  prereqMinObservations: 3,
   calibrationGate: 500,
   hybridGainWeight: 0.5,
 });

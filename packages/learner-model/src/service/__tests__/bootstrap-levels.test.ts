@@ -3,7 +3,7 @@ import { SEED_CONCEPTS, SEED_EDGES } from '../../../seed';
 import { ALL_ITEMS } from '../../../seed/items';
 import type { CefrLevel } from '../../core/graph/types';
 import { type BootstrapConcept, type DiagnosticAnswerFact, MAPPING_V1 } from '../../diagnostic';
-import { DEFAULT_POLICY_CONFIG } from '../../policy';
+import { DEFAULT_POLICY_CONFIG, isMastered } from '../../policy';
 import { createBootstrapService } from '../bootstrap-service';
 import type { ItemForOutcome, LearnerModelDb, PrereqEdgeRow } from '../db-port';
 import { createLearnerService } from '../learner-service';
@@ -17,8 +17,10 @@ import { createMemoryDb } from './memory-db';
  * a concept that has a parent: a B2 concept is reachable at once only as a
  * root, and every edge in front of it costs right answers on the parent.
  *
- * The answer counts below follow from BKT_DEFAULTS and formula v1; a
- * deliberate change to either regenerates them.
+ * The answer counts below follow from BKT_DEFAULTS, the 4PL observation
+ * model (THETA_KNOWN = 3, every item b = 0) and formula v1; a deliberate
+ * change to any of them regenerates them. Since §8 #19 the gate's
+ * prereqMinObservations (3), not pKnown, sets the price of an edge.
  */
 
 const A2_ROOT = 'grammar.a2_root';
@@ -145,24 +147,26 @@ describe('diagnostic level × prerequisite edges', () => {
     expect(await conceptsPicked(withoutRoot.db, T0 + 1000)).toEqual(new Set([A2_ROOT]));
   });
 
-  // Right answers on each parent, in chain order, until it reaches the gate.
-  const costs: [DiagnosticLevel, number[]][] = [
-    ['A2', [4, 5]],
-    ['B1', [2, 2]],
-    ['B2', [2, 2]],
-    ['C1', [1, 1]],
+  // Right answers on each parent, in chain order: until its pKnown reaches the
+  // threshold (the level still shows here), and until it opens the gate —
+  // prereqMinObservations (3) floors every parent at three answers (§8 #19).
+  const costs: [DiagnosticLevel, number[], number[]][] = [
+    ['A2', [2, 2], [3, 3]],
+    ['B1', [1, 1], [3, 3]],
+    ['B2', [1, 1], [3, 3]],
+    ['C1', [1, 1], [3, 3]],
   ];
-  for (const [level, expected] of costs) {
-    it(`${level}: the B2 child opens after ${expected.join(' + ')} right answers on its chain`, async () => {
+  for (const [level, toThreshold, expected] of costs) {
+    it(`${level}: pKnown passes 0.7 after ${toThreshold.join(' + ')} right answers, the B2 child opens after ${expected.join(' + ')}`, async () => {
       const { db, masteries } = await bootstrapped(level);
       const learner = createLearnerService(db);
       let now = T0;
       const spent: number[] = [];
+      const reached: number[] = [];
       for (const parent of [A2_ROOT, B1_MID]) {
         let n = 0;
-        while (
-          (masteries.get(`u1:${parent}`)?.pKnown ?? 0) < DEFAULT_POLICY_CONFIG.prereqThreshold
-        ) {
+        let atThreshold: number | null = null;
+        while (!isMastered(masteries.get(`u1:${parent}`), DEFAULT_POLICY_CONFIG)) {
           // The child stays shut until the last parent passes the gate.
           expect(await conceptsPicked(db, now + 1000)).not.toContain(B2_CHILD);
           now += MINUTE;
@@ -174,10 +178,16 @@ describe('diagnostic level × prerequisite edges', () => {
           });
           expect(res.ok).toBe(true);
           n += 1;
+          const pKnown = masteries.get(`u1:${parent}`)?.pKnown ?? 0;
+          if (atThreshold === null && pKnown >= DEFAULT_POLICY_CONFIG.prereqThreshold) {
+            atThreshold = n;
+          }
           if (n > 20) throw new Error(`${parent} never reached the gate`);
         }
         spent.push(n);
+        reached.push(atThreshold ?? 0);
       }
+      expect(reached).toEqual(toThreshold);
       expect(spent).toEqual(expected);
 
       const svc = createSelectionService(db);

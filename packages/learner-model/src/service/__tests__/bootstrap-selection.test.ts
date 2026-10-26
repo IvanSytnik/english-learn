@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BootstrapConcept, DiagnosticAnswerFact } from '../../diagnostic';
 import { pickStartConcept } from '../../diagnostic';
+import { DEFAULT_POLICY_CONFIG, isMastered } from '../../policy';
 import { createBootstrapService } from '../bootstrap-service';
 import type { ItemForOutcome, LearnerModelDb, PrereqEdgeRow } from '../db-port';
 import { createLearnerService } from '../learner-service';
@@ -88,8 +89,15 @@ describe('bootstrap → selectNext integration', () => {
     // Minute-spaced reviews of the single root item: each GOOD schedules the
     // next learning step minutes ahead, so at check time nothing is due and
     // REVIEW_DUE does not mask the Thompson choice between the two concepts.
+    // The gate wants pKnown ≥ 0.7 AND 3 outcomes (§8 #19): the dependent stays
+    // shut until the third right answer even once pKnown has passed 0.7.
     let now = T0;
-    for (let i = 0; i < 10 && (masteries.get(`u1:${ROOT}`)?.pKnown ?? 0) < 0.7; i++) {
+    for (
+      let i = 0;
+      i < 10 && !isMastered(masteries.get(`u1:${ROOT}`), DEFAULT_POLICY_CONFIG);
+      i++
+    ) {
+      expect(await conceptsPicked(db, now + 1000)).not.toContain(DEPENDENT);
       now += MINUTE;
       const res = await learner.recordOutcome({
         userId: 'u1',
@@ -100,6 +108,7 @@ describe('bootstrap → selectNext integration', () => {
       expect(res.ok).toBe(true);
     }
     expect(masteries.get(`u1:${ROOT}`)?.pKnown).toBeGreaterThanOrEqual(0.7);
+    expect(masteries.get(`u1:${ROOT}`)?.observationCount).toBe(3);
     // Ladder and gate agree: the prerequisite that unlocks a dependent is Solid.
     expect(['SOLID', 'HIGH_SOLID']).toContain(masteries.get(`u1:${ROOT}`)?.displayStage);
 

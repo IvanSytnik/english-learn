@@ -133,6 +133,20 @@ describe('buildConceptProgress — fading and last practice', () => {
 });
 
 describe('buildConceptProgress — prerequisite lock (selection gate)', () => {
+  it('a parent past 0.7 with fewer than 3 outcomes still locks and is named (§8 #19)', () => {
+    const board = build({
+      concepts: [concept('g.young'), concept('g.child')],
+      masteries: [
+        mastery('g.young', { pKnown: 0.9, observationCount: 2, displayStage: 'HIGH_SOLID' }),
+        mastery('g.child', { pKnown: 0.5, observationCount: 0, displayStage: 'NOT_STARTED' }),
+      ],
+      prereqEdges: [prereq('g.young', 'g.child')],
+    });
+    const child = views(board).find((v) => v.id === 'g.child');
+    expect(child?.isLocked).toBe(true);
+    expect(child?.lockedBy).toEqual([{ id: 'g.young', title: 'Title g.young' }]);
+  });
+
   it('locks behind an unmet prerequisite and names only the unmet ones', () => {
     const board = build({
       concepts: [concept('g.met'), concept('g.unmet'), concept('g.child')],

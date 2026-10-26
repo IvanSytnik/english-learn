@@ -107,12 +107,16 @@ describe('recordOutcome — hinted', () => {
     const { db, masteries } = createMemoryDb({ items: ITEMS });
     const service = createLearnerService(db);
     let t = T0;
-    for (let i = 0; i < 12 && masteries.get(KEY)?.displayStage !== 'SOLID'; i++) {
+    // Three right answers take a cold learner past 0.9 (4PL, §8 #19): the
+    // ladder can skip SOLID, so stop at the first stage at or above it.
+    const atLeastSolid = (stage: string | undefined) => stage === 'SOLID' || stage === 'HIGH_SOLID';
+    for (let i = 0; i < 12 && !atLeastSolid(masteries.get(KEY)?.displayStage); i++) {
       t += DAY_MS;
       await service.recordOutcome({ userId: USER, itemId: ITEM, correct: true, occurredAtMs: t });
     }
     const before = masteries.get(KEY);
-    expect(before?.displayStage).toBe('SOLID');
+    const stage = before?.displayStage;
+    expect(atLeastSolid(stage)).toBe(true);
 
     t += DAY_MS;
     const result = await service.recordOutcome({
@@ -122,11 +126,11 @@ describe('recordOutcome — hinted', () => {
       hinted: true,
       occurredAtMs: t,
     });
-    expect(result).toMatchObject({ ok: true, stageBefore: 'SOLID', stageAfter: 'SOLID' });
+    expect(result).toMatchObject({ ok: true, stageBefore: stage, stageAfter: stage });
     expect(masteries.get(KEY)).toMatchObject({
       pKnown: before?.pKnown,
       observationCount: (before?.observationCount ?? 0) + 1,
-      displayStage: 'SOLID',
+      displayStage: stage,
     });
   });
 

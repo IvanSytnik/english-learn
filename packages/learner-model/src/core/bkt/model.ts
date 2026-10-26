@@ -1,6 +1,6 @@
 import { BKT_DEFAULTS, clampProb } from './constants';
 import { applyForgetting } from './forgetting';
-import { pCorrectGivenKnown, pKnownToTheta } from './irt';
+import { pCorrectGivenKnown } from './irt';
 import type { BktOutcome, BktState, IrtParams } from './types';
 
 /**
@@ -26,8 +26,8 @@ export function initBktState(at: number): BktState {
  * Read-time forecast only — never feeds back into stored state (update()
  * does not decay; §8 #10). No production caller today.
  *
- * With item (IRT-augmented):
- *   P(correct) = pKnown · σ(a(θ-b)) + (1-pKnown) · pGuess
+ * With item (IRT-augmented, 4PL — see pCorrectGivenKnown):
+ *   P(correct) = pKnown · P(correct | known, item) + (1-pKnown) · pGuess
  * Without item (classic BKT):
  *   P(correct) = pKnown · (1-pSlip) + (1-pKnown) · pGuess
  */
@@ -35,7 +35,7 @@ export function predictCorrect(state: BktState, now: number, item?: IrtParams): 
   const pKnownNow = applyForgetting(state.pKnown, state.pForgetLambda, now - state.lastUpdatedAt);
 
   const pCorrectIfKnown = item
-    ? pCorrectGivenKnown(pKnownToTheta(pKnownNow), item)
+    ? pCorrectGivenKnown(item, state.pSlip, state.pGuess)
     : 1 - state.pSlip;
   const pCorrectIfUnknown = state.pGuess;
 
@@ -59,8 +59,10 @@ export function predictCorrect(state: BktState, now: number, item?: IrtParams): 
 export function update(state: BktState, outcome: BktOutcome): BktState {
   const prior = state.pKnown;
 
+  // Same observation model as predictCorrect. Independent of the prior, so
+  // the update is monotone: correct raises the posterior, a miss lowers it.
   const pCorrectIfKnown = outcome.item
-    ? pCorrectGivenKnown(pKnownToTheta(prior), outcome.item)
+    ? pCorrectGivenKnown(outcome.item, state.pSlip, state.pGuess)
     : 1 - state.pSlip;
   const pCorrectIfUnknown = state.pGuess;
 
