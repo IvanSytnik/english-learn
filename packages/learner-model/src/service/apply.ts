@@ -44,16 +44,29 @@ export function applyItemAttempted(
 
   const bktBefore = prev.bkt ?? initBktState(atMs);
   const pKnownBefore = bktBefore.pKnown;
-  const bkt = update(bktBefore, {
-    correct: payload.correct,
-    timestamp: atMs,
-    item: { a: payload.irt.a, b: payload.irt.b },
-  });
+  const prevStage = prev.stage ?? 'NOT_STARTED';
+
+  // A correct answer after the hint (§8 #11) is practice, not evidence: the
+  // concept counts as started, but pKnown and an already-started stage stay
+  // put — the hint must not climb the ladder or open the 0.7 gate. A hinted
+  // miss is an ordinary miss.
+  const hintedCorrect = payload.correct && payload.hinted === true;
+
+  const bkt = hintedCorrect
+    ? { ...bktBefore, lastUpdatedAt: atMs, observationCount: bktBefore.observationCount + 1 }
+    : update(bktBefore, {
+        correct: payload.correct,
+        timestamp: atMs,
+        item: { a: payload.irt.a, b: payload.irt.b },
+      });
 
   const fsrsBefore = prev.fsrs ?? initCardState(occurredAt);
   const { state: fsrs, scheduledDays } = reviewCard(fsrsBefore, payload.rating, occurredAt);
 
-  const stage = nextDisplayStage(prev.stage ?? 'NOT_STARTED', bkt.pKnown);
+  const stage =
+    hintedCorrect && prevStage !== 'NOT_STARTED'
+      ? prevStage
+      : nextDisplayStage(prevStage, bkt.pKnown);
 
   return { bkt, fsrs, stage, pKnownBefore, scheduledDays };
 }

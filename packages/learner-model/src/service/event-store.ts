@@ -23,6 +23,8 @@ export type ItemOutcomeFact = {
   correct: boolean;
   /** "I don't know" — written to the payload only when true. */
   dontKnow?: boolean;
+  /** Hint opened before answering — written to the payload only when true. */
+  hinted?: boolean;
   timeMs: number | null;
   rating: FsrsRating;
   irt: IrtParams;
@@ -39,6 +41,7 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
     rating: fact.rating,
     irt: { a: fact.irt.a, b: fact.irt.b },
     ...(fact.dontKnow ? { dontKnow: true } : {}),
+    ...(fact.hinted ? { hinted: true } : {}),
   });
   return {
     userId: fact.userId,

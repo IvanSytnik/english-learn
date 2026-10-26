@@ -26,6 +26,12 @@ export type RecordOutcomeInput = {
    * after the user's latest event (OccurredAtNotMonotonicError otherwise).
    */
   occurredAtMs?: bigint;
+  /**
+   * The hint (`H`) was opened at least once before answering (§8 #11). A
+   * correct hinted answer is rated HARD and leaves pKnown unchanged; with an
+   * incorrect answer or don't-know it changes nothing but the frozen flag.
+   */
+  hinted?: boolean;
 } & (
   | { correct: boolean; dontKnow?: false }
   /**
@@ -63,16 +69,19 @@ export type RecordOutcomeResult =
   | { ok: false; error: 'ITEM_NOT_FOUND' };
 
 /**
- * Binary outcome -> FSRS rating mapping (decision 2026-07-04, option a).
+ * Outcome -> FSRS rating mapping (decision 2026-07-04, option a; HARD for a
+ * hinted answer — §8 #11).
  *
- * Deliberately coarse: correct = GOOD, incorrect = AGAIN. Response-time-based
+ * Deliberately coarse: correct = GOOD, correct after the hint = HARD,
+ * incorrect = AGAIN (hint or not). Response-time-based
  * refinement (EASY/HARD) is deferred until real timeMs distributions exist —
  * thresholds picked without data would be guesses. The chosen rating is
  * FROZEN into the event payload, so changing this mapping later does not
  * corrupt replay of historical events.
  */
-export function outcomeToRating(correct: boolean): FsrsRating {
-  return correct ? 'GOOD' : 'AGAIN';
+export function outcomeToRating(correct: boolean, hinted = false): FsrsRating {
+  if (!correct) return 'AGAIN';
+  return hinted ? 'HARD' : 'GOOD';
 }
 
 export type LearnerServiceDeps = {
@@ -89,7 +98,8 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
       if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
 
       const correct = input.dontKnow ? false : input.correct;
-      const rating = outcomeToRating(correct);
+      const hinted = input.hinted === true;
+      const rating = outcomeToRating(correct, hinted);
 
       const next = await db.runInTx(async (tx) => {
         // 0. Serialize with every other write for this user, then take the
@@ -103,6 +113,7 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
           conceptId: item.conceptId,
           correct,
           dontKnow: input.dontKnow === true,
+          hinted,
           timeMs: input.timeMs ?? null,
           rating,
           irt: { a: item.irtDiscrimination, b: item.irtDifficulty },

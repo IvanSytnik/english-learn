@@ -40,6 +40,22 @@ describe('ItemAttemptedPayloadSchema — dontKnow', () => {
   });
 });
 
+describe('ItemAttemptedPayloadSchema — hinted', () => {
+  it('accepts a correct hinted attempt rated HARD', () => {
+    const payload = { ...base, correct: true, rating: 'HARD', hinted: true };
+    expect(ItemAttemptedPayloadSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('accepts the hint next to an incorrect or don’t-know attempt', () => {
+    const payload = { ...base, dontKnow: true, hinted: true };
+    expect(ItemAttemptedPayloadSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('keeps the payload canonical: hinted is either true or absent', () => {
+    expect(ItemAttemptedPayloadSchema.safeParse({ ...base, hinted: false }).success).toBe(false);
+  });
+});
+
 describe('LearnerBootstrappedPayloadSchema — ladder axes carry their level', () => {
   const payload = (axes: unknown[], estimator?: 'accuracy' | 'ladder') => ({
     diagnosticAttemptId: 'da1',

@@ -42,7 +42,7 @@ export const ItemAttemptedPayloadSchema = z
     correct: z.boolean(),
     /** Response time in ms; null when the client did not measure it. */
     timeMs: z.number().int().positive().nullable(),
-    /** Rating fed to FSRS (binary mapping for now: GOOD/AGAIN). */
+    /** Rating fed to FSRS: GOOD / AGAIN, HARD for a correct hinted answer. */
     rating: FsrsRatingValue,
     /** IRT params fed to BKT, frozen at attempt time. */
     irt: IrtSnapshotSchema,
@@ -53,6 +53,13 @@ export const ItemAttemptedPayloadSchema = z
      * rating AGAIN); kept for analytics and future no-guess modelling.
      */
     dontKnow: z.literal(true).optional(),
+    /**
+     * The learner opened the hint (`H`) at least once before answering.
+     * Present only when true, like `dontKnow`. A correct hinted answer is rated
+     * HARD and leaves pKnown unchanged (§8 #11); an incorrect one folds like
+     * any other miss.
+     */
+    hinted: z.literal(true).optional(),
   })
   .strict()
   .refine((p) => !(p.dontKnow && p.correct), {
