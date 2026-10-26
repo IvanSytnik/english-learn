@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { registerFreshLearner } from './helpers/auth';
+import { chooseNativeLanguage } from './helpers/diagnostic';
 
 // Primary CTAs: a new learner finds their level first (the diagnostic), and
 // practises once the diagnostic has seeded the learner model.
@@ -33,10 +34,11 @@ test('/ru/dashboard: before the diagnostic the CTA leads to /ru/diagnostic, neve
   await expect(page.locator('main a[href="/ru/exercises"]')).toHaveCount(0);
 });
 
-test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) => {
+test('/ru/diagnostic: no dead end — the native language, then the intro offers Start', async ({
+  page,
+}) => {
   await registerFreshLearner(page, 'cta');
-  await page.goto('/ru/diagnostic');
-  await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
+  await chooseNativeLanguage(page, 'Другой язык');
   await expect(page.getByRole('button', { name: 'Начать' })).toBeEnabled();
 });
 

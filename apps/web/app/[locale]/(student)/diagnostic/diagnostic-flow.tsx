@@ -1,8 +1,10 @@
 'use client';
 
+import type { NativeLanguage } from '@englishlearn/db/schemas';
 import { cn, KeyHint, SegmentedProgress } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import {
+  type FormEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -18,7 +20,11 @@ import type {
   DiagnosticResultView,
 } from '@/lib/diagnostic';
 import { focusKind, resolveShortcut } from '@/lib/exercise/shortcuts';
-import { startDiagnosticAction, submitDiagnosticAnswerAction } from './actions';
+import {
+  saveNativeLanguageAction,
+  startDiagnosticAction,
+  submitDiagnosticAnswerAction,
+} from './actions';
 
 const GAP = '___';
 
@@ -27,7 +33,19 @@ const primaryButton =
 const quietButton =
   'inline-flex h-11 items-center justify-center gap-2 rounded-control border border-line px-4 text-sm font-medium text-ink transition-colors duration-(--duration-fast) ease-standard hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
 
-/** Client view of the diagnostic: intro → questions → done, or unavailable. */
+/**
+ * The native-language choices, in a fixed order. Endonyms are constants, not
+ * `Intl.DisplayNames` (its casing differs between Node and browsers — a
+ * hydration mismatch); "Other" is a message in the interface language.
+ */
+const LANGUAGE_CHOICES: readonly { code: NativeLanguage; endonym: string | null }[] = [
+  { code: 'ru', endonym: 'Русский' },
+  { code: 'uk', endonym: 'Українська' },
+  { code: 'de', endonym: 'Deutsch' },
+  { code: 'other', endonym: null },
+];
+
+/** Client view of the diagnostic: (language →) intro → questions → done, or unavailable. */
 export type DiagnosticView = DiagnosticPeek | { kind: 'unavailable' };
 type View = DiagnosticView;
 
@@ -38,18 +56,29 @@ type View = DiagnosticView;
  */
 export function DiagnosticFlow({ initial }: { initial: View }) {
   const [view, setView] = useState<View>(initial);
+  // Set once the learner moves between steps here (not on page load): the
+  // new step's heading then takes focus.
+  const [moved, setMoved] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const show = useCallback((next: View) => {
+    setMoved(true);
+    setView(next);
+  }, []);
 
   const start = useCallback(() => {
     startTransition(async () => {
       const res = await startDiagnosticAction();
-      setView(res.ok ? res.value : { kind: 'unavailable' });
+      if (res.ok) show(res.value);
+      else show({ kind: res.error === 'NEEDS_LANGUAGE' ? 'language' : 'unavailable' });
     });
-  }, []);
+  }, [show]);
 
   switch (view.kind) {
+    case 'language':
+      return <LanguageStep onSaved={show} focusHeading={moved} />;
     case 'intro':
-      return <Intro onStart={start} pending={pending} />;
+      return <Intro onStart={start} pending={pending} focusHeading={moved} />;
     case 'question':
       return (
         <Player
@@ -72,11 +101,125 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-function Intro({ onStart, pending }: { onStart: () => void; pending: boolean }) {
+/**
+ * The learner's native language, asked once before the first attempt.
+ * Nothing is preselected — never guessed from the interface language — and
+ * the choice is sent only on Continue. Native radios, no global shortcuts.
+ */
+function LanguageStep({
+  onSaved,
+  focusHeading,
+}: {
+  onSaved: (view: View) => void;
+  focusHeading: boolean;
+}) {
   const t = useTranslations('student.diagnostic');
+  const [selected, setSelected] = useState<NativeLanguage | null>(null);
+  const [error, setError] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const sending = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (focusHeading) headingRef.current?.focus();
+  }, [focusHeading]);
+
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    // One save per choice: a second Enter or click while sending does nothing.
+    if (selected === null || sending.current) return;
+    sending.current = true;
+    setError(false);
+    startTransition(async () => {
+      const res = await saveNativeLanguageAction({ language: selected });
+      sending.current = false;
+      if (res.ok) onSaved(res.value);
+      else setError(true);
+    });
+  };
+
   return (
     <Shell>
-      <h1 className="font-content text-3xl text-ink">{t('title')}</h1>
+      <form onSubmit={save} className="flex flex-col gap-6">
+        <h1
+          id="native-language-title"
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-content text-3xl text-ink outline-none"
+        >
+          {t('languageTitle')}
+        </h1>
+        <p id="native-language-why" className="text-ink">
+          {t('languageWhy')}
+        </p>
+        <fieldset
+          aria-labelledby="native-language-title"
+          aria-describedby="native-language-why"
+          className="flex flex-col gap-2"
+        >
+          {LANGUAGE_CHOICES.map(({ code, endonym }) => (
+            <label
+              key={code}
+              className={cn(
+                'flex w-full cursor-pointer items-center gap-3 rounded-control border bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-(--duration-fast) ease-standard',
+                'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent',
+                selected === code ? 'border-accent bg-surface-2 ring-1 ring-accent' : 'border-line',
+                pending ? 'cursor-default' : 'hover:bg-surface-2',
+              )}
+            >
+              <input
+                type="radio"
+                name="nativeLanguage"
+                value={code}
+                checked={selected === code}
+                onChange={() => setSelected(code)}
+                disabled={pending}
+                className="sr-only"
+              />
+              {endonym ? (
+                <span lang={code} className="flex-1 text-lg text-ink">
+                  {endonym}
+                </span>
+              ) : (
+                <span className="flex-1 text-lg text-ink">{t('languageOther')}</span>
+              )}
+            </label>
+          ))}
+        </fieldset>
+        {error ? (
+          <p role="alert" className="text-sm text-feedback-incorrect">
+            {t('languageError')}
+          </p>
+        ) : null}
+        <div>
+          <button type="submit" className={primaryButton} disabled={pending || selected === null}>
+            {t('languageContinue')}
+          </button>
+        </div>
+      </form>
+    </Shell>
+  );
+}
+
+function Intro({
+  onStart,
+  pending,
+  focusHeading,
+}: {
+  onStart: () => void;
+  pending: boolean;
+  focusHeading: boolean;
+}) {
+  const t = useTranslations('student.diagnostic');
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (focusHeading) headingRef.current?.focus();
+  }, [focusHeading]);
+  return (
+    <Shell>
+      <h1 ref={headingRef} tabIndex={-1} className="font-content text-3xl text-ink outline-none">
+        {t('title')}
+      </h1>
       <div className="flex flex-col gap-3 text-ink">
         <p>{t('intro')}</p>
         <p>{t('introNoGrades')}</p>

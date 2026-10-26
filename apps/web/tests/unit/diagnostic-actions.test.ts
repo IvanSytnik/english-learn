@@ -68,6 +68,8 @@ const store = vi.hoisted(() => ({
     prereqEdges: [] as { from: string; to: string; kind: 'PREREQUISITE' }[],
   },
   lastFacts: null as null | { answers: { skillTag: unknown }[] },
+  /** StudentProfile.nativeLanguage per user; absent = no profile. */
+  languages: new Map<string, string | null>(),
 }));
 
 const {
@@ -77,6 +79,7 @@ const {
   appendAnswer,
   completeAttempt,
   getPlacementContext,
+  setNativeLanguage,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   bootstrapFromDiagnostic: vi.fn(),
@@ -84,6 +87,7 @@ const {
   appendAnswer: vi.fn(),
   completeAttempt: vi.fn(),
   getPlacementContext: vi.fn(),
+  setNativeLanguage: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -148,6 +152,10 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
   },
   getPlacementContext,
 }));
+vi.mock('@englishlearn/db/queries/student-profile', () => ({
+  getNativeLanguage: async (_db: unknown, userId: string) => store.languages.get(userId) ?? null,
+  setNativeLanguage,
+}));
 vi.mock('@englishlearn/db/queries/exercises', () => ({
   // The real query returns cefrLevel and kind too; the orchestrator must drop them.
   getDiagnosticItemForStudent: async (id: string) => {
@@ -164,9 +172,8 @@ vi.mock('@englishlearn/db/queries/exercises', () => ({
     new Map(ids.map((id) => [id, `${locale}:${id}`])),
 }));
 
-const { startDiagnosticAction, submitDiagnosticAnswerAction } = await import(
-  '@/app/[locale]/(student)/diagnostic/actions'
-);
+const { saveNativeLanguageAction, startDiagnosticAction, submitDiagnosticAnswerAction } =
+  await import('@/app/[locale]/(student)/diagnostic/actions');
 const { isDiagnosticDone, peekDiagnosticStep } = await import('@/lib/diagnostic');
 
 /** The in-memory attempt queries, with the database's semantics. */
@@ -279,6 +286,14 @@ beforeEach(() => {
   store.nextId = 0;
   store.tagged = false;
   store.lastFacts = null;
+  // Most tests are about the test itself: these learners chose a language already.
+  store.languages = new Map([
+    ['u1', 'ru'],
+    ['u2', 'ru'],
+  ]);
+  setNativeLanguage.mockImplementation(async (_db: unknown, userId: string, language: string) => {
+    store.languages.set(userId, language);
+  });
   store.context = {
     concepts: [
       { id: 'grammar.a', cefrLevel: 'A2' },
@@ -687,5 +702,109 @@ describe('isDiagnosticDone (the one "done" signal for every CTA)', () => {
     // Someone else's completed attempt is not this learner's.
     expect(await isDiagnosticDone('u2')).toBe(false);
     errors.mockRestore();
+  });
+});
+
+describe('the native language, before a new attempt', () => {
+  it('opening /diagnostic without one shows the language step and writes nothing', async () => {
+    store.languages.delete('u1');
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
+      ok: true,
+      value: { kind: 'language' },
+    });
+    // A blank stored value is not a choice either.
+    store.languages.set('u1', '  ');
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
+      ok: true,
+      value: { kind: 'language' },
+    });
+    expect(setNativeLanguage).not.toHaveBeenCalled();
+    expect(startOrResumeAttempt).not.toHaveBeenCalled();
+  });
+
+  it('any stored value counts as chosen, even one outside the list', async () => {
+    store.languages.set('u1', 'pl');
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
+      ok: true,
+      value: { kind: 'intro' },
+    });
+  });
+
+  it('Start without one creates no attempt', async () => {
+    store.languages.set('u1', null);
+    expect(await startDiagnosticAction()).toEqual({ ok: false, error: 'NEEDS_LANGUAGE' });
+    expect(startOrResumeAttempt).not.toHaveBeenCalled();
+    expect(store.attempts).toHaveLength(0);
+  });
+
+  it('never hides an attempt in progress or a result behind the language step', async () => {
+    await answer(true);
+    store.languages.set('u1', null);
+    const peek = await peekDiagnosticStep('u1', new Date(), 'ru');
+    expect(peek.ok && peek.value.kind).toBe('question');
+    const resumed = await startDiagnosticAction();
+    expect(resumed.ok && resumed.value.kind).toBe('question');
+
+    store.languages.set('u1', 'ru');
+    for (let i = 1; i < 16; i++) await answer(true);
+    store.languages.set('u1', null);
+    expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
+      ok: true,
+      value: { kind: 'completed', result: RESULT_ALL_RIGHT },
+    });
+    expect(await startDiagnosticAction()).toEqual({
+      ok: true,
+      value: { kind: 'completed', result: RESULT_ALL_RIGHT },
+    });
+  });
+
+  it('saving requires a signed-in student', async () => {
+    auth.mockResolvedValue(null);
+    expect(await saveNativeLanguageAction({ language: 'ru' })).toEqual({
+      ok: false,
+      error: 'UNAUTHENTICATED',
+    });
+    for (const role of ['TUTOR', 'ADMIN']) {
+      auth.mockResolvedValue({ user: { id: 'u1', role } });
+      expect(await saveNativeLanguageAction({ language: 'ru' })).toEqual({
+        ok: false,
+        error: 'FORBIDDEN',
+      });
+    }
+    expect(setNativeLanguage).not.toHaveBeenCalled();
+  });
+
+  it('saves only a value from the list — anything else is INVALID and never reaches the database', async () => {
+    for (const bad of [
+      { language: 'en' },
+      { language: 'pl' },
+      { language: 'RU' },
+      { language: '' },
+      { language: 1 },
+      {},
+      { language: 'ru', userId: 'u2' },
+      'ru',
+      null,
+    ]) {
+      expect(await saveNativeLanguageAction(bad as never), JSON.stringify(bad)).toEqual({
+        ok: false,
+        error: 'INVALID',
+      });
+    }
+    expect(setNativeLanguage).not.toHaveBeenCalled();
+  });
+
+  it('a valid choice is stored for the signed-in learner, then the intro follows', async () => {
+    store.languages.delete('u1');
+    expect(await saveNativeLanguageAction({ language: 'uk' })).toEqual({
+      ok: true,
+      value: { kind: 'intro' },
+    });
+    expect(setNativeLanguage).toHaveBeenCalledTimes(1);
+    expect(setNativeLanguage.mock.calls[0]?.slice(1)).toEqual(['u1', 'uk']);
+    expect(store.attempts).toHaveLength(0);
+    // …and now Start starts.
+    const step = await startDiagnosticAction();
+    expect(step.ok && step.value.kind).toBe('question');
   });
 });

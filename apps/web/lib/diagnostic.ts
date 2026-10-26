@@ -21,6 +21,7 @@ import {
   getConceptTitles,
   getDiagnosticItemForStudent,
 } from '@englishlearn/db/queries/exercises';
+import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import type { CefrLevelValue, DiagnosticAxisValue, Locale } from '@englishlearn/db/schemas';
 import { buildPlacementReveal, nextLadderStep, TOTAL_QUESTIONS } from '@englishlearn/learner-model';
 import { bootstrapService } from '@/lib/learner';
@@ -68,8 +69,11 @@ export type DiagnosticStep =
   | { kind: 'question'; question: DiagnosticQuestionView }
   | { kind: 'completed'; result: DiagnosticResultView };
 
-/** What a visit to /diagnostic shows; `intro` until the learner presses Start. */
-export type DiagnosticPeek = DiagnosticStep | { kind: 'intro' };
+/**
+ * What a visit to /diagnostic shows; `intro` until the learner presses Start,
+ * and before the intro `language` while their native language is unknown.
+ */
+export type DiagnosticPeek = DiagnosticStep | { kind: 'intro' } | { kind: 'language' };
 
 export type DiagnosticError =
   /** Unknown, foreign or abandoned attempt. */
@@ -77,7 +81,9 @@ export type DiagnosticError =
   /** The question vanished from the published bank mid-attempt. */
   | 'ITEM_NOT_FOUND'
   /** No unanswered question left on an axis — a bank problem, logged. */
-  | 'BANK_EXHAUSTED';
+  | 'BANK_EXHAUSTED'
+  /** A new attempt needs the learner's native language first. */
+  | 'NEEDS_LANGUAGE';
 
 export type DiagnosticAnswerInput = { attemptId: string; position: number; itemId: string } & (
   | { choiceIndex: number; dontKnow?: never }
@@ -102,9 +108,20 @@ export async function isDiagnosticDone(userId: string): Promise<boolean> {
 }
 
 /**
+ * Whether the learner has chosen a native language. Any non-empty stored
+ * value counts, even one outside today's list: it was their choice. Never
+ * inferred from the interface locale.
+ */
+async function hasNativeLanguage(userId: string): Promise<boolean> {
+  return ((await getNativeLanguage(prisma, userId)) ?? '').trim() !== '';
+}
+
+/**
  * What the learner sees on arrival — without starting anything: their result,
- * the question of the attempt they left, or the intro. Merely opening the
- * page must not create an attempt.
+ * the question of the attempt they left, the native-language step, or the
+ * intro. Merely opening the page must not create an attempt or write the
+ * language. The language step only stands before a new attempt: a result or
+ * an attempt in progress is never hidden behind it.
  */
 export async function peekDiagnosticStep(
   userId: string,
@@ -116,11 +133,17 @@ export async function peekDiagnosticStep(
     return { ok: true, value: await completedStep(userId, completed.attemptId, locale, true) };
   }
   const active = await getActiveAttempt(prisma, userId, now);
-  if (!active) return { ok: true, value: { kind: 'intro' } };
+  if (!active) {
+    return { ok: true, value: { kind: (await hasNativeLanguage(userId)) ? 'intro' : 'language' } };
+  }
   return stepOf(userId, active.attemptId, now, locale);
 }
 
-/** Start (or resume) the attempt: the completed result, or the next question. */
+/**
+ * Start (or resume) the attempt: the completed result, or the next question.
+ * A new attempt is refused (`NEEDS_LANGUAGE`) until the native language is
+ * chosen; one in progress resumes regardless.
+ */
 export async function getDiagnosticStep(
   userId: string,
   now: Date,
@@ -130,6 +153,9 @@ export async function getDiagnosticStep(
   if (completed) {
     // A bootstrap that failed right after completion is finished here.
     return { ok: true, value: await completedStep(userId, completed.attemptId, locale, true) };
+  }
+  if (!(await hasNativeLanguage(userId)) && !(await getActiveAttempt(prisma, userId, now))) {
+    return { ok: false, error: 'NEEDS_LANGUAGE' };
   }
   const { attemptId } = await startOrResumeAttempt(prisma, userId, now);
   return stepOf(userId, attemptId, now, locale);

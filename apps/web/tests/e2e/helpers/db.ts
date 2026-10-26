@@ -33,7 +33,7 @@ export async function closeDb() {
 /** The learner's diagnostic footprint, by e-mail. */
 export async function diagnosticFootprint(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
-  const [attempts, bootstrapEvents, priors] = await Promise.all([
+  const [attempts, bootstrapEvents, priors, profile] = await Promise.all([
     db().diagnosticAttempt.findMany({
       where: { userId: user.id },
       select: { status: true, assessedLevel: true, _count: { select: { answers: true } } },
@@ -41,6 +41,10 @@ export async function diagnosticFootprint(email: string) {
     db().learnerEvent.count({ where: { userId: user.id, type: 'LEARNER_BOOTSTRAPPED' } }),
     // Only a bootstrap writes ConceptMastery rows with no observation.
     db().conceptMastery.count({ where: { userId: user.id, observationCount: 0 } }),
+    db().studentProfile.findUnique({
+      where: { userId: user.id },
+      select: { nativeLanguage: true },
+    }),
   ]);
   return {
     attempts: attempts.map((a) => ({
@@ -50,5 +54,6 @@ export async function diagnosticFootprint(email: string) {
     })),
     bootstrapEvents,
     priors,
+    nativeLanguage: profile?.nativeLanguage ?? null,
   };
 }

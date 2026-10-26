@@ -3,6 +3,7 @@ import { DIAGNOSTIC_BANK } from '@englishlearn/learner-model/seed/diagnostic';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, diagnosticFootprint } from './helpers/db';
+import { chooseNativeLanguage } from './helpers/diagnostic';
 
 const stem = (page: Page) => page.locator('#diagnostic-stem');
 const status = (page: Page) => page.getByRole('status');
@@ -39,8 +40,9 @@ async function answer(page: Page, n: number, how: 'right' | 'dontKnow') {
   if (n < 16) await expect(status(page)).toHaveText(`Вопрос ${n + 1} из 16`, AFTER_SUBMIT);
 }
 
+/** From a fresh learner: the native language, then Start by keyboard. */
 async function start(page: Page) {
-  await page.goto('/ru/diagnostic');
+  await chooseNativeLanguage(page);
   const button = page.getByRole('button', { name: 'Начать' });
   await button.focus();
   await page.keyboard.press('Enter');
@@ -49,9 +51,36 @@ async function start(page: Page) {
 
 test.afterAll(closeDb);
 
-test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ page }) => {
+test('/ru/diagnostic: the native language comes first — nothing preselected, nothing written on GET', async ({
+  page,
+}) => {
   const email = await registerFreshLearner(page, 'diag');
   await page.goto('/ru/diagnostic');
+  await expect(page.getByRole('heading', { name: 'Ваш родной язык' })).toBeVisible();
+  const radios = page.getByRole('radio');
+  await expect(radios).toHaveCount(4);
+  for (const radio of await radios.all()) await expect(radio).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Продолжить' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Начать' })).toHaveCount(0);
+  await page.reload();
+  expect(await diagnosticFootprint(email)).toMatchObject({ attempts: [], nativeLanguage: null });
+
+  // By keyboard: Tab into the group, an arrow picks a language, Enter continues.
+  await page.getByRole('radio', { name: 'Русский' }).focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('radio', { name: 'Українська' })).toBeChecked();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeFocused(AFTER_SUBMIT);
+  expect(await diagnosticFootprint(email)).toMatchObject({ attempts: [], nativeLanguage: 'uk' });
+  // Chosen once: a reload goes straight to the intro.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
+});
+
+test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ page }) => {
+  const email = await registerFreshLearner(page, 'diag');
+  await chooseNativeLanguage(page);
+  await page.reload();
   await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
   await expect(page.getByText('16 коротких вопросов')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Начать' })).toBeVisible();

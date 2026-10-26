@@ -1,14 +1,18 @@
 'use server';
 
-import { isLocale, type Locale } from '@englishlearn/db/schemas';
+import { prisma } from '@englishlearn/db';
+import { setNativeLanguage } from '@englishlearn/db/queries/student-profile';
+import { isLocale, type Locale, NativeLanguageSchema } from '@englishlearn/db/schemas';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import {
   type DiagnosticError,
+  type DiagnosticPeek,
   type DiagnosticStep,
   type DiagnosticSubmitOutcome,
   getDiagnosticStep,
+  peekDiagnosticStep,
   submitDiagnosticAnswer,
 } from '@/lib/diagnostic';
 import type { Result } from '@/lib/result';
@@ -20,6 +24,7 @@ const Ids = {
   position: z.number().int().min(0).max(15),
   itemId: z.string().min(1).max(200),
 };
+const LanguageSchema = z.object({ language: NativeLanguageSchema }).strict();
 const SubmitSchema = z.union([
   z.object({ ...Ids, choiceIndex: z.number().int().min(0).max(5) }).strict(),
   z.object({ ...Ids, dontKnow: z.literal(true) }).strict(),
@@ -36,6 +41,21 @@ async function studentId(): Promise<Result<string, DiagnosticActionError>> {
 async function currentLocale(): Promise<Locale> {
   const locale = await getLocale();
   return isLocale(locale) ? locale : 'en';
+}
+
+/**
+ * Store the native language the learner picked, then show what comes next —
+ * the intro, normally. Only a value from the list is written.
+ */
+export async function saveNativeLanguageAction(
+  input: z.input<typeof LanguageSchema>,
+): Promise<Result<DiagnosticPeek, DiagnosticActionError>> {
+  const user = await studentId();
+  if (!user.ok) return user;
+  const parsed = LanguageSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' };
+  await setNativeLanguage(prisma, user.value, parsed.data.language);
+  return peekDiagnosticStep(user.value, new Date(), await currentLocale());
 }
 
 /** Start (Start button) or resume the signed-in learner's diagnostic. */

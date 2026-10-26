@@ -99,7 +99,12 @@
       "resultTitle": "Your level",
       "axisLevel": "{axis, select, GRAMMAR {Grammar} VOCAB {Vocabulary} other {Listening}} {level}",
       "recommendStart": "We suggest starting with “{title}”.",
-      "resultUnavailable": "Your answers are saved, but we can’t show the result right now. You can go on to practice."
+      "resultUnavailable": "Your answers are saved, but we can’t show the result right now. You can go on to practice.",
+      "languageTitle": "Your native language",
+      "languageWhy": "Hints and explanations in exercises will be in this language wherever a translation exists.",
+      "languageOther": "Other language",
+      "languageContinue": "Continue",
+      "languageError": "Your choice wasn't saved. Try again."
     },
     "exercises": {
       "title": "Exercises",

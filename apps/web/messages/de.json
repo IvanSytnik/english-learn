@@ -99,7 +99,12 @@
       "resultTitle": "Dein Niveau",
       "axisLevel": "{axis, select, GRAMMAR {Grammatik} VOCAB {Wortschatz} other {Hörverstehen}} {level}",
       "recommendStart": "Wir empfehlen, mit „{title}“ zu beginnen.",
-      "resultUnavailable": "Deine Antworten sind gespeichert, aber das Ergebnis lässt sich gerade nicht anzeigen. Du kannst trotzdem üben."
+      "resultUnavailable": "Deine Antworten sind gespeichert, aber das Ergebnis lässt sich gerade nicht anzeigen. Du kannst trotzdem üben.",
+      "languageTitle": "Deine Muttersprache",
+      "languageWhy": "Hinweise und Erklärungen in den Übungen erscheinen in dieser Sprache, sofern es eine Übersetzung gibt.",
+      "languageOther": "Andere Sprache",
+      "languageContinue": "Weiter",
+      "languageError": "Deine Auswahl wurde nicht gespeichert. Versuch es noch einmal."
     },
     "exercises": {
       "title": "Übungen",

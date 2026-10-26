@@ -4,12 +4,16 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiagnosticQuestionView } from '@/lib/diagnostic';
 import en from '../../messages/en.json';
+import ru from '../../messages/ru.json';
 
-const { startDiagnosticAction, submitDiagnosticAnswerAction } = vi.hoisted(() => ({
-  startDiagnosticAction: vi.fn(),
-  submitDiagnosticAnswerAction: vi.fn(),
-}));
+const { saveNativeLanguageAction, startDiagnosticAction, submitDiagnosticAnswerAction } =
+  vi.hoisted(() => ({
+    saveNativeLanguageAction: vi.fn(),
+    startDiagnosticAction: vi.fn(),
+    submitDiagnosticAnswerAction: vi.fn(),
+  }));
 vi.mock('@/app/[locale]/(student)/diagnostic/actions', () => ({
+  saveNativeLanguageAction,
   startDiagnosticAction,
   submitDiagnosticAnswerAction,
 }));
@@ -32,9 +36,12 @@ const question = (position: number, id = `q${position}`): DiagnosticQuestionView
 const asStep = (q: DiagnosticQuestionView) => ({ kind: 'question' as const, question: q });
 const reply = (step: unknown, stale = false) => ({ ok: true, value: { stale, step } });
 
-function renderFlow(initial: Parameters<typeof DiagnosticFlow>[0]['initial']) {
+function renderFlow(
+  initial: Parameters<typeof DiagnosticFlow>[0]['initial'],
+  { locale = 'en', messages = en }: { locale?: string; messages?: typeof en } = {},
+) {
   return render(
-    <NextIntlClientProvider locale="en" messages={en}>
+    <NextIntlClientProvider locale={locale} messages={messages}>
       <DiagnosticFlow initial={initial} />
     </NextIntlClientProvider>,
   );
@@ -62,6 +69,7 @@ function pressWhenShown(k: string, shown: () => boolean): Promise<void> {
 beforeEach(() => {
   vi.clearAllMocks();
   // A test that fails midway must not leave its *Once replies to the next one.
+  saveNativeLanguageAction.mockReset();
   startDiagnosticAction.mockReset();
   submitDiagnosticAnswerAction.mockReset();
 });
@@ -237,5 +245,93 @@ describe('DiagnosticFlow', () => {
     await act(async () => {});
     key('Enter');
     expect(await screen.findByText('Question 2 of 16')).toBeTruthy();
+  });
+});
+
+describe('DiagnosticFlow: the native language step', () => {
+  const radios = () => screen.getAllByRole('radio') as HTMLInputElement[];
+  const continueButton = () =>
+    screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
+
+  it('four fixed choices, endonyms tagged with their language, nothing preselected', () => {
+    renderFlow({ kind: 'language' });
+    expect(screen.getByRole('heading', { name: 'Your native language' })).toBeTruthy();
+    expect(radios().map((r) => r.value)).toEqual(['ru', 'uk', 'de', 'other']);
+    // Each radio is named by its label alone (no secondary text glued on).
+    expect(screen.getByRole('radio', { name: 'Русский' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Українська' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Other language' })).toBeTruthy();
+    expect(screen.getByText('Русский').getAttribute('lang')).toBe('ru');
+    expect(screen.getByText('Українська').getAttribute('lang')).toBe('uk');
+    expect(screen.getByText('Deutsch').getAttribute('lang')).toBe('de');
+    expect(screen.getByText('Other language').hasAttribute('lang')).toBe(false);
+    expect(radios().some((r) => r.checked)).toBe(false);
+    expect(continueButton().disabled).toBe(true);
+  });
+
+  it('never preselects from the interface language', () => {
+    renderFlow({ kind: 'language' }, { locale: 'ru', messages: ru });
+    expect(radios().some((r) => r.checked)).toBe(false);
+    expect(screen.getByRole('radio', { name: 'Другой язык' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Продолжить' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it('a choice is sent only on Continue, then the intro takes focus', async () => {
+    saveNativeLanguageAction.mockResolvedValue({ ok: true, value: { kind: 'intro' } });
+    renderFlow({ kind: 'language' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Українська' }));
+    expect(saveNativeLanguageAction).not.toHaveBeenCalled();
+    expect(continueButton().disabled).toBe(false);
+    fireEvent.click(continueButton());
+    const heading = await screen.findByRole('heading', { name: 'Diagnostic test' });
+    expect(saveNativeLanguageAction).toHaveBeenCalledTimes(1);
+    expect(saveNativeLanguageAction).toHaveBeenCalledWith({ language: 'uk' });
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it('a second submit while saving sends nothing more', async () => {
+    let resolve: (v: unknown) => void = () => {};
+    saveNativeLanguageAction.mockReturnValue(new Promise((r) => (resolve = r)));
+    renderFlow({ kind: 'language' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Deutsch' }));
+    const form = continueButton().closest('form') as HTMLFormElement;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(saveNativeLanguageAction).toHaveBeenCalledTimes(1);
+    await act(async () => resolve({ ok: true, value: { kind: 'intro' } }));
+    expect(await screen.findByRole('heading', { name: 'Diagnostic test' })).toBeTruthy();
+  });
+
+  it('a failed save keeps the choice and lets the learner retry', async () => {
+    saveNativeLanguageAction
+      .mockResolvedValueOnce({ ok: false, error: 'INVALID' })
+      .mockResolvedValueOnce({ ok: true, value: { kind: 'intro' } });
+    renderFlow({ kind: 'language' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Русский' }));
+    fireEvent.click(continueButton());
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Your choice wasn't saved. Try again.",
+    );
+    await waitFor(() => expect(continueButton().disabled).toBe(false));
+    expect((screen.getByRole('radio', { name: 'Русский' }) as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(continueButton());
+    expect(await screen.findByRole('heading', { name: 'Diagnostic test' })).toBeTruthy();
+  });
+
+  it('opened on the intro, the heading keeps its place in the page (no focus move)', () => {
+    renderFlow({ kind: 'intro' });
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('Start answered NEEDS_LANGUAGE (no language yet) leads to the language step', async () => {
+    startDiagnosticAction.mockResolvedValue({ ok: false, error: 'NEEDS_LANGUAGE' });
+    renderFlow({ kind: 'intro' });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const heading = await screen.findByRole('heading', { name: 'Your native language' });
+    expect(document.activeElement).toBe(heading);
+    expect(radios().some((r) => r.checked)).toBe(false);
   });
 });

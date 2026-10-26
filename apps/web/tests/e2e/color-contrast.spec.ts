@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { registerFreshLearner } from './helpers/auth';
+import { chooseNativeLanguage } from './helpers/diagnostic';
 
 // Text contrast (WCAG AA) on the shell screens, in both colour schemes.
 // The body follows prefers-color-scheme, so a component that hard-codes a
@@ -40,5 +41,25 @@ for (const colorScheme of ['dark', 'light'] as const) {
         await expectNoContrastViolations(page);
       });
     }
+
+    // A fresh learner's /ru/diagnostic is the language step (above); the intro
+    // comes after it, with a choice made.
+    test('/ru/diagnostic intro (signed in)', async ({ page }) => {
+      await registerFreshLearner(page, 'contrast');
+      // A click starts transition-colors; axe must not measure mid-way.
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await chooseNativeLanguage(page);
+      await expectNoContrastViolations(page);
+    });
+
+    test('/ru/diagnostic language step, a choice selected (signed in)', async ({ page }) => {
+      await registerFreshLearner(page, 'contrast');
+      // A click starts transition-colors; axe must not measure mid-way.
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/ru/diagnostic');
+      await page.locator('label', { hasText: 'Deutsch' }).click();
+      await expect(page.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
+      await expectNoContrastViolations(page);
+    });
   });
 }
