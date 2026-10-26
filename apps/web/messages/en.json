@@ -63,8 +63,14 @@
       "nextExercise": "Continue learning",
       "takeDiagnostic": "Take diagnostic test",
       "level": "Your level: {level}",
-      "startPractice": "Start practising",
-      "findLevel": "Find your level"
+      "findLevel": "Find your level",
+      "continuePractice": "Continue practice",
+      "review": "{count, plural, one {Review (# topic)} other {Review (# topics)}}",
+      "category": "{category, select, GRAMMAR {Grammar} VOCAB {Vocabulary} LISTENING {Listening} PHONETICS {Pronunciation} DISCOURSE {Discourse} PRAGMATICS {Pragmatics} other {Other}}",
+      "recommendedStart": "Recommended to start",
+      "quoted": "“{title}”",
+      "lockedBy": "{count, plural, one {Unlocks after the topic {topics}} other {Unlocks after the topics {topics}}}",
+      "lockedFallback": "Unlocks once the earlier topics are in place"
     },
     "diagnostic": {
       "title": "Diagnostic test",

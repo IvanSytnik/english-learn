@@ -48,3 +48,24 @@ test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Начать' })).toBeEnabled();
 });
+
+test('/ru/dashboard: before anything, the topics by section, locks named, no week', async ({
+  page,
+}) => {
+  await registerFreshStudent(page);
+  await expect(page.getByRole('heading', { level: 2, name: 'Грамматика' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Словарь' })).toBeVisible();
+  // Nothing practised: every open topic is "not started".
+  const stages = page.locator('main [data-concept] [data-stage]');
+  await expect(stages.first()).toBeVisible();
+  for (const stage of await stages.all()) {
+    await expect(stage).toHaveAttribute('data-stage', 'NOT_STARTED');
+  }
+  // The seed graph has prerequisites: a locked topic says what opens it.
+  const locked = page.locator('main [data-concept][data-locked="true"]');
+  await expect(locked.first()).toContainText(/Откроется после тем[ыи]? «.+»/);
+  await expect(locked.locator('[data-stage]')).toHaveCount(0);
+  await expect(page.locator('[data-recommended-start]')).toHaveCount(0);
+  await expect(page.locator('[data-dashboard-level]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Эта неделя' })).toHaveCount(0);
+});

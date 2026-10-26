@@ -58,4 +58,49 @@ describe('message catalogues', () => {
     expect(ru('week.progress', { done: 2, goal: 3 })).toBe('2 из 3 сессий');
     expect(uk('week.progress', { done: 1, goal: 3 })).toBe('1 з 3 сесій');
   });
+
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: dashboard ICU messages format', (locale) => {
+    const t = createTranslator({
+      locale,
+      messages: MESSAGES[locale],
+      namespace: 'student.dashboard',
+    });
+    for (const count of [1, 2, 5, 21]) {
+      expect(t('review', { count })).toContain(String(count));
+      expect(t('lockedBy', { count, topics: 'X' })).toContain('X');
+    }
+    for (const category of [
+      'GRAMMAR',
+      'VOCAB',
+      'LISTENING',
+      'PHONETICS',
+      'DISCOURSE',
+      'PRAGMATICS',
+    ]) {
+      const label = t('category', { category });
+      expect(label).not.toMatch(/[{}]/);
+      expect(label).not.toBe(t('category', { category: 'unknown' }));
+    }
+    expect(t('quoted', { title: 'Past Simple' })).toMatch(/^\W+Past Simple\W+$/);
+  });
+
+  it('dashboard: Slavic plural forms of the review CTA', () => {
+    const ru = createTranslator({
+      locale: 'ru',
+      messages: MESSAGES.ru,
+      namespace: 'student.dashboard',
+    });
+    expect(ru('review', { count: 1 })).toBe('Повторить (1 тему)');
+    expect(ru('review', { count: 3 })).toBe('Повторить (3 темы)');
+    expect(ru('review', { count: 5 })).toBe('Повторить (5 тем)');
+    const uk = createTranslator({
+      locale: 'uk',
+      messages: MESSAGES.uk,
+      namespace: 'student.dashboard',
+    });
+    expect(uk('review', { count: 2 })).toBe('Повторити (2 теми)');
+    expect(uk('review', { count: 11 })).toBe('Повторити (11 тем)');
+  });
 });

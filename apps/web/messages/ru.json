@@ -63,8 +63,14 @@
       "nextExercise": "Продолжить",
       "takeDiagnostic": "Пройти диагностику",
       "level": "Уровень: {level}",
-      "startPractice": "Начать практику",
-      "findLevel": "Определить уровень"
+      "findLevel": "Определить уровень",
+      "continuePractice": "Продолжить практику",
+      "review": "{count, plural, one {Повторить (# тему)} few {Повторить (# темы)} many {Повторить (# тем)} other {Повторить (# темы)}}",
+      "category": "{category, select, GRAMMAR {Грамматика} VOCAB {Словарь} LISTENING {Аудирование} PHONETICS {Произношение} DISCOURSE {Связная речь} PRAGMATICS {Прагматика} other {Другое}}",
+      "recommendedStart": "Рекомендуем для старта",
+      "quoted": "«{title}»",
+      "lockedBy": "{count, plural, one {Откроется после темы {topics}} other {Откроется после тем {topics}}}",
+      "lockedFallback": "Откроется по мере прохождения предыдущих тем"
     },
     "diagnostic": {
       "title": "Диагностика",

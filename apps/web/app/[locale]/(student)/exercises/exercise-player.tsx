@@ -21,9 +21,9 @@ import type {
   ExerciseView,
   ReasonDetail,
 } from '@/lib/exercise/view';
+import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
 import { nextExercise, submitExerciseAttempt } from './actions';
 import { SessionSummary } from './session-summary';
-import { WeekRhythmPanel } from './week-rhythm-panel';
 
 const GAP = '___';
 

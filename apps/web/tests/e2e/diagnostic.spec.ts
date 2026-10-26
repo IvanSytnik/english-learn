@@ -89,7 +89,9 @@ test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the
   await expect(page.getByRole('heading', { name: 'Ваш уровень' })).toBeVisible();
   await expect(page.locator('[data-result-level]')).toHaveText('C1');
   await expect(page.getByText('Грамматика C1 · Словарь C1')).toBeVisible();
-  await expect(page.getByText(/^Рекомендуем начать с темы «.+»\.$/)).toBeVisible();
+  const recommendation = page.getByText(/^Рекомендуем начать с темы «.+»\.$/);
+  await expect(recommendation).toBeVisible();
+  const startTitle = (await recommendation.textContent())?.match(/«(.+)»/)?.[1] ?? '';
   await expect(page.getByText('%')).toHaveCount(0);
   const toPractice = page.getByRole('link', { name: 'К практике' });
   await expect(toPractice).toHaveAttribute('href', '/ru/exercises');
@@ -110,13 +112,32 @@ test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the
   await expect(page.locator('[data-result-level]')).toHaveText('C1');
   expect((await diagnosticFootprint(email)).attempts).toHaveLength(1);
 
-  // After the diagnostic the dashboard CTA is practice…
+  // After the diagnostic the dashboard CTA is practice (nothing is due yet)…
   await page.goto('/ru/dashboard');
-  await expect(page.getByRole('link', { name: 'Начать практику' })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Продолжить практику' })).toHaveAttribute(
     'href',
     '/ru/exercises',
   );
   await expect(page.locator('main a[href="/ru/diagnostic"]')).toHaveCount(0);
+  // …with the level, the week, and the same start topic as the result.
+  await expect(page.locator('[data-dashboard-level]')).toHaveText('Уровень: C1');
+  await expect(page.getByRole('heading', { name: 'Эта неделя' })).toBeVisible(AFTER_SUBMIT);
+  const recommended = page.locator('main [data-concept]:has([data-recommended-start])');
+  await expect(recommended).toHaveCount(1);
+  await expect(recommended).toContainText(startTitle);
+  for (const colorScheme of ['light', 'dark'] as const) {
+    // Reload rather than switch live: colour transitions would be measured mid-way.
+    await page.emulateMedia({ colorScheme });
+    await page.reload();
+    await expect(recommended).toHaveCount(1);
+    const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
+    const report = violations.flatMap((v) =>
+      v.nodes.map(
+        (node) => `${colorScheme} ${node.target.join(' ')}: ${node.failureSummary ?? v.help}`,
+      ),
+    );
+    expect(report, report.join('\n')).toEqual([]);
+  }
 
   // …and the result's CTA lands on practice, not back on the diagnostic.
   await page.goto('/ru/diagnostic');

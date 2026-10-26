@@ -1,0 +1,181 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { findUnique, isDiagnosticDone, getConceptProgress } = vi.hoisted(() => ({
+  findUnique: vi.fn(),
+  isDiagnosticDone: vi.fn(),
+  getConceptProgress: vi.fn(),
+}));
+vi.mock('server-only', () => ({}));
+vi.mock('@englishlearn/db', () => ({ prisma: { studentProfile: { findUnique } } }));
+vi.mock('@englishlearn/db/queries/learner-progress', () => ({ getConceptProgress }));
+vi.mock('@/lib/diagnostic', () => ({ isDiagnosticDone }));
+
+const { dashboardCta, loadStudentDashboard } = await import('@/lib/dashboard');
+
+const NOW = Date.UTC(2026, 9, 26, 12);
+const DAY = 86_400_000;
+
+/** Two grammar concepts: `g.base` (A2) is the prerequisite of `g.next` (B1). */
+const progress = (over: { masteries?: unknown[]; reviews?: unknown[] } = {}) => ({
+  concepts: [
+    {
+      id: 'g.base',
+      name: 'base',
+      title: 'Base',
+      cefrLevel: 'A2',
+      category: 'GRAMMAR',
+      itemCount: 4,
+    },
+    {
+      id: 'g.next',
+      name: 'next',
+      title: 'Next',
+      cefrLevel: 'B1',
+      category: 'GRAMMAR',
+      itemCount: 4,
+    },
+    { id: 'v.word', name: 'word', title: 'Word', cefrLevel: 'B1', category: 'VOCAB', itemCount: 4 },
+  ],
+  masteries: [],
+  reviews: [],
+  prereqEdges: [{ from: 'g.base', to: 'g.next', kind: 'PREREQUISITE' }],
+  ...over,
+});
+const started = (conceptId: string, pKnown = 0.5) => ({
+  conceptId,
+  pKnown,
+  observationCount: 2,
+  displayStage: 'DEVELOPING',
+});
+const review = (conceptId: string, over: Record<string, unknown> = {}) => ({
+  conceptId,
+  stability: 3,
+  cardStatus: 'REVIEW',
+  dueAt: NOW - 1,
+  lastReviewAt: NOW - 2 * DAY,
+  ...over,
+});
+
+const load = () => loadStudentDashboard({ userId: 'u1', locale: 'ru', nowMs: NOW });
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  findUnique.mockResolvedValue({ assessedLevel: 'B1' });
+  isDiagnosticDone.mockResolvedValue(true);
+  getConceptProgress.mockResolvedValue(progress());
+});
+
+describe('dashboardCta', () => {
+  it('before the diagnostic: find the level, whatever is due', () => {
+    expect(dashboardCta(false, 0)).toEqual({ kind: 'diagnostic' });
+    expect(dashboardCta(false, 3)).toEqual({ kind: 'diagnostic' });
+  });
+
+  it('after: review when topics are due, else practise', () => {
+    expect(dashboardCta(true, 2)).toEqual({ kind: 'review', count: 2 });
+    expect(dashboardCta(true, 0)).toEqual({ kind: 'practice' });
+  });
+});
+
+describe('loadStudentDashboard', () => {
+  it('reads this learner, in the request locale', async () => {
+    await load();
+    expect(findUnique.mock.calls[0]?.[0].where).toEqual({ userId: 'u1' });
+    expect(isDiagnosticDone).toHaveBeenCalledWith('u1');
+    expect(getConceptProgress.mock.calls[0]?.slice(1)).toEqual(['u1', 'ru']);
+  });
+
+  it('after the diagnostic, nothing started: level, practice CTA, week, recommended start', async () => {
+    const d = await load();
+    expect(d.level).toBe('B1');
+    expect(d.cta).toEqual({ kind: 'practice' });
+    expect(d.showWeekRhythm).toBe(true);
+    expect(d.sections.map((s) => [s.category, s.concepts.map((c) => c.id)])).toEqual([
+      ['GRAMMAR', ['g.base', 'g.next']],
+      ['VOCAB', ['v.word']],
+    ]);
+    const next = d.sections[0]?.concepts[1];
+    expect(next).toMatchObject({ isLocked: true, lockedBy: [{ id: 'g.base', title: 'Base' }] });
+    expect(d.sections.flatMap((s) => s.concepts).filter((c) => c.isRecommendedStart)).toHaveLength(
+      1,
+    );
+  });
+
+  it('a done diagnostic without a stored level: no level line, no recommended start', async () => {
+    findUnique.mockResolvedValue({ assessedLevel: null });
+    const d = await load();
+    expect(d.level).toBeNull();
+    expect(d.sections.flatMap((s) => s.concepts).some((c) => c.isRecommendedStart)).toBe(false);
+  });
+
+  it('before the diagnostic: no level, no recommendation, no week until something is practised', async () => {
+    isDiagnosticDone.mockResolvedValue(false);
+    const fresh = await load();
+    expect([fresh.level, fresh.cta, fresh.showWeekRhythm]).toEqual([
+      null,
+      { kind: 'diagnostic' },
+      false,
+    ]);
+    expect(fresh.sections.flatMap((s) => s.concepts).some((c) => c.isRecommendedStart)).toBe(false);
+
+    getConceptProgress.mockResolvedValue(
+      progress({ masteries: [started('g.base')], reviews: [review('g.base')] }),
+    );
+    const practised = await load();
+    expect(practised.cta).toEqual({ kind: 'diagnostic' });
+    expect(practised.showWeekRhythm).toBe(true);
+  });
+
+  it('counts due topics for the review CTA', async () => {
+    getConceptProgress.mockResolvedValue(
+      progress({
+        masteries: [started('g.base'), started('v.word')],
+        reviews: [review('g.base'), review('g.base'), review('v.word')],
+      }),
+    );
+    expect((await load()).cta).toEqual({ kind: 'review', count: 2 });
+  });
+
+  it('serialises the last practice as ISO and exposes only whitelisted fields', async () => {
+    getConceptProgress.mockResolvedValue(
+      progress({
+        masteries: [started('g.base', 0.4321)],
+        reviews: [review('g.base', { stability: 12.345 })],
+      }),
+    );
+    const d = await load();
+    const base = d.sections[0]?.concepts[0];
+    expect(base?.lastPracticedAt).toBe(new Date(NOW - 2 * DAY).toISOString());
+    expect(Object.keys(base ?? {}).sort()).toEqual(
+      [
+        'cefrLevel',
+        'id',
+        'isFading',
+        'isLocked',
+        'isRecommendedStart',
+        'itemCount',
+        'lastPracticedAt',
+        'lockedBy',
+        'practicedItemCount',
+        'requires',
+        'stage',
+        'title',
+        'unlocks',
+      ].sort(),
+    );
+    const json = JSON.stringify(d);
+    for (const leak of ['pKnown', '0.4321', 'stability', '12.345', 'dueAt']) {
+      expect(json).not.toContain(leak);
+    }
+  });
+
+  it('a failing progress query still yields the CTA, without a list', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getConceptProgress.mockRejectedValue(new Error('db down'));
+    const d = await load();
+    expect(d.cta).toEqual({ kind: 'practice' });
+    expect(d.sections).toEqual([]);
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});

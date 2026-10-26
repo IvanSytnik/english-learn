@@ -4,10 +4,10 @@ import type { WeekRhythm as WeekRhythmData } from '@englishlearn/learner-model';
 import { WeekRhythm } from '@englishlearn/ui';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { weekRhythm } from './actions';
+import { weekRhythm } from '../exercises/actions';
 
 /**
- * This week's sessions under the session summary. The day boundaries need
+ * This week's sessions (session summary, dashboard). The day boundaries need
  * the learner's own time zone, which only the browser knows; the server
  * validates it (invalid → UTC). Renders nothing until loaded or on error.
  */

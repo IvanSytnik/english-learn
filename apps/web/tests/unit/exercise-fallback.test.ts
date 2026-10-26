@@ -31,14 +31,20 @@ describe('one "done" signal for the diagnostic CTAs', () => {
   // /diagnostic shows the result for a COMPLETED attempt; a CTA asking
   // anything else (e.g. the LEARNER_BOOTSTRAPPED event) can disagree with it
   // and loop the learner between /exercises and /diagnostic.
-  const pages = [
-    'app/[locale]/(student)/dashboard/page.tsx',
-    'app/[locale]/(student)/exercises/page.tsx',
-  ];
+  // The dashboard asks through its loader.
+  const pages = ['lib/dashboard.ts', 'app/[locale]/(student)/exercises/page.tsx'];
   for (const page of pages) {
     it(`${page} asks isDiagnosticDone`, () => {
       const source = readFileSync(join(process.cwd(), page), 'utf8');
       expect(source).toContain('isDiagnosticDone(');
     });
   }
+
+  it('the dashboard page reads the CTA from its loader', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/[locale]/(student)/dashboard/page.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('loadStudentDashboard(');
+  });
 });

@@ -104,6 +104,15 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   // Esc = pause → dashboard.
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
+
+  // Practice without a diagnostic: the topic shows a stage and the week
+  // appears, but the CTA still asks for the level and nothing is recommended.
+  await expect(
+    page.locator('main [data-concept] [data-stage]:not([data-stage="NOT_STARTED"])').first(),
+  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Эта неделя' })).toBeVisible(AFTER_SUBMIT);
+  await expect(page.getByRole('link', { name: 'Определить уровень' })).toBeVisible();
+  await expect(page.locator('[data-recommended-start]')).toHaveCount(0);
 });
 
 test('/ru/exercises: ?minutes= maps to the server allowlist, anything else shows the picker', async ({

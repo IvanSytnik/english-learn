@@ -63,8 +63,14 @@
       "nextExercise": "Продовжити",
       "takeDiagnostic": "Пройти діагностику",
       "level": "Рівень: {level}",
-      "startPractice": "Почати практику",
-      "findLevel": "Визначити рівень"
+      "findLevel": "Визначити рівень",
+      "continuePractice": "Продовжити практику",
+      "review": "{count, plural, one {Повторити (# тему)} few {Повторити (# теми)} many {Повторити (# тем)} other {Повторити (# теми)}}",
+      "category": "{category, select, GRAMMAR {Граматика} VOCAB {Словник} LISTENING {Аудіювання} PHONETICS {Вимова} DISCOURSE {Зв’язне мовлення} PRAGMATICS {Прагматика} other {Інше}}",
+      "recommendedStart": "Рекомендуємо для старту",
+      "quoted": "«{title}»",
+      "lockedBy": "{count, plural, one {Відкриється після теми {topics}} other {Відкриється після тем {topics}}}",
+      "lockedFallback": "Відкриється в міру проходження попередніх тем"
     },
     "diagnostic": {
       "title": "Діагностика",

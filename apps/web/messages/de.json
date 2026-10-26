@@ -63,8 +63,14 @@
       "nextExercise": "Weiterlernen",
       "takeDiagnostic": "Einstufungstest machen",
       "level": "Niveau: {level}",
-      "startPractice": "Jetzt üben",
-      "findLevel": "Niveau bestimmen"
+      "findLevel": "Niveau bestimmen",
+      "continuePractice": "Weiter üben",
+      "review": "{count, plural, one {Wiederholen (# Thema)} other {Wiederholen (# Themen)}}",
+      "category": "{category, select, GRAMMAR {Grammatik} VOCAB {Wortschatz} LISTENING {Hörverstehen} PHONETICS {Aussprache} DISCOURSE {Diskurs} PRAGMATICS {Pragmatik} other {Sonstiges}}",
+      "recommendedStart": "Empfohlen für den Start",
+      "quoted": "„{title}“",
+      "lockedBy": "{count, plural, one {Wird nach dem Thema {topics} freigeschaltet} other {Wird nach den Themen {topics} freigeschaltet}}",
+      "lockedFallback": "Wird nach den vorherigen Themen freigeschaltet"
     },
     "diagnostic": {
       "title": "Einstufungstest",
