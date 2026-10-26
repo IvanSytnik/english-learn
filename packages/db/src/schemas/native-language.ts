@@ -5,8 +5,8 @@ import { z } from 'zod';
  *
  * Not the interface locale: the UI language says nothing about the native one,
  * so this is only ever what the learner picked — never derived from the URL,
- * `User.locale` or the browser. `other` means "none of these"; content falls
- * back to the interface locale for it.
+ * `User.locale` or the browser. `other` means "none of these"; content is shown
+ * in English (the source) for it, not in the interface locale.
  *
  * Stored as a plain string in `StudentProfile.nativeLanguage`; writes go
  * through this schema, reads must tolerate anything (see `getNativeLanguage`).
