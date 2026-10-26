@@ -1,5 +1,5 @@
 /**
- * Seed items: GRAMMAR_PATTERN (4 per grammar concept, 48 total).
+ * Seed items: GRAMMAR_PATTERN (4 per grammar concept, 64 total).
  *
  * Granularity rule: one item = one thing a learner can get wrong
  * independently. IDs are stable ("item.<concept-short>.<slug>") to make the
@@ -522,5 +522,158 @@ export const GRAMMAR_ITEMS: SeedItem[] = [
     "Unless you hurry, you'll miss the train.",
     'unless replaces a negative if-clause.',
     'unless заменяет отрицательное придаточное с if.',
+  ),
+
+  // ── grammar.conditional_2 ─────────────────────────────────────────────────
+  gp(
+    'grammar.conditional_2',
+    'if_past_would',
+    'B1',
+    'If + Past Simple, would + V1',
+    'If I had a car, I would drive to work.',
+    'Second conditional: an unreal or unlikely situation now or in the future.',
+    'Второй тип: нереальная или маловероятная ситуация сейчас или в будущем.',
+  ),
+  gp(
+    'grammar.conditional_2',
+    'would_in_main',
+    'B1',
+    'main clause: would / could + V1',
+    'If we lived nearer, we could visit more often.',
+    'The result clause takes would (or could/might) + base form.',
+    'В главной части — would (или could/might) + первая форма.',
+  ),
+  gp(
+    'grammar.conditional_2',
+    'were_all_persons',
+    'B1',
+    'If I / he / she / it were…',
+    'If I were you, I would apologise.',
+    'In the second conditional, were is used for every person, as in "If I were you".',
+    'Во втором типе were употребляется со всеми лицами: «If I were you».',
+  ),
+  gp(
+    'grammar.conditional_2',
+    'no_would_in_if',
+    'B1',
+    'if-clause: Past Simple, never would',
+    'If it were cheaper, I would buy it.',
+    'The if-clause never takes would.',
+    'В придаточном с if would не бывает.',
+    { contrastExample: 'If it would be cheaper, I would buy it. (wrong)' },
+  ),
+
+  // ── grammar.passive_voice ─────────────────────────────────────────────────
+  gp(
+    'grammar.passive_voice',
+    'present_simple_passive',
+    'B1',
+    'am / is / are + V3',
+    'English is spoken all over the world.',
+    'Present Simple passive: is/are + past participle when the action matters more than who does it.',
+    'Пассив в Present Simple: is/are + третья форма, когда важно действие, а не исполнитель.',
+  ),
+  gp(
+    'grammar.passive_voice',
+    'past_simple_passive',
+    'B1',
+    'was / were + V3',
+    'The letters were sent yesterday.',
+    'Past Simple passive: was/were + past participle.',
+    'Пассив в Past Simple: was/were + третья форма.',
+  ),
+  gp(
+    'grammar.passive_voice',
+    'by_agent',
+    'B1',
+    'passive + by + who did it',
+    'The film was directed by a young woman.',
+    'By introduces who did the action.',
+    'By вводит того, кто совершил действие.',
+  ),
+  gp(
+    'grammar.passive_voice',
+    'modal_passive',
+    'B1',
+    'must / can / should + be + V3',
+    'The form must be signed in ink.',
+    'After a modal, the passive is be + past participle.',
+    'После модального глагола пассив — be + третья форма.',
+  ),
+
+  // ── grammar.conditional_3 ─────────────────────────────────────────────────
+  gp(
+    'grammar.conditional_3',
+    'would_have_v3',
+    'B2',
+    'If + had + V3, would have + V3',
+    'If you had told me, I would have helped.',
+    'Third conditional: an imagined past that did not happen, and its result.',
+    'Третий тип: воображаемое прошлое, которого не было, и его результат.',
+  ),
+  gp(
+    'grammar.conditional_3',
+    'past_perfect_in_if',
+    'B2',
+    'if-clause: had + V3',
+    'If I had known, I would have come.',
+    'The if-clause takes the past perfect.',
+    'В придаточном с if — Past Perfect.',
+  ),
+  gp(
+    'grammar.conditional_3',
+    'might_could_have',
+    'B2',
+    'might / could have + V3 in the result',
+    'If we had left earlier, we might have caught the train.',
+    'Might/could have + past participle: a possible past result.',
+    'Might/could have + третья форма: возможный результат в прошлом.',
+  ),
+  gp(
+    'grammar.conditional_3',
+    'contracted_d_had',
+    'B2',
+    "'d = had (if-clause) · 'd = would (result)",
+    "If I'd known, I'd have called.",
+    "In the if-clause 'd is had, so the past participle follows.",
+    "В придаточном 'd = had, поэтому дальше — третья форма.",
+  ),
+
+  // ── grammar.modals_deduction ──────────────────────────────────────────────
+  gp(
+    'grammar.modals_deduction',
+    'must_sure',
+    'B2',
+    "must + V1 = I'm sure it's true",
+    'She must be tired after that flight.',
+    'Must: you are almost sure something is true.',
+    'Must: вы почти уверены, что это так.',
+  ),
+  gp(
+    'grammar.modals_deduction',
+    'cant_impossible',
+    'B2',
+    "can't + V1 = I'm sure it's not true",
+    "He can't be at home — his car isn't here.",
+    "Can't: you are sure something is impossible.",
+    "Can't: вы уверены, что это невозможно.",
+  ),
+  gp(
+    'grammar.modals_deduction',
+    'might_perhaps',
+    'B2',
+    'might / could + V1 = perhaps',
+    'It might be true, but I doubt it.',
+    'Might/could: something is possible, but you are not sure.',
+    'Might/could: возможно, но вы не уверены.',
+  ),
+  gp(
+    'grammar.modals_deduction',
+    'past_have_v3',
+    'B2',
+    "must / might / can't + have + V3",
+    'She must have forgotten.',
+    'For a deduction about the past, add have + past participle.',
+    'Предположение о прошлом: + have + третья форма.',
   ),
 ];

@@ -86,6 +86,30 @@ export const CONCEPT_TITLES: Readonly<Record<string, LocalizedString>> = {
     uk: 'Умовні речення нульового й першого типу',
     de: 'Bedingungssätze Typ 0 und Typ 1',
   },
+  'grammar.conditional_2': {
+    en: 'Second conditional',
+    ru: 'Условные предложения второго типа',
+    uk: 'Умовні речення другого типу',
+    de: 'Bedingungssätze Typ 2',
+  },
+  'grammar.passive_voice': {
+    en: 'Passive voice',
+    ru: 'Пассивный залог',
+    uk: 'Пасивний стан',
+    de: 'Passiv',
+  },
+  'grammar.conditional_3': {
+    en: 'Third conditional',
+    ru: 'Условные предложения третьего типа',
+    uk: 'Умовні речення третього типу',
+    de: 'Bedingungssätze Typ 3',
+  },
+  'grammar.modals_deduction': {
+    en: "Modals of deduction: must, might, can't",
+    ru: "Модальные глаголы предположения: must, might, can't",
+    uk: "Модальні дієслова припущення: must, might, can't",
+    de: "Modalverben der Vermutung: must, might, can't",
+  },
   'vocab.daily_life': {
     en: 'Everyday life',
     ru: 'Повседневная жизнь',
@@ -103,5 +127,29 @@ export const CONCEPT_TITLES: Readonly<Record<string, LocalizedString>> = {
     ru: 'Базовые фразовые глаголы',
     uk: 'Базові фразові дієслова',
     de: 'Gängige Phrasal Verbs',
+  },
+  'vocab.work_study': {
+    en: 'Work and study',
+    ru: 'Работа и учёба',
+    uk: 'Робота й навчання',
+    de: 'Arbeit und Studium',
+  },
+  'vocab.phrasal_verbs_b2': {
+    en: 'Phrasal verbs (B2)',
+    ru: 'Фразовые глаголы (B2)',
+    uk: 'Фразові дієслова (B2)',
+    de: 'Phrasal Verbs (B2)',
+  },
+  'vocab.collocations_b2': {
+    en: 'Collocations: make, take, pay, keep',
+    ru: 'Устойчивые сочетания: make, take, pay, keep',
+    uk: 'Сталі сполучення: make, take, pay, keep',
+    de: 'Kollokationen: make, take, pay, keep',
+  },
+  'vocab.idioms_everyday': {
+    en: 'Everyday idioms',
+    ru: 'Распространённые идиомы',
+    uk: 'Поширені ідіоми',
+    de: 'Gängige Redewendungen',
   },
 };

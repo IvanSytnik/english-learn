@@ -1,5 +1,5 @@
 /**
- * Seed concepts: GRAMMAR (A2-B1).
+ * Seed concepts: GRAMMAR (A2-B2).
  *
  * These are the source of truth for the initial Knowledge Graph. Each concept
  * is a learnable unit with its own BKT state per learner. IDs are stable
@@ -108,5 +108,37 @@ export const GRAMMAR_CONCEPTS: Concept[] = [
     category: 'GRAMMAR',
     description:
       'Zero: general truths (if + Present Simple, ... Present Simple). First: real future possibility (if + Present Simple, ... will).',
+  },
+  {
+    id: 'grammar.conditional_2',
+    name: 'Conditionals: second (unreal present / future)',
+    cefrLevel: 'B1',
+    category: 'GRAMMAR',
+    description:
+      'If + Past Simple, ... would + V1 for unreal or unlikely situations; were for every person; never would in the if-clause.',
+  },
+  {
+    id: 'grammar.passive_voice',
+    name: 'Passive voice (present, past, modal)',
+    cefrLevel: 'B1',
+    category: 'GRAMMAR',
+    description:
+      'be + past participle when the action matters more than the doer: is/are done, was/were done, must be done; by + agent.',
+  },
+  {
+    id: 'grammar.conditional_3',
+    name: 'Conditionals: third (unreal past)',
+    cefrLevel: 'B2',
+    category: 'GRAMMAR',
+    description:
+      "If + Past Perfect, ... would/might/could have + V3 for an imagined past; 'd = had in the if-clause.",
+  },
+  {
+    id: 'grammar.modals_deduction',
+    name: "Modals of deduction: must / might / can't (+ have done)",
+    cefrLevel: 'B2',
+    category: 'GRAMMAR',
+    description:
+      "Present deduction with must / might / could / can't + V1; past deduction with + have + V3.",
   },
 ];

@@ -330,4 +330,188 @@ export const ITEM_PRACTICE: Readonly<Record<string, Practice>> = {
     ['get up', 'turn on', 'look for', 'give up'],
     3,
   ),
+
+  // ── grammar.conditional_2 ──────────────────────────────────────────────────
+  'item.conditional_2.if_past_would': choice(
+    "If they ___ closer to the city, they wouldn't need a car — but they live in the country.",
+    ['live', 'lived', 'would live', 'have lived'],
+    1,
+  ),
+  'item.conditional_2.would_in_main': choice(
+    'If I won the lottery, I ___ a house by the sea.',
+    ['would buy', 'will buy', 'bought', 'have bought'],
+    0,
+  ),
+  // No "was": "If I was you" is common in speech.
+  'item.conditional_2.were_all_persons': choice(
+    'If I ___ you, I would take the job.',
+    ['am', 'be', 'will be', 'were'],
+    3,
+  ),
+  'item.conditional_2.no_would_in_if': cloze(
+    'If I ___ her number, I would call her. (know)',
+    'knew',
+  ),
+
+  // ── grammar.passive_voice ──────────────────────────────────────────────────
+  'item.passive_voice.present_simple_passive': choice(
+    'These cars ___ in Germany.',
+    ['are made', 'make', 'made', 'are making'],
+    0,
+  ),
+  'item.passive_voice.past_simple_passive': choice(
+    'My bike ___ last night, so I walked to work.',
+    ['stole', 'has stolen', 'was stolen', 'was stealing'],
+    2,
+  ),
+  'item.passive_voice.by_agent': choice(
+    'This song was written ___ my favourite singer.',
+    ['from', 'of', 'with', 'by'],
+    3,
+  ),
+  'item.passive_voice.modal_passive': choice(
+    'Mobile phones must ___ off during the exam.',
+    ['turned', 'be turned', 'being turned', 'be turning'],
+    1,
+  ),
+
+  // ── grammar.conditional_3 ──────────────────────────────────────────────────
+  // No "would help": a mixed conditional (present result) is also right.
+  'item.conditional_3.would_have_v3': choice(
+    'If you had asked me, I ___ you.',
+    ['helped', 'would have helped', 'will have helped', 'had helped'],
+    1,
+  ),
+  'item.conditional_3.past_perfect_in_if': cloze(
+    'If I ___ about the party, I would have come. (know)',
+    'had known',
+    "'d known",
+  ),
+  // No "might win": a mixed conditional is also right.
+  'item.conditional_3.might_could_have': choice(
+    "We ___ the match if our best player hadn't been injured.",
+    ['might have won', 'will win', 'had won', 'won'],
+    0,
+  ),
+  'item.conditional_3.contracted_d_had': choice(
+    "If you'd ___ me, I'd have lent you the money.",
+    ['ask', 'asking', 'have asked', 'asked'],
+    3,
+  ),
+
+  // ── grammar.modals_deduction ───────────────────────────────────────────────
+  'item.modals_deduction.must_sure': choice(
+    "You've been walking all day — you ___ be exhausted.",
+    ['must', "can't", "mustn't", "needn't"],
+    0,
+  ),
+  'item.modals_deduction.cant_impossible': choice(
+    "That ___ be Tom at the door — he's on holiday in Spain.",
+    ['must', "can't", 'should', 'will'],
+    1,
+  ),
+  'item.modals_deduction.might_perhaps': choice(
+    "Take an umbrella — it ___ rain later, but I'm not sure.",
+    ['must', "can't", 'might', "mustn't"],
+    2,
+  ),
+  'item.modals_deduction.past_have_v3': choice(
+    'The ground is wet. It must ___ during the night.',
+    ['rain', 'had rained', 'be raining', 'have rained'],
+    3,
+  ),
+
+  // ── vocab.work_study ───────────────────────────────────────────────────────
+  // No "to": "apply to a job" is spreading in American English.
+  'item.vocab.work_study.apply_for': choice(
+    'She has applied ___ a job at the city library.',
+    ['for', 'on', 'at', 'with'],
+    0,
+  ),
+  'item.vocab.work_study.deadline': choice(
+    "The ___ for the essay is Friday, so I can't go out this week.",
+    ['timetable', 'schedule', 'calendar', 'deadline'],
+    3,
+  ),
+  'item.vocab.work_study.colleague': choice(
+    'My ___ and I share a desk and work on the same projects.',
+    ['customer', 'landlord', 'colleague', 'tenant'],
+    2,
+  ),
+  // Three options: do / write / sit / pass / hold an exam are all right somewhere.
+  'item.vocab.work_study.take_an_exam': choice(
+    'Students have to ___ an exam at the end of every term.',
+    ['make', 'take', 'give'],
+    1,
+  ),
+
+  // ── vocab.phrasal_verbs_b2 ─────────────────────────────────────────────────
+  'item.vocab.phrasal_verbs_b2.run_out_of': choice(
+    "We've ___ out of coffee — can you buy some on your way home?",
+    ['run', 'gone', 'got', 'come'],
+    0,
+  ),
+  'item.vocab.phrasal_verbs_b2.come_up_with': choice(
+    'She ___ up with a brilliant idea for the campaign.',
+    ['went', 'came', 'took', 'put'],
+    1,
+  ),
+  // No "get on": "How do you get on with…" is idiomatic.
+  'item.vocab.phrasal_verbs_b2.put_up_with': choice(
+    'How do you ___ with such a long commute every day?',
+    ['come up', 'take up', 'put up', 'run out'],
+    2,
+  ),
+  'item.vocab.phrasal_verbs_b2.turn_down': choice(
+    'He ___ the job offer because the salary was too low.',
+    ['turned up', 'turned over', 'turned out', 'turned down'],
+    3,
+  ),
+
+  // ── vocab.collocations_b2 ──────────────────────────────────────────────────
+  // No "give": "give attention to" exists.
+  'item.vocab.collocations_b2.pay_attention': choice(
+    'Please ___ attention to the safety instructions.',
+    ['make', 'pay', 'take', 'do'],
+    1,
+  ),
+  'item.vocab.collocations_b2.make_progress': choice(
+    "Her English is getting better — she's ___ real progress this year.",
+    ['making', 'doing', 'taking', 'getting'],
+    0,
+  ),
+  // No "makes": "he always makes promises" is grammatical.
+  'item.vocab.collocations_b2.keep_a_promise': choice(
+    'He always ___ his promises, so you can trust him.',
+    ['holds', 'saves', 'does', 'keeps'],
+    3,
+  ),
+  'item.vocab.collocations_b2.take_responsibility': choice(
+    'The manager ___ full responsibility for the mistake.',
+    ['made', 'gave', 'took', 'did'],
+    2,
+  ),
+
+  // ── vocab.idioms_everyday ──────────────────────────────────────────────────
+  'item.vocab.idioms_everyday.piece_of_cake': choice(
+    'The test was a piece of ___ — I finished it in ten minutes.',
+    ['bread', 'cake', 'pie', 'sugar'],
+    1,
+  ),
+  'item.vocab.idioms_everyday.under_the_weather': choice(
+    "I'm feeling a bit under the ___ today, so I'll stay at home.",
+    ['rain', 'sky', 'weather', 'cloud'],
+    2,
+  ),
+  // "melt" is the Russian calque ("растопить лёд"); the English idiom is break.
+  'item.vocab.idioms_everyday.break_the_ice': choice(
+    'He told a funny story to ___ the ice at the start of the meeting.',
+    ['melt', 'crack', 'cut', 'break'],
+    3,
+  ),
+  'item.vocab.idioms_everyday.once_in_a_blue_moon': choice(
+    'We only see each other once in a ___ moon, because she lives in Australia.',
+    ['blue', 'full', 'new', 'red'],
+    0,
+  ),
 };

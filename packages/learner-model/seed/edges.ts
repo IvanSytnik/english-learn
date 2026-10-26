@@ -88,4 +88,57 @@ export const SEED_EDGES: ConceptEdge[] = [
     kind: 'PREREQUISITE',
     weight: 0.6,
   },
+
+  // --- B1/B2 content (2026-10-26) ---
+  // A diagnostic prior never reaches the 0.7 gate (bootstrap ceiling 0.6), so
+  // every new concept is a root except conditional_3, one step from a root
+  // (bootstrap-levels.test.ts). Links across levels are RELATED, not gated.
+  {
+    from: 'grammar.conditional_2',
+    to: 'grammar.conditional_3',
+    kind: 'PREREQUISITE',
+    weight: 1,
+  },
+  {
+    from: 'grammar.conditional_0_1',
+    to: 'grammar.conditional_2',
+    kind: 'RELATED',
+    weight: 0.7,
+  },
+  {
+    from: 'grammar.past_participle',
+    to: 'grammar.passive_voice',
+    kind: 'RELATED',
+    weight: 0.7,
+  },
+  {
+    from: 'grammar.modal_verbs_basic',
+    to: 'grammar.modals_deduction',
+    kind: 'RELATED',
+    weight: 0.6,
+  },
+  {
+    from: 'vocab.daily_life',
+    to: 'vocab.work_study',
+    kind: 'RELATED',
+    weight: 0.5,
+  },
+  {
+    from: 'vocab.phrasal_verbs_basic',
+    to: 'vocab.phrasal_verbs_b2',
+    kind: 'RELATED',
+    weight: 0.7,
+  },
+  {
+    from: 'vocab.work_study',
+    to: 'vocab.collocations_b2',
+    kind: 'RELATED',
+    weight: 0.5,
+  },
+  {
+    from: 'vocab.daily_life',
+    to: 'vocab.idioms_everyday',
+    kind: 'RELATED',
+    weight: 0.5,
+  },
 ];
