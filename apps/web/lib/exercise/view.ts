@@ -2,6 +2,7 @@ import {
   type ItemContent,
   type ItemKindValue,
   isClozeAnswerAccepted,
+  isNativeLanguage,
   type Locale,
   type LocalizedString,
   localized,
@@ -131,6 +132,21 @@ export function reasonDetail(args: {
   return args.lastPracticedAt === null
     ? null
     : { kind: 'lastPractised', days: daysSince(args.lastPracticedAt, args.now) };
+}
+
+/**
+ * The language of the learner-facing help in an item — the `H` hint and the
+ * "why" — as opposed to the player's chrome, which follows the URL locale.
+ *
+ * - ru / uk / de chosen → that language, whatever the interface is in;
+ * - `other` (none of these) → English, the content's source language — not
+ *   the interface locale, which says nothing about the native one;
+ * - not chosen (null) or a stored value outside the list → the interface
+ *   locale, as before the choice existed. Nothing is ever written back.
+ */
+export function contentLocale(nativeLanguage: string | null, uiLocale: Locale): Locale {
+  if (!isNativeLanguage(nativeLanguage)) return uiLocale;
+  return nativeLanguage === 'other' ? 'en' : nativeLanguage;
 }
 
 /**

@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
+import { chooseNativeLanguage } from './helpers/diagnostic';
 
 /**
  * The question type is Thompson's pick, not the test's. A cloze question has a
@@ -187,4 +188,37 @@ test.describe('session summary (Europe/Vienna)', () => {
     await expect(progress).toHaveAttribute('aria-valuenow', '0', AFTER_SUBMIT);
     await expect(progress).toHaveAttribute('aria-valuemax', '6');
   });
+});
+
+// Every seed item has a Russian "why", so its script tells the languages apart.
+const CYRILLIC = /[а-яё]/i;
+
+test('the "why" follows the native language (ru), the chrome the URL locale (en)', async ({
+  page,
+}) => {
+  await registerFreshLearner(page, 'player');
+  await chooseNativeLanguage(page, 'Русский');
+  // An explicit /en sets the interface to English (unprefixed URL).
+  await page.goto('/en/exercises?minutes=5');
+  await expect(page).toHaveURL(/\/exercises\?minutes=5$/, AFTER_SUBMIT);
+  await page.getByRole('button', { name: /^I don't know/ }).click();
+  const status = page.getByRole('status');
+  await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText(
+    "Here's the answer",
+    AFTER_SUBMIT,
+  );
+  await expect(status.locator('[data-why]')).toHaveText(CYRILLIC);
+});
+
+test('"other" native language: the "why" in English, even on the Russian interface', async ({
+  page,
+}) => {
+  await registerFreshLearner(page, 'player');
+  await chooseNativeLanguage(page, 'Другой язык');
+  await page.goto('/ru/exercises?minutes=5');
+  await dontKnowButton(page).click();
+  const status = page.getByRole('status');
+  await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText('Вот ответ', AFTER_SUBMIT);
+  await expect(status.locator('[data-why]')).toHaveText(/\S/);
+  await expect(status.locator('[data-why]')).not.toHaveText(CYRILLIC);
 });

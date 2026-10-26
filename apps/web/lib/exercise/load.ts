@@ -1,9 +1,11 @@
 import 'server-only';
 
+import { prisma } from '@englishlearn/db';
 import { getConceptTitles, getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
+import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import type { Locale } from '@englishlearn/db/schemas';
 import { selectionService } from '@/lib/learner';
-import { type ExerciseView, hintFor, reasonDetail, toQuestion } from './view';
+import { contentLocale, type ExerciseView, hintFor, reasonDetail, toQuestion } from './view';
 
 /**
  * Pick the learner's next exercise and shape it for the player.
@@ -14,6 +16,7 @@ import { type ExerciseView, hintFor, reasonDetail, toQuestion } from './view';
  */
 export async function loadNextExercise(args: {
   userId: string;
+  /** The interface locale (URL): concept titles. The hint follows the native language. */
   locale: Locale;
   excludeItemIds?: readonly string[];
   nowMs?: number;
@@ -27,7 +30,10 @@ export async function loadNextExercise(args: {
   if (!outcome.ok) return null;
   const selection = outcome.result;
 
-  const item = await getPublishedPracticeItem(selection.itemId);
+  const [item, nativeLanguage] = await Promise.all([
+    getPublishedPracticeItem(selection.itemId),
+    getNativeLanguage(prisma, args.userId),
+  ]);
   if (!item) return null;
 
   const titles = await getConceptTitles(
@@ -47,6 +53,7 @@ export async function loadNextExercise(args: {
       now,
     }),
     question: toQuestion(item.practice),
-    hint: hintFor(item.kind, item.content, args.locale),
+    // The hint is help in the learner's language; titles above are chrome.
+    hint: hintFor(item.kind, item.content, contentLocale(nativeLanguage, args.locale)),
   };
 }

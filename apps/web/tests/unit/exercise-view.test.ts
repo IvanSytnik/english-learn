@@ -2,6 +2,7 @@ import type { ItemContent, Practice } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
 import {
   consequenceFor,
+  contentLocale,
   daysSince,
   explanationFor,
   fillGap,
@@ -185,5 +186,24 @@ describe('parseSessionMinutes', () => {
   it('rejects a repeated param (array) instead of taking its first element', () => {
     expect(parseSessionMinutes(['5', '10'])).toBeNull();
     expect(parseSessionMinutes(['10'])).toBeNull();
+  });
+});
+
+describe('contentLocale (the language of the hint and the why)', () => {
+  it('a chosen ru / uk / de wins over the interface locale', () => {
+    expect(contentLocale('ru', 'en')).toBe('ru');
+    expect(contentLocale('uk', 'ru')).toBe('uk');
+    expect(contentLocale('de', 'uk')).toBe('de');
+  });
+
+  it('"other" means English, the source — never the interface locale', () => {
+    for (const ui of ['en', 'ru', 'uk', 'de'] as const)
+      expect(contentLocale('other', ui)).toBe('en');
+  });
+
+  it('not chosen, blank or outside the list → the interface locale, as before', () => {
+    for (const stored of [null, '', ' ', 'pl', 'RU', 'en']) {
+      expect(contentLocale(stored, 'uk'), String(stored)).toBe('uk');
+    }
   });
 });

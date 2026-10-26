@@ -1,13 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { auth, getPublishedPracticeItem, recordOutcome, loadNextExercise, getAttemptEvents } =
-  vi.hoisted(() => ({
-    auth: vi.fn(),
-    getPublishedPracticeItem: vi.fn(),
-    recordOutcome: vi.fn(),
-    loadNextExercise: vi.fn(),
-    getAttemptEvents: vi.fn(),
-  }));
+const {
+  auth,
+  getPublishedPracticeItem,
+  recordOutcome,
+  loadNextExercise,
+  getAttemptEvents,
+  getNativeLanguage,
+  getLocale,
+} = vi.hoisted(() => ({
+  auth: vi.fn(),
+  getPublishedPracticeItem: vi.fn(),
+  recordOutcome: vi.fn(),
+  loadNextExercise: vi.fn(),
+  getAttemptEvents: vi.fn(),
+  getNativeLanguage: vi.fn(),
+  getLocale: vi.fn(),
+}));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: {} }));
 vi.mock('@englishlearn/db/queries/learner-activity', () => ({ getAttemptEvents }));
@@ -15,7 +24,8 @@ vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@/lib/learner', () => ({ learnerService: { recordOutcome } }));
 vi.mock('@/lib/exercise/load', () => ({ loadNextExercise }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({ getPublishedPracticeItem }));
-vi.mock('next-intl/server', () => ({ getLocale: async () => 'ru' }));
+vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }));
+vi.mock('next-intl/server', () => ({ getLocale }));
 
 const { nextExercise, submitExerciseAttempt, weekRhythm } = await import(
   '@/app/[locale]/(student)/exercises/actions'
@@ -26,7 +36,13 @@ const item = {
   kind: 'GRAMMAR_PATTERN',
   content: {
     source: { pattern: 'go → went', example: 'We went.' },
-    localized: { explanation: { en: 'Irregular past.', ru: 'Неправильный глагол.' } },
+    localized: {
+      explanation: {
+        en: 'Irregular past.',
+        ru: 'Неправильный глагол.',
+        uk: 'Неправильне дієслово.',
+      },
+    },
   },
   practice: {
     type: 'choice',
@@ -62,6 +78,9 @@ beforeEach(() => {
   auth.mockResolvedValue({ user: { id: 'user_1' } });
   getPublishedPracticeItem.mockResolvedValue(item);
   recordOutcome.mockResolvedValue(recorded());
+  getLocale.mockResolvedValue('ru');
+  // Not chosen: the "why" follows the interface locale, as before the choice existed.
+  getNativeLanguage.mockResolvedValue(null);
 });
 
 describe('submitExerciseAttempt', () => {
@@ -139,6 +158,35 @@ describe('submitExerciseAttempt', () => {
   it('a wrong choice is recorded as incorrect', async () => {
     await submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 0 } });
     expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({ correct: false }));
+  });
+});
+
+describe('submitExerciseAttempt: the language of the "why"', () => {
+  const submit = () =>
+    submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 3 } });
+
+  it("follows the learner's native language; the consequence line stays in the UI locale", async () => {
+    getLocale.mockResolvedValue('en');
+    getNativeLanguage.mockResolvedValue('uk');
+    const res = await submit();
+    expect(getNativeLanguage).toHaveBeenCalledWith(expect.anything(), 'user_1');
+    expect(res.ok && res.value.why).toBe('Неправильне дієслово.');
+    expect(res.ok && res.value.consequence).toMatchObject({ concept: 'Past Simple' });
+  });
+
+  it('"other" → English, even on a Russian interface', async () => {
+    getNativeLanguage.mockResolvedValue('other');
+    const res = await submit();
+    expect(res.ok && res.value.why).toBe('Irregular past.');
+    expect(res.ok && res.value.consequence).toMatchObject({
+      concept: 'Past Simple (простое прошедшее время)',
+    });
+  });
+
+  it('a stored value outside the list → the interface locale', async () => {
+    getNativeLanguage.mockResolvedValue('pl');
+    const res = await submit();
+    expect(res.ok && res.value.why).toBe('Неправильный глагол.');
   });
 });
 

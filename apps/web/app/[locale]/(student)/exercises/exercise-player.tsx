@@ -464,7 +464,11 @@ function Feedback({
           {t('player.answerIs', { answer: feedback.correctAnswer })}
         </p>
       ) : null}
-      {feedback.why ? <p className="text-sm text-ink">{feedback.why}</p> : null}
+      {feedback.why ? (
+        <p data-why="" className="text-sm text-ink">
+          {feedback.why}
+        </p>
+      ) : null}
       {feedback.more ? (
         <div className="flex flex-col gap-2">
           <button

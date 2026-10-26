@@ -1,6 +1,8 @@
 'use server';
 
+import { prisma } from '@englishlearn/db';
 import { getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
+import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import { getConceptTitle, isLocale } from '@englishlearn/db/schemas';
 import type { WeekRhythm } from '@englishlearn/learner-model';
 import { getLocale } from 'next-intl/server';
@@ -10,6 +12,7 @@ import { loadNextExercise } from '@/lib/exercise/load';
 import { loadWeekRhythm } from '@/lib/exercise/rhythm';
 import {
   consequenceFor,
+  contentLocale,
   correctAnswerOf,
   type ExerciseFeedback,
   type ExerciseView,
@@ -74,7 +77,10 @@ export async function submitExerciseAttempt(
   if (!parsed.success) return { ok: false, error: 'INVALID' };
   const { itemId, answer, timeMs } = parsed.data;
 
-  const item = await getPublishedPracticeItem(itemId);
+  const [item, nativeLanguage] = await Promise.all([
+    getPublishedPracticeItem(itemId),
+    getNativeLanguage(prisma, session.user.id),
+  ]);
   if (!item) return { ok: false, error: 'NOT_FOUND' };
 
   const verdict = gradeAnswer(item.practice, answer);
@@ -87,7 +93,12 @@ export async function submitExerciseAttempt(
 
   const locale = await currentLocale();
   const correctAnswer = correctAnswerOf(item.practice);
-  const { why, more } = explanationFor(item.kind, item.content, locale);
+  // The "why" is help in the learner's language; the consequence line is chrome.
+  const { why, more } = explanationFor(
+    item.kind,
+    item.content,
+    contentLocale(nativeLanguage, locale),
+  );
 
   return {
     ok: true,
