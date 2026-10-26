@@ -24,6 +24,9 @@
  * Ids are stable: `seed-diag-{grammar|vocab}-{a2|b1|b2|c1}-{nn}`. Never reuse an
  * id for a different question once answers reference it — retire it instead
  * (seed:diagnostic archives seed-diag-* ids that leave the bank).
+ * Pre-launch exception (2026-10-26, §8 #17): four review flags were fixed in
+ * place under their ids (grammar-b1-04, vocab-a2-02, vocab-c1-04, vocab-c1-05)
+ * — no real users yet.
  */
 
 import type { DiagnosticContent } from '@englishlearn/db/schemas';
@@ -135,8 +138,8 @@ const GRAMMAR_B1 = cell('GRAMMAR', 'B1', 0, [
   {
     stem: 'When I was a child, I ___ play football every weekend.',
     answer: 'used to',
-    distractors: ['use to', 'was used to', 'am used to'],
-    why: 'Used to + infinitive for a past habit that no longer happens.',
+    distractors: ['usually', 'was used to', 'am used to'],
+    why: 'Used to + infinitive for a past habit that no longer happens. Be used to needs -ing, and usually would need a past verb (usually played).',
   },
   {
     stem: "That's the man ___ car was stolen.",
@@ -252,10 +255,10 @@ const VOCAB_A2 = cell('VOCAB', 'A2', 3, [
     why: 'It is cold, so you close the window.',
   },
   {
-    stem: "I'm hungry. Let's ___ lunch now.",
-    answer: 'have',
-    distractors: ['drink', 'wear', 'sleep'],
-    why: 'Have lunch = eat lunch.',
+    stem: 'Can you ___ me the time, please?',
+    answer: 'tell',
+    distractors: ['say', 'speak', 'talk'],
+    why: 'Tell someone something: tell me the time. Say, speak and talk cannot take "me" like this.',
   },
   {
     stem: "It's raining, so take your ___ with you.",
@@ -393,16 +396,16 @@ const VOCAB_C1 = cell('VOCAB', 'C1', 2, [
     why: 'Address a problem = start dealing with it.',
   },
   {
-    stem: 'He gave a ___ account of the events, leaving nothing out.',
+    stem: 'The school offers a ___ range of courses, from art to engineering.',
     answer: 'comprehensive',
     distractors: ['comprehensible', 'compulsive', 'complacent'],
-    why: 'Comprehensive = complete; comprehensible only means easy to understand.',
+    why: 'A comprehensive range covers everything; comprehensible (easy to understand) cannot describe a range.',
   },
   {
     stem: 'The new policy is likely to have far-___ consequences.',
     answer: 'reaching',
-    distractors: ['going', 'running', 'coming'],
-    why: 'Far-reaching consequences affect many people or areas.',
+    distractors: ['fetched', 'sighted', 'flung'],
+    why: 'Far-reaching = with a wide effect; far-fetched (unlikely), far-sighted (planning ahead) and far-flung (distant) do not describe consequences.',
   },
   {
     stem: "Let's not ___ hairs: the two versions are essentially the same.",
