@@ -256,13 +256,21 @@ export function reviewFor(scheduledDays: number): Review {
     : { kind: 'backInDays', days: Math.round(scheduledDays) };
 }
 
-/** Consequence line priority: stage crossing → "Back soon" → "Back in N days". */
+/**
+ * Consequence line priority: stage crossing → "Back soon" → "Back in N days".
+ *
+ * A hinted answer never announces a stage (§8 #11): it leaves pKnown as it
+ * was, so a first answer that lifts a bootstrapped concept from NOT_STARTED
+ * to DEVELOPING shows the prior's stage, not progress — the review line instead.
+ */
 export function consequenceFor(args: {
   conceptTitle: string;
   stageBefore: MasteryStage;
   stageAfter: MasteryStage;
   scheduledDays: number;
+  hinted?: boolean;
 }): Consequence {
+  if (args.hinted) return reviewFor(args.scheduledDays);
   const crossed = stageCrossing(args.stageBefore, args.stageAfter);
   if (crossed) return { kind: 'stageCrossed', concept: args.conceptTitle, stage: crossed };
   return reviewFor(args.scheduledDays);

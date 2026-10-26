@@ -38,6 +38,8 @@ const SubmitSchema = z.object({
   ]),
   /** Time from showing the question to answering; dropped if implausible. */
   timeMs: z.number().int().positive().max(3_600_000).optional(),
+  /** The hint was opened at least once on this question (§8 #11). */
+  hinted: z.boolean().optional(),
 });
 
 async function currentLocale() {
@@ -75,7 +77,7 @@ export async function submitExerciseAttempt(
 
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  const { itemId, answer, timeMs } = parsed.data;
+  const { itemId, answer, timeMs, hinted } = parsed.data;
 
   const [item, nativeLanguage] = await Promise.all([
     getPublishedPracticeItem(itemId),
@@ -86,8 +88,8 @@ export async function submitExerciseAttempt(
   const verdict = gradeAnswer(item.practice, answer);
   const recorded = await learnerService.recordOutcome(
     verdict === 'dontKnow'
-      ? { userId: session.user.id, itemId, dontKnow: true, timeMs }
-      : { userId: session.user.id, itemId, correct: verdict === 'correct', timeMs },
+      ? { userId: session.user.id, itemId, dontKnow: true, timeMs, hinted }
+      : { userId: session.user.id, itemId, correct: verdict === 'correct', timeMs, hinted },
   );
   if (!recorded.ok) return { ok: false, error: 'NOT_FOUND' };
 
@@ -115,6 +117,7 @@ export async function submitExerciseAttempt(
         stageBefore: recorded.stageBefore,
         stageAfter: recorded.stageAfter,
         scheduledDays: recorded.scheduledDays,
+        hinted,
       }),
       review: reviewFor(recorded.scheduledDays),
     },

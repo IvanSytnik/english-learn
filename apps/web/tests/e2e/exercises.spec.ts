@@ -1,7 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
+import { closeDb, itemAttempts, practiceQuestions } from './helpers/db';
 import { chooseNativeLanguage } from './helpers/diagnostic';
+
+test.afterAll(closeDb);
 
 /**
  * The question type is Thompson's pick, not the test's. A cloze question has a
@@ -221,4 +224,57 @@ test('"other" native language: the "why" in English, even on the Russian interfa
   await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText('Вот ответ', AFTER_SUBMIT);
   await expect(status.locator('[data-why]')).toHaveText(/\S/);
   await expect(status.locator('[data-why]')).not.toHaveText(CYRILLIC);
+});
+
+/**
+ * Answer the question on screen correctly: find it among the published
+ * questions by the text around its gap, then type or pick its key.
+ */
+async function answerRight(page: Page) {
+  const type = await questionType(page);
+  const text = (await page.locator('#exercise-prompt').textContent()) ?? '';
+  const matches = (await practiceQuestions()).filter(({ practice }) => {
+    const [before = '', after = ''] = practice.prompt.split('___');
+    return practice.type === type && text.startsWith(before) && text.endsWith(after);
+  });
+  expect(
+    matches.map((m) => m.id),
+    `question on screen: ${text}`,
+  ).toHaveLength(1);
+  const { practice } = matches[0] as (typeof matches)[number];
+  if (practice.type === 'cloze') {
+    await answerField(page).fill(practice.acceptedAnswers[0] as string);
+    await answerField(page).press('Enter');
+  } else {
+    await page.locator('[data-player-option]').nth(practice.correctIndex).click();
+    await page.getByRole('button', { name: /^Проверить/ }).click();
+  }
+}
+
+test('a right answer after the hint is recorded as hinted and rated HARD; the next question starts without it', async ({
+  page,
+}) => {
+  const email = await registerFreshLearner(page, 'hint');
+  await page.goto('/ru/exercises?minutes=5');
+  const status = page.getByRole('status');
+
+  // 1. Open the hint and close it again: it still counts.
+  const hint = page.getByRole('button', { name: /^Подсказка/ });
+  await hint.click();
+  await expect(hint).toHaveAttribute('aria-expanded', 'true');
+  await hint.click();
+  await expect(hint).toHaveAttribute('aria-expanded', 'false');
+  await answerRight(page);
+  await expect(status.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
+
+  // 2. The next question starts without the hint.
+  await page.getByRole('button', { name: /^Дальше/ }).click();
+  await expect(hint).toHaveAttribute('aria-expanded', 'false', AFTER_SUBMIT);
+  await answerRight(page);
+  await expect(status.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
+
+  const [hinted, plain] = await itemAttempts(email);
+  expect(hinted).toMatchObject({ correct: true, rating: 'HARD', hinted: true });
+  expect(plain).toMatchObject({ correct: true, rating: 'GOOD' });
+  expect(plain).not.toHaveProperty('hinted');
 });

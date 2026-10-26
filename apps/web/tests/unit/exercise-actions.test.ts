@@ -161,6 +161,55 @@ describe('submitExerciseAttempt', () => {
   });
 });
 
+describe('submitExerciseAttempt: the hint (§8 #11)', () => {
+  it('passes hinted to recordOutcome and announces no stage for a hinted answer', async () => {
+    // A bootstrapped concept: the first (hinted) answer lifts the stored stage
+    // to the prior's DEVELOPING while pKnown stays where it was.
+    recordOutcome.mockResolvedValue(
+      recorded({
+        rating: 'HARD',
+        pKnownBefore: 0.6,
+        pKnownAfter: 0.6,
+        stageBefore: 'NOT_STARTED',
+        stageAfter: 'DEVELOPING',
+        scheduledDays: 0,
+        cardStatus: 'LEARNING',
+      }),
+    );
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      hinted: true,
+    });
+    expect(recordOutcome).toHaveBeenCalledWith({
+      userId: 'user_1',
+      itemId: item.id,
+      correct: true,
+      timeMs: undefined,
+      hinted: true,
+    });
+    expect(res.ok && res.value.verdict).toBe('correct');
+    expect(res.ok && res.value.consequence).toEqual({ kind: 'backSoon' });
+  });
+
+  it("passes the hint next to I don't know", async () => {
+    await submitExerciseAttempt({ itemId: item.id, answer: { type: 'dontKnow' }, hinted: true });
+    expect(recordOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ dontKnow: true, hinted: true }),
+    );
+  });
+
+  it('rejects a non-boolean hinted without recording', async () => {
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      hinted: 'yes' as unknown as boolean,
+    });
+    expect(res).toEqual({ ok: false, error: 'INVALID' });
+    expect(recordOutcome).not.toHaveBeenCalled();
+  });
+});
+
 describe('submitExerciseAttempt: the language of the "why"', () => {
   const submit = () =>
     submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 3 } });

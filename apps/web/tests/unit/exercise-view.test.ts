@@ -117,6 +117,34 @@ describe('consequenceFor', () => {
   });
 });
 
+describe('consequenceFor — hinted (§8 #11)', () => {
+  const base = { conceptTitle: 'Past Simple', scheduledDays: 3, hinted: true };
+  it('a bootstrapped concept lifted to Developing by a hinted answer shows the review, not a stage', () => {
+    expect(
+      consequenceFor({ ...base, stageBefore: 'NOT_STARTED', stageAfter: 'DEVELOPING' }),
+    ).toEqual({ kind: 'backInDays', days: 3 });
+    expect(
+      consequenceFor({
+        ...base,
+        stageBefore: 'NOT_STARTED',
+        stageAfter: 'DEVELOPING',
+        scheduledDays: 0,
+      }),
+    ).toEqual({ kind: 'backSoon' });
+  });
+
+  it('without the hint the same crossing is still announced', () => {
+    expect(
+      consequenceFor({
+        ...base,
+        hinted: false,
+        stageBefore: 'NOT_STARTED',
+        stageAfter: 'DEVELOPING',
+      }),
+    ).toEqual({ kind: 'stageCrossed', concept: 'Past Simple', stage: 'DEVELOPING' });
+  });
+});
+
 describe('reviewFor', () => {
   it('a learning step is Back soon, never "in 0 days"; otherwise whole days', () => {
     expect(reviewFor(0)).toEqual({ kind: 'backSoon' });

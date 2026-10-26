@@ -62,6 +62,11 @@ export function ExercisePlayer({
   // second key in the same tick — before `phase` re-renders — is refused;
   // cleared as soon as the reply is in. `phase` keeps driving the UI.
   const busy = useRef(false);
+  // The hint was opened on this question, even if closed again (§8 #11). Set
+  // synchronously on the toggle — the first toggle of a question always opens
+  // it — so an answer in the same tick still carries it; reset with the next
+  // question.
+  const hintUsed = useRef(false);
   const promptRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
@@ -87,7 +92,12 @@ export function ExercisePlayer({
       setError(false);
       const timeMs = Math.max(1, Date.now() - shownAt.current);
       startTransition(async () => {
-        const res = await submitExerciseAttempt({ itemId: view.itemId, answer, timeMs });
+        const res = await submitExerciseAttempt({
+          itemId: view.itemId,
+          answer,
+          timeMs,
+          hinted: hintUsed.current,
+        });
         busy.current = false;
         if (!res.ok) {
           setError(true);
@@ -110,6 +120,12 @@ export function ExercisePlayer({
       submit({ type: 'text', value: text });
     }
   }, [question.type, selected, text, submit]);
+
+  const toggleHint = useCallback(() => {
+    if (phase !== 'answering' || view.hint === null) return;
+    hintUsed.current = true;
+    setHintOpen((open) => !open);
+  }, [phase, view.hint]);
 
   const loadNext = useCallback((recentIds: string[]) => {
     if (busy.current) return;
@@ -134,6 +150,7 @@ export function ExercisePlayer({
       setSelected(null);
       setText('');
       setHintOpen(false);
+      hintUsed.current = false;
       setWhyOpen(false);
       setFeedback(null);
       shownAt.current = Date.now();
@@ -180,7 +197,7 @@ export function ExercisePlayer({
         submit({ type: 'dontKnow' });
         break;
       case 'toggleHint':
-        setHintOpen((open) => !open);
+        toggleHint();
         break;
       case 'toggleWhy':
         setWhyOpen((open) => !open);
@@ -361,7 +378,7 @@ export function ExercisePlayer({
                 type="button"
                 className={quietButton}
                 aria-expanded={hintOpen}
-                onClick={() => setHintOpen((open) => !open)}
+                onClick={toggleHint}
                 disabled={phase !== 'answering'}
               >
                 {t('player.hint')}

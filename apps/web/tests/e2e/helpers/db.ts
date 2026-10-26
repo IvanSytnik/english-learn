@@ -1,4 +1,5 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
+import { type Practice, PracticeSchema } from '@englishlearn/db/schemas';
 
 /**
  * Read-only database checks for e2e: what the UI cannot show (yet) — that an
@@ -56,4 +57,30 @@ export async function diagnosticFootprint(email: string) {
     priors,
     nativeLanguage: profile?.nativeLanguage ?? null,
   };
+}
+
+/**
+ * Published practice questions with their keys. The key never reaches the
+ * browser; the test finds the question on screen and looks its key up here.
+ */
+export async function practiceQuestions(): Promise<{ id: string; practice: Practice }[]> {
+  const items = await db().item.findMany({
+    where: { status: 'PUBLISHED' },
+    select: { id: true, content: true },
+  });
+  return items.flatMap((item) => {
+    const parsed = PracticeSchema.safeParse((item.content as { practice?: unknown }).practice);
+    return parsed.success ? [{ id: item.id, practice: parsed.data }] : [];
+  });
+}
+
+/** The learner's ITEM_ATTEMPTED payloads, oldest first. */
+export async function itemAttempts(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const events = await db().learnerEvent.findMany({
+    where: { userId: user.id, type: 'ITEM_ATTEMPTED' },
+    orderBy: { occurredAt: 'asc' },
+    select: { payload: true },
+  });
+  return events.map((e) => e.payload as Record<string, unknown>);
 }

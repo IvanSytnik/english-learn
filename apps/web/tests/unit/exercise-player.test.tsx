@@ -337,3 +337,105 @@ describe('ExercisePlayer', () => {
     expect(screen.getByRole('button', { name: /goed/ })).not.toBeDisabled();
   });
 });
+
+describe('ExercisePlayer — the hint is recorded (§8 #11)', () => {
+  const secondView: ExerciseView = { ...choiceView, itemId: 'item.c' };
+  const sent = (n: number) => submitExerciseAttempt.mock.calls[n]?.[0]?.hinted;
+  const onChoiceQuestion = async () => {
+    const prompt = document.getElementById('exercise-prompt');
+    await waitFor(() => expect(prompt).toHaveFocus());
+    await waitFor(() => expect(screen.queryByText('Correct')).toBeNull());
+  };
+  const answer = async () => {
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+  };
+
+  it('no hint opened → hinted: false', async () => {
+    renderPlayer(choiceView);
+    await answer();
+    expect(sent(0)).toBe(false);
+  });
+
+  it('opened with H and closed again before answering → hinted: true', async () => {
+    renderPlayer(choiceView);
+    key('h');
+    key('h');
+    expect(screen.queryByText('go → went')).toBeNull();
+    await answer();
+    expect(sent(0)).toBe(true);
+  });
+
+  it('opened by a click → hinted: true', async () => {
+    renderPlayer(choiceView);
+    fireEvent.click(screen.getByRole('button', { name: /^Hint/ }));
+    expect(screen.getByText('go → went')).toBeInTheDocument();
+    await answer();
+    expect(sent(0)).toBe(true);
+  });
+
+  it('H pressed in the same tick as the answer still counts', async () => {
+    renderPlayer(choiceView);
+    key('4');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await onFeedback('Correct');
+    expect(sent(0)).toBe(true);
+  });
+
+  it('H on feedback opens nothing and does not leak into the next question', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: secondView });
+    renderPlayer(choiceView);
+    await answer();
+    key('h');
+    expect(screen.queryByText('go → went')).toBeNull();
+    key('Enter');
+    await onChoiceQuestion();
+    await answer();
+    expect([sent(0), sent(1)]).toEqual([false, false]);
+  });
+
+  it('resets with the next question', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: secondView });
+    renderPlayer(choiceView);
+    key('h');
+    await answer();
+    key('Enter');
+    await onChoiceQuestion();
+    expect(screen.queryByText('go → went')).toBeNull();
+    await answer();
+    expect([sent(0), sent(1)]).toEqual([true, false]);
+  });
+
+  it('resets in Another session', async () => {
+    nextExercise.mockResolvedValue({ ok: true, value: secondView });
+    renderPlayer(choiceView, 1);
+    key('h');
+    await answer();
+    key('Enter');
+    fireEvent.click(await screen.findByRole('button', { name: 'Another session' }));
+    await onChoiceQuestion();
+    await answer();
+    expect([sent(0), sent(1)]).toEqual([true, false]);
+  });
+
+  it('survives a failed submit: the retry of the same question still carries it', async () => {
+    submitExerciseAttempt.mockResolvedValueOnce({ ok: false, error: 'NOT_FOUND' });
+    renderPlayer(choiceView);
+    key('h');
+    key('4');
+    key('Enter');
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await answer();
+    expect([sent(0), sent(1)]).toEqual([true, true]);
+  });
+
+  it('a question without a hint: no button, H does nothing, hinted: false', async () => {
+    renderPlayer({ ...choiceView, hint: null });
+    expect(screen.queryByRole('button', { name: /^Hint/ })).toBeNull();
+    key('h');
+    await answer();
+    expect(sent(0)).toBe(false);
+  });
+});

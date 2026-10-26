@@ -45,6 +45,12 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut({ key: 'Enter' }, ctx({ phase: 'submitting' }))).toBeNull();
   });
 
+  it('H opens the hint only while answering — never on an answer already sent', () => {
+    for (const phase of ['submitting', 'feedback', 'loading', 'done'] as const) {
+      expect(resolveShortcut({ key: 'h' }, ctx({ phase })), phase).toBeNull();
+    }
+  });
+
   it('never fires with modifier keys (browser shortcuts stay intact)', () => {
     expect(resolveShortcut({ key: '1', metaKey: true }, ctx())).toBeNull();
     expect(resolveShortcut({ key: 'h', ctrlKey: true }, ctx())).toBeNull();
