@@ -60,8 +60,6 @@
     "dashboard": {
       "title": "Your dashboard",
       "welcome": "Welcome, {name}",
-      "nextExercise": "Continue learning",
-      "takeDiagnostic": "Take diagnostic test",
       "level": "Your level: {level}",
       "findLevel": "Find your level",
       "continuePractice": "Continue practice",
@@ -70,7 +68,15 @@
       "recommendedStart": "Recommended to start",
       "quoted": "“{title}”",
       "lockedBy": "{count, plural, one {Unlocks after the topic {topics}} other {Unlocks after the topics {topics}}}",
-      "lockedFallback": "Unlocks once the earlier topics are in place"
+      "lockedFallback": "Unlocks once the earlier topics are in place",
+      "sheet": {
+        "close": "Close",
+        "items": "{done} of {total, plural, one {# exercise} other {# exercises}} in this topic practised",
+        "lastPracticed": "Last practised: {date}",
+        "notPracticed": "Not practised yet",
+        "requires": "Requires: {topics}",
+        "unlocks": "Unlocks: {topics}"
+      }
     },
     "diagnostic": {
       "title": "Diagnostic test",

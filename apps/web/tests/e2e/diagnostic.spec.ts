@@ -75,9 +75,9 @@ test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ pa
 test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the bootstrap ran', async ({
   page,
 }) => {
-  // 16 server actions in a row: 16–18 s locally against Neon dev, too close
-  // to the 30 s default.
-  test.setTimeout(60_000);
+  // 16 server actions in a row (16–18 s locally against Neon dev), then the
+  // dashboard in both schemes: ~30 s alone, over 60 s under a parallel run.
+  test.setTimeout(90_000);
   const email = await registerFreshLearner(page);
   await start(page);
   await expect(stem(page)).toHaveAttribute('lang', 'en');
@@ -126,10 +126,8 @@ test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the
   await expect(recommended).toHaveCount(1);
   await expect(recommended).toContainText(startTitle);
   for (const colorScheme of ['light', 'dark'] as const) {
-    // Reload rather than switch live: colour transitions would be measured mid-way.
-    await page.emulateMedia({ colorScheme });
-    await page.reload();
-    await expect(recommended).toHaveCount(1);
+    // Reduced motion: switched live, colour transitions would be measured mid-way.
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
     const report = violations.flatMap((v) =>
       v.nodes.map(

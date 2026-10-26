@@ -1,10 +1,11 @@
 import { isLocale } from '@englishlearn/db/schemas';
-import { Button, buttonVariants, Card, StageLabel } from '@englishlearn/ui';
-import { getFormatter, getLocale, getTranslations } from 'next-intl/server';
+import { Button, buttonVariants } from '@englishlearn/ui';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
-import { type DashboardConcept, type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
+import { type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
+import { ConceptList } from './concept-list';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -68,73 +69,9 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
-      {student?.sections.map((section) => (
-        <section
-          key={section.category}
-          aria-labelledby={`topics-${section.category}`}
-          className="mb-8"
-        >
-          <h2 id={`topics-${section.category}`} className="mb-3 font-content text-xl text-ink">
-            {t('category', { category: section.category })}
-          </h2>
-          <Card>
-            <ul className="divide-y divide-line">
-              {section.concepts.map((concept) => (
-                <ConceptRow key={concept.id} concept={concept} />
-              ))}
-            </ul>
-          </Card>
-        </section>
-      ))}
+      {student ? (
+        <ConceptList sections={student.sections} diagnosticDone={student.diagnosticDone} />
+      ) : null}
     </main>
-  );
-}
-
-async function ConceptRow({ concept }: { concept: DashboardConcept }) {
-  const t = await getTranslations('student.dashboard');
-  const ts = await getTranslations('learning.stage');
-  const format = await getFormatter();
-
-  return (
-    <li
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3"
-      data-concept={concept.id}
-      data-locked={concept.isLocked}
-    >
-      <span className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-ink">{concept.title}</span>
-        <span className="rounded-control border border-line px-1.5 font-mono text-xs text-ink-muted">
-          {concept.cefrLevel}
-        </span>
-        {concept.isRecommendedStart ? (
-          <span
-            className="rounded-control border border-accent px-1.5 text-xs font-medium text-accent"
-            data-recommended-start
-          >
-            {t('recommendedStart')}
-          </span>
-        ) : null}
-      </span>
-      {concept.isLocked ? (
-        <span className="text-sm text-ink-muted">
-          {concept.lockedBy.length > 0
-            ? t('lockedBy', {
-                count: concept.lockedBy.length,
-                topics: format.list(
-                  concept.lockedBy.map((r) => t('quoted', { title: r.title })),
-                  { type: 'conjunction' },
-                ),
-              })
-            : t('lockedFallback')}
-        </span>
-      ) : (
-        <StageLabel
-          stage={concept.stage}
-          label={ts(concept.stage)}
-          fading={concept.isFading}
-          fadingLabel={ts('dueForReview')}
-        />
-      )}
-    </li>
   );
 }

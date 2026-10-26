@@ -87,6 +87,7 @@ describe('loadStudentDashboard', () => {
 
   it('after the diagnostic, nothing started: level, practice CTA, week, recommended start', async () => {
     const d = await load();
+    expect(d.diagnosticDone).toBe(true);
     expect(d.level).toBe('B1');
     expect(d.cta).toEqual({ kind: 'practice' });
     expect(d.showWeekRhythm).toBe(true);
@@ -111,7 +112,8 @@ describe('loadStudentDashboard', () => {
   it('before the diagnostic: no level, no recommendation, no week until something is practised', async () => {
     isDiagnosticDone.mockResolvedValue(false);
     const fresh = await load();
-    expect([fresh.level, fresh.cta, fresh.showWeekRhythm]).toEqual([
+    expect([fresh.diagnosticDone, fresh.level, fresh.cta, fresh.showWeekRhythm]).toEqual([
+      false,
       null,
       { kind: 'diagnostic' },
       false,
@@ -148,6 +150,7 @@ describe('loadStudentDashboard', () => {
     expect(base?.lastPracticedAt).toBe(new Date(NOW - 2 * DAY).toISOString());
     expect(Object.keys(base ?? {}).sort()).toEqual(
       [
+        'category',
         'cefrLevel',
         'id',
         'isFading',

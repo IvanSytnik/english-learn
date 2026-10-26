@@ -113,6 +113,15 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   await expect(page.getByRole('heading', { name: 'Эта неделя' })).toBeVisible(AFTER_SUBMIT);
   await expect(page.getByRole('link', { name: 'Определить уровень' })).toBeVisible();
   await expect(page.locator('[data-recommended-start]')).toHaveCount(0);
+
+  // The practised topic's sheet: when, and how much of it.
+  await page
+    .locator('main button[data-concept]:has([data-stage]:not([data-stage="NOT_STARTED"]))')
+    .first()
+    .click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByText(/^Последняя практика: .+/)).toBeVisible();
+  await expect(sheet.getByText(/^Отработано [1-9]\d* из \d+ упражнени[яй] темы$/)).toBeVisible();
 });
 
 test('/ru/exercises: ?minutes= maps to the server allowlist, anything else shows the picker', async ({

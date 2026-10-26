@@ -25,6 +25,7 @@ import { isDiagnosticDone } from './diagnostic';
 export type DashboardConcept = {
   id: string;
   title: string;
+  category: ConceptCategory;
   cefrLevel: CefrLevelValue;
   stage: EffectiveStage;
   isFading: boolean;
@@ -45,6 +46,7 @@ export type DashboardCta =
   | { kind: 'practice' };
 
 export type StudentDashboard = {
+  diagnosticDone: boolean;
   /** Assessed level, shown only once the diagnostic is done. */
   level: CefrLevelValue | null;
   cta: DashboardCta;
@@ -66,6 +68,7 @@ export function toDashboardConcept(v: ConceptProgressView): DashboardConcept {
   return {
     id: v.id,
     title: v.title,
+    category: v.category,
     cefrLevel: v.cefrLevel,
     stage: v.stage,
     isFading: v.isFading,
@@ -120,6 +123,7 @@ export async function loadStudentDashboard(args: {
   const practised = sections.some((s) => s.concepts.some((c) => c.practicedItemCount > 0));
 
   return {
+    diagnosticDone,
     level,
     cta: dashboardCta(diagnosticDone, board.fadingCount),
     showWeekRhythm: diagnosticDone || practised,

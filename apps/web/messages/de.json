@@ -60,8 +60,6 @@
     "dashboard": {
       "title": "Dein Dashboard",
       "welcome": "Hallo, {name}",
-      "nextExercise": "Weiterlernen",
-      "takeDiagnostic": "Einstufungstest machen",
       "level": "Niveau: {level}",
       "findLevel": "Niveau bestimmen",
       "continuePractice": "Weiter üben",
@@ -70,7 +68,15 @@
       "recommendedStart": "Empfohlen für den Start",
       "quoted": "„{title}“",
       "lockedBy": "{count, plural, one {Wird nach dem Thema {topics} freigeschaltet} other {Wird nach den Themen {topics} freigeschaltet}}",
-      "lockedFallback": "Wird nach den vorherigen Themen freigeschaltet"
+      "lockedFallback": "Wird nach den vorherigen Themen freigeschaltet",
+      "sheet": {
+        "close": "Schließen",
+        "items": "{done} von {total, plural, one {# Übung} other {# Übungen}} dieses Themas geübt",
+        "lastPracticed": "Zuletzt geübt: {date}",
+        "notPracticed": "Noch nicht geübt",
+        "requires": "Setzt voraus: {topics}",
+        "unlocks": "Schaltet frei: {topics}"
+      }
     },
     "diagnostic": {
       "title": "Einstufungstest",

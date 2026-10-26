@@ -60,8 +60,6 @@
     "dashboard": {
       "title": "Дашборд",
       "welcome": "Привет, {name}",
-      "nextExercise": "Продолжить",
-      "takeDiagnostic": "Пройти диагностику",
       "level": "Уровень: {level}",
       "findLevel": "Определить уровень",
       "continuePractice": "Продолжить практику",
@@ -70,7 +68,15 @@
       "recommendedStart": "Рекомендуем для старта",
       "quoted": "«{title}»",
       "lockedBy": "{count, plural, one {Откроется после темы {topics}} other {Откроется после тем {topics}}}",
-      "lockedFallback": "Откроется по мере прохождения предыдущих тем"
+      "lockedFallback": "Откроется по мере прохождения предыдущих тем",
+      "sheet": {
+        "close": "Закрыть",
+        "items": "{total, plural, one {Отработано {done} из # упражнения темы} other {Отработано {done} из # упражнений темы}}",
+        "lastPracticed": "Последняя практика: {date}",
+        "notPracticed": "Ещё не практиковалась",
+        "requires": "Требуется: {topics}",
+        "unlocks": "Открывает: {topics}"
+      }
     },
     "diagnostic": {
       "title": "Диагностика",

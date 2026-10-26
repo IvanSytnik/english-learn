@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
 
@@ -68,4 +69,51 @@ test('/ru/dashboard: before anything, the topics by section, locks named, no wee
   await expect(page.locator('[data-recommended-start]')).toHaveCount(0);
   await expect(page.locator('[data-dashboard-level]')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Эта неделя' })).toHaveCount(0);
+});
+
+test('/ru/dashboard: a topic opens its sheet; Esc closes it', async ({ page }) => {
+  await registerFreshStudent(page);
+  const topic = page.locator('main button[data-concept][data-locked="false"]').first();
+  const title = (await topic.locator('span.font-medium').first().textContent()) ?? '';
+  await topic.click();
+
+  const sheet = page.getByRole('dialog', { name: title });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText(/Грамматика|Словарь/);
+  await expect(sheet.locator('[data-stage="NOT_STARTED"]')).toBeVisible();
+  await expect(sheet.getByText(/^Отработано 0 из \d+ упражнени[яй] темы$/)).toBeVisible();
+  await expect(sheet.getByText('Ещё не практиковалась')).toBeVisible();
+  const cta = sheet.getByRole('link', { name: 'Определить уровень' });
+  await expect(cta).toHaveAttribute('href', '/ru/diagnostic');
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    // Reduced motion: switched live, colour transitions would be measured mid-way.
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    const { violations } = await new AxeBuilder({ page })
+      .include('dialog[open]')
+      .withRules(['color-contrast'])
+      .analyze();
+    const report = violations.flatMap((v) =>
+      v.nodes.map(
+        (node) => `${colorScheme} ${node.target.join(' ')}: ${node.failureSummary ?? v.help}`,
+      ),
+    );
+    expect(report, report.join('\n')).toEqual([]);
+  }
+
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  // Focus goes back to the topic that opened it.
+  await expect(topic).toBeFocused();
+});
+
+test('/ru/dashboard: a locked topic’s sheet names what opens it', async ({ page }) => {
+  await registerFreshStudent(page);
+  await page.locator('main button[data-concept][data-locked="true"]').first().click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toContainText(/Откроется после тем[ыи]? «.+»/);
+  await expect(sheet.locator('[data-stage]')).toHaveCount(0);
+  await expect(sheet.getByText(/^Требуется: «.+»/)).toBeVisible();
+  await sheet.getByRole('button', { name: 'Закрыть' }).click();
+  await expect(sheet).toBeHidden();
 });
