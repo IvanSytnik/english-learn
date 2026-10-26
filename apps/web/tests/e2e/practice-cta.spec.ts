@@ -1,17 +1,35 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { registerFreshLearner } from './helpers/auth';
+import { AFTER_SUBMIT, registerFreshLearner, uniqueEmail } from './helpers/auth';
 import { chooseNativeLanguage } from './helpers/diagnostic';
 
 // Primary CTAs: a new learner finds their level first (the diagnostic), and
 // practises once the diagnostic has seeded the learner model.
 
-test('/ru: the primary CTA offers to find your level and leads to registration', async ({
+test('/ru: the primary CTA signs up straight into the diagnostic', async ({ page }) => {
+  await page.goto('/ru');
+  const cta = page.getByRole('link', { name: 'Определить уровень' });
+  await expect(cta).toHaveAttribute('href', '/ru/register?callbackUrl=%2Fdiagnostic');
+});
+
+test('/ (en): the same CTA, unprefixed', async ({ page }) => {
+  await page.goto('/');
+  const cta = page.getByRole('link', { name: 'Find your level' });
+  await expect(cta).toHaveAttribute('href', '/register?callbackUrl=%2Fdiagnostic');
+});
+
+test('/ru: signing up from the landing CTA lands on the diagnostic, not the dashboard', async ({
   page,
 }) => {
   await page.goto('/ru');
-  const cta = page.getByRole('link', { name: 'Определить уровень' });
-  await expect(cta).toHaveAttribute('href', '/ru/register');
+  await page.getByRole('link', { name: 'Определить уровень' }).click();
+  await expect(page).toHaveURL(/\/ru\/register\?callbackUrl=%2Fdiagnostic$/);
+  await page.locator('#name').fill('E2E cta');
+  await page.locator('#email').fill(uniqueEmail('cta'));
+  await page.locator('#password').fill('password1234');
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/ru\/diagnostic$/, AFTER_SUBMIT);
+  await expect(page.getByRole('heading', { name: 'Ваш родной язык' })).toBeVisible();
 });
 
 test('/ru/dashboard: before the diagnostic the CTA leads to /ru/diagnostic, never prefetched', async ({
