@@ -60,7 +60,7 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
     itemId,
     correct: true,
     dontKnow: false,
-    userAnswer: '0',
+    userAnswer: 'am',
   });
 
   beforeAll(async () => {

@@ -80,6 +80,8 @@ export type DiagnosticError =
   | 'NOT_IN_PROGRESS'
   /** The question vanished from the published bank mid-attempt. */
   | 'ITEM_NOT_FOUND'
+  /** The choice index names no option of the current question. */
+  | 'INVALID_CHOICE'
   /** No unanswered question left on an axis — a bank problem, logged. */
   | 'BANK_EXHAUSTED'
   /** A new attempt needs the learner's native language first. */
@@ -183,8 +185,14 @@ export async function submitDiagnosticAnswer(
     return { ok: true, value: { stale: true, step: expected } };
   }
 
+  // The option as text, not its index: the review shows what the learner
+  // picked even if the bank later reorders or rewrites the options.
+  let userAnswer = '';
   let correct = false;
   if (!input.dontKnow) {
+    const choice = expected.question.item.choices[input.choiceIndex];
+    if (choice === undefined) return { ok: false, error: 'INVALID_CHOICE' };
+    userAnswer = choice;
     const verdict = await checkDiagnosticAnswer(input.itemId, input.choiceIndex);
     if (!verdict) return { ok: false, error: 'ITEM_NOT_FOUND' };
     correct = verdict.correct;
@@ -197,7 +205,7 @@ export async function submitDiagnosticAnswer(
     itemId: input.itemId,
     correct,
     dontKnow: input.dontKnow === true,
-    userAnswer: input.dontKnow ? '' : String(input.choiceIndex),
+    userAnswer,
   });
   // DUPLICATE: a concurrent submit of this position won — same next step.
   if (!appended.ok && appended.error !== 'DUPLICATE') {

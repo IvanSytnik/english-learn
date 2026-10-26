@@ -437,6 +437,30 @@ describe('the attempt', () => {
     expect(store.attempts[0]?.answers).toHaveLength(1);
   });
 
+  it('records the chosen option as text, not as its index', async () => {
+    const q = await currentQuestion();
+    await submitDiagnosticAnswerAction({
+      attemptId: q.attemptId,
+      position: q.position,
+      itemId: q.item.id,
+      choiceIndex: 2,
+    });
+    expect(store.attempts[0]?.answers[0]?.userAnswer).toBe('y');
+  });
+
+  it('an index past the options of the question is refused and not recorded', async () => {
+    const q = await currentQuestion();
+    // The schema admits up to 6 options; this question has 4.
+    const res = await submitDiagnosticAnswerAction({
+      attemptId: q.attemptId,
+      position: q.position,
+      itemId: q.item.id,
+      choiceIndex: 4,
+    });
+    expect(res).toEqual({ ok: false, error: 'INVALID_CHOICE' });
+    expect(store.attempts[0]?.answers).toHaveLength(0);
+  });
+
   it('records "I don\'t know" as a wrong answer with an empty choice', async () => {
     const q = await currentQuestion();
     await submitDiagnosticAnswerAction({
