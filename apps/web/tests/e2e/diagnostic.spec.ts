@@ -1,21 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { DIAGNOSTIC_BANK } from '@englishlearn/learner-model/seed/diagnostic';
 import { expect, type Page, test } from '@playwright/test';
-import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
+import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, diagnosticFootprint } from './helpers/db';
-
-// A fresh learner per test: the diagnostic is taken once per learner, and
-// runs are parallel.
-async function registerFreshLearner(page: Page) {
-  const email = uniqueEmail('diag');
-  await page.goto('/ru/register');
-  await page.locator('#name').fill('E2E Diagnostic');
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill('password1234');
-  await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
-  return email;
-}
 
 const stem = (page: Page) => page.locator('#diagnostic-stem');
 const status = (page: Page) => page.getByRole('status');
@@ -63,7 +50,7 @@ async function start(page: Page) {
 test.afterAll(closeDb);
 
 test('/ru/diagnostic: the intro, and opening it creates no attempt', async ({ page }) => {
-  const email = await registerFreshLearner(page);
+  const email = await registerFreshLearner(page, 'diag');
   await page.goto('/ru/diagnostic');
   await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
   await expect(page.getByText('16 коротких вопросов')).toBeVisible();
@@ -78,7 +65,7 @@ test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the
   // 16 server actions in a row (16–18 s locally against Neon dev), then the
   // dashboard in both schemes: ~30 s alone, over 60 s under a parallel run.
   test.setTimeout(90_000);
-  const email = await registerFreshLearner(page);
+  const email = await registerFreshLearner(page, 'diag');
   await start(page);
   await expect(stem(page)).toHaveAttribute('lang', 'en');
   for (let n = 1; n <= 16; n++) await answer(page, n, 'right');
@@ -145,7 +132,7 @@ test('/ru/diagnostic: a full pass by keyboard, all right → the result, and the
 });
 
 test('/ru/diagnostic: a reload resumes at the next question', async ({ page }) => {
-  const email = await registerFreshLearner(page);
+  const email = await registerFreshLearner(page, 'diag');
   await start(page);
   for (let n = 1; n <= 5; n++) await answer(page, n, n % 2 === 0 ? 'dontKnow' : 'right');
   await page.reload();
@@ -160,7 +147,7 @@ test('/ru/diagnostic: "I don\'t know" all the way → done at A2', async ({ page
   // 16 server actions in a row: 16–18 s locally against Neon dev, too close
   // to the 30 s default.
   test.setTimeout(60_000);
-  const email = await registerFreshLearner(page);
+  const email = await registerFreshLearner(page, 'diag');
   await start(page);
   for (let n = 1; n <= 16; n++) await answer(page, n, 'dontKnow');
   await expect(page.getByRole('heading', { name: 'Готово!' })).toBeVisible(AFTER_SUBMIT);
@@ -174,7 +161,7 @@ test('/ru/diagnostic: "I don\'t know" all the way → done at A2', async ({ page
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`/ru/diagnostic: text contrast on a question (${colorScheme})`, async ({ page }) => {
     await page.emulateMedia({ colorScheme });
-    await registerFreshLearner(page);
+    await registerFreshLearner(page, 'diag');
     await start(page);
     await page.keyboard.press('1'); // a selected option too
     const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();

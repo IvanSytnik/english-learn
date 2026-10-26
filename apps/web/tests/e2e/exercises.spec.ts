@@ -1,18 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { AFTER_SUBMIT } from './helpers/auth';
-
-// A fresh learner per run: the player writes LearnerEvents, so the shared seed
-// student would accumulate history and make selection drift between runs.
-async function registerFreshLearner(page: Page) {
-  const email = `player-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.englishlearn.dev`;
-  await page.goto('/ru/register');
-  await page.locator('#name').fill('E2E Player');
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill('password1234');
-  await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
-}
+import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 
 /**
  * The question type is Thompson's pick, not the test's. A cloze question has a
@@ -49,7 +37,7 @@ async function answerWithKeyboard(page: Page) {
 test('/ru/exercises: keyboard-only session — don’t know, feedback, continue, answer', async ({
   page,
 }) => {
-  await registerFreshLearner(page);
+  await registerFreshLearner(page, 'player');
   await page.goto('/ru/exercises');
 
   // Session length first: 10 min preselected, arrows move, Enter starts.
@@ -127,7 +115,7 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
 test('/ru/exercises: ?minutes= maps to the server allowlist, anything else shows the picker', async ({
   page,
 }) => {
-  await registerFreshLearner(page);
+  await registerFreshLearner(page, 'player');
   const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
   const picker = page.getByRole('group', { name: 'Сколько у вас времени?' });
 
@@ -149,7 +137,7 @@ test.describe('session summary (Europe/Vienna)', () => {
   test('/ru/exercises: a 5-minute session ends on the summary, then starts over', async ({
     page,
   }) => {
-    await registerFreshLearner(page);
+    await registerFreshLearner(page, 'player');
     await page.goto('/ru/exercises?minutes=5');
     const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
     const status = page.getByRole('status');

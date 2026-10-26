@@ -1,19 +1,9 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page, test } from '@playwright/test';
-import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
+import { expect, test } from '@playwright/test';
+import { registerFreshLearner } from './helpers/auth';
 
 // Primary CTAs: a new learner finds their level first (the diagnostic), and
 // practises once the diagnostic has seeded the learner model.
-
-// A fresh account per test: runs are parallel and must not share a learner.
-async function registerFreshStudent(page: Page) {
-  await page.goto('/ru/register');
-  await page.locator('#name').fill('E2E CTA');
-  await page.locator('#email').fill(uniqueEmail('cta'));
-  await page.locator('#password').fill('password1234');
-  await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
-}
 
 test('/ru: the primary CTA offers to find your level and leads to registration', async ({
   page,
@@ -32,7 +22,7 @@ test('/ru/dashboard: before the diagnostic the CTA leads to /ru/diagnostic, neve
   page.on('request', (r) => {
     if (new URL(r.url()).pathname.startsWith('/ru/diagnostic')) diagnosticRequests.push(r.url());
   });
-  await registerFreshStudent(page);
+  await registerFreshLearner(page, 'cta');
   const cta = page.getByRole('link', { name: 'Определить уровень' });
   await expect(cta).toHaveAttribute('href', '/ru/diagnostic');
   await expect(cta).toBeInViewport();
@@ -44,7 +34,7 @@ test('/ru/dashboard: before the diagnostic the CTA leads to /ru/diagnostic, neve
 });
 
 test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) => {
-  await registerFreshStudent(page);
+  await registerFreshLearner(page, 'cta');
   await page.goto('/ru/diagnostic');
   await expect(page.getByRole('heading', { name: 'Диагностика' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Начать' })).toBeEnabled();
@@ -53,7 +43,7 @@ test('/ru/diagnostic: no dead end — the intro offers Start', async ({ page }) 
 test('/ru/dashboard: before anything, the topics by section, locks named, no week', async ({
   page,
 }) => {
-  await registerFreshStudent(page);
+  await registerFreshLearner(page, 'cta');
   await expect(page.getByRole('heading', { level: 2, name: 'Грамматика' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Словарь' })).toBeVisible();
   // Nothing practised: every open topic is "not started".
@@ -72,7 +62,7 @@ test('/ru/dashboard: before anything, the topics by section, locks named, no wee
 });
 
 test('/ru/dashboard: a topic opens its sheet; Esc closes it', async ({ page }) => {
-  await registerFreshStudent(page);
+  await registerFreshLearner(page, 'cta');
   const topic = page.locator('main button[data-concept][data-locked="false"]').first();
   const title = (await topic.locator('span.font-medium').first().textContent()) ?? '';
   await topic.click();
@@ -108,7 +98,7 @@ test('/ru/dashboard: a topic opens its sheet; Esc closes it', async ({ page }) =
 });
 
 test('/ru/dashboard: a locked topic’s sheet names what opens it', async ({ page }) => {
-  await registerFreshStudent(page);
+  await registerFreshLearner(page, 'cta');
   await page.locator('main button[data-concept][data-locked="true"]').first().click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toContainText(/Откроется после тем[ыи]? «.+»/);

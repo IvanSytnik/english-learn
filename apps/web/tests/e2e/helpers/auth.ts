@@ -15,6 +15,22 @@ export function uniqueEmail(tag: string) {
   return `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.englishlearn.dev`;
 }
 
+/**
+ * Registers a new student on /ru/register and waits for the dashboard. A fresh
+ * account per test: runs are parallel, and the diagnostic and the player write
+ * per-learner state that must not leak between tests. `tag` prefixes the email.
+ */
+export async function registerFreshLearner(page: Page, tag: string): Promise<string> {
+  const email = uniqueEmail(tag);
+  await page.goto('/ru/register');
+  await page.locator('#name').fill(`E2E ${tag}`);
+  await page.locator('#email').fill(email);
+  await page.locator('#password').fill('password1234');
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
+  return email;
+}
+
 /** Fills and submits the login form on the current page. */
 export async function submitLogin(page: Page, user: Credentials) {
   await page.locator('#email').fill(user.email);
