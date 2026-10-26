@@ -1,5 +1,10 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
-import { type Practice, PracticeSchema } from '@englishlearn/db/schemas';
+import {
+  getConceptTitle,
+  type Locale,
+  type Practice,
+  PracticeSchema,
+} from '@englishlearn/db/schemas';
 
 /**
  * Read-only database checks for e2e: what the UI cannot show (yet) — that an
@@ -83,4 +88,23 @@ export async function itemAttempts(email: string) {
     select: { payload: true },
   });
   return events.map((e) => e.payload as Record<string, unknown>);
+}
+
+/** The learner's events of both types, oldest first. */
+export async function learnerEvents(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  return db().learnerEvent.findMany({
+    where: { userId: user.id },
+    orderBy: { occurredAt: 'asc' },
+    select: { type: true, occurredAt: true, payload: true },
+  });
+}
+
+/** A concept's title as the UI shows it in `locale`. */
+export async function conceptTitle(id: string, locale: Locale) {
+  const concept = await db().concept.findUniqueOrThrow({
+    where: { id },
+    select: { name: true, title: true },
+  });
+  return getConceptTitle(concept, locale);
 }
