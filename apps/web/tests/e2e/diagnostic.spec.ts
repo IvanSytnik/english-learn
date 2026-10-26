@@ -2,7 +2,15 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, diagnosticFootprint } from './helpers/db';
-import { answer, chooseNativeLanguage, progress, start, status, stem } from './helpers/diagnostic';
+import {
+  answer,
+  bankQuestion,
+  chooseNativeLanguage,
+  progress,
+  start,
+  status,
+  stem,
+} from './helpers/diagnostic';
 
 test.afterAll(closeDb);
 
@@ -140,6 +148,83 @@ test('/ru/diagnostic: "I don\'t know" all the way → done at A2', async ({ page
   const footprint = await diagnosticFootprint(email);
   expect(footprint.attempts).toEqual([{ status: 'COMPLETED', assessedLevel: 'A2', answers: 16 }]);
   expect(footprint.bootstrapEvents).toBe(1);
+});
+
+test('/ru/diagnostic/review: every answer next to the key, with why, and no total', async ({
+  page,
+}) => {
+  // 16 server actions in a row, then the review in both schemes.
+  test.setTimeout(90_000);
+  await registerFreshLearner(page, 'diag');
+  // Nothing finished yet: no review, back to the diagnostic.
+  await page.goto('/ru/diagnostic/review');
+  await expect(page).toHaveURL(/\/ru\/diagnostic$/, AFTER_SUBMIT);
+
+  // The key and the explanations are fetched only when the learner asks:
+  // watched from before the result appears, when a viewport prefetch fires.
+  const reviewRequests: string[] = [];
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname.startsWith('/ru/diagnostic/review')) {
+      reviewRequests.push(r.url());
+    }
+  });
+  await start(page);
+  const plan = (n: number) => (['right', 'wrong', 'dontKnow'] as const)[(n - 1) % 3] ?? 'right';
+  for (let n = 1; n <= 16; n++) await answer(page, n, plan(n));
+  await expect(page.getByRole('heading', { name: 'Готово!' })).toBeFocused(AFTER_SUBMIT);
+
+  const link = page.getByRole('link', { name: 'Посмотреть разбор' });
+  await expect(link).toHaveAttribute('href', '/ru/diagnostic/review');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1_500);
+  expect(reviewRequests).toEqual([]);
+  await link.click();
+  await expect(page).toHaveURL(/\/ru\/diagnostic\/review$/, AFTER_SUBMIT);
+  await expect(page.getByRole('heading', { level: 1, name: 'Разбор ответов' })).toBeVisible();
+
+  const cards = page.locator('main ol > li[data-review-question]');
+  await expect(cards).toHaveCount(16);
+  const outcome = { right: 'correct', wrong: 'incorrect', dontKnow: 'dontKnow' } as const;
+  for (let n = 1; n <= 16; n++) {
+    const card = cards.nth(n - 1);
+    await expect(card).toHaveAccessibleName(new RegExp(`^Вопрос ${n} · (Грамматика|Словарь)$`));
+    await expect(card).toHaveAttribute('data-outcome', outcome[plan(n)]);
+    // The key shown is the bank's, and the learner's pick is where it was.
+    const { choices, correctIndex } = bankQuestion(
+      (await card.locator('p[lang="en"]').first().textContent()) ?? '',
+    );
+    const key = card.locator('[data-choice][data-key]');
+    await expect(key).toHaveCount(1);
+    await expect(key).toContainText(choices[correctIndex] ?? '');
+    await expect(key).toContainText('Правильный ответ');
+    const chosen = card.locator('[data-choice][data-chosen]');
+    if (plan(n) === 'dontKnow') await expect(chosen).toHaveCount(0);
+    else {
+      await expect(chosen).toContainText('Ваш ответ');
+      await expect(chosen).toContainText(
+        choices[plan(n) === 'right' ? correctIndex : (correctIndex + 1) % 4] ?? '',
+      );
+    }
+    // Native ru, the bank's explanations are English so far: shown, marked lang="en".
+    await expect(card.locator('[data-why] p[lang="en"]')).not.toBeEmpty();
+  }
+  // A verdict per question, never a total.
+  // (Not a page-wide "%": a question itself says "by 10% this year".)
+  await expect(page.getByText(/\d+\s*из\s*16/)).toHaveCount(0);
+  await expect(page.locator('main > header')).not.toContainText(/\d/);
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    // Reduced motion: switched live, colour transitions would be measured mid-way.
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    const { violations } = await new AxeBuilder({ page }).analyze();
+    const report = violations.flatMap((v) =>
+      v.nodes.map((node) => `${colorScheme} ${v.id} ${node.target.join(' ')}: ${v.help}`),
+    );
+    expect(report, report.join('\n')).toEqual([]);
+  }
+
+  await page.getByRole('link', { name: 'К результату' }).click();
+  await expect(page.getByRole('heading', { name: 'Готово!' })).toBeVisible(AFTER_SUBMIT);
 });
 
 for (const colorScheme of ['light', 'dark'] as const) {

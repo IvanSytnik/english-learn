@@ -467,9 +467,13 @@ function Done({ result }: { result: DiagnosticResultView }) {
       ) : (
         <p className="text-ink">{t('resultUnavailable')}</p>
       )}
-      <div>
+      <div className="flex flex-wrap items-center gap-3">
         <Link href="/exercises" className={primaryButton}>
           {t('goToPractice')}
+        </Link>
+        {/* No prefetch: the key and the explanations load only when asked for. */}
+        <Link href="/diagnostic/review" prefetch={false} className={quietButton}>
+          {t('reviewLink')}
         </Link>
       </div>
     </Shell>

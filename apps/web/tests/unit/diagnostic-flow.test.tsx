@@ -18,8 +18,17 @@ vi.mock('@/app/[locale]/(student)/diagnostic/actions', () => ({
   submitDiagnosticAnswerAction,
 }));
 vi.mock('@/i18n/navigation', () => ({
-  Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
-    <a href={href} {...rest}>
+  Link: ({
+    href,
+    children,
+    prefetch,
+    ...rest
+  }: {
+    href: string;
+    children: ReactNode;
+    prefetch?: boolean;
+  }) => (
+    <a href={href} data-prefetch={String(prefetch ?? true)} {...rest}>
       {children}
     </a>
   ),
@@ -202,6 +211,10 @@ describe('DiagnosticFlow', () => {
     expect(screen.getByRole('link', { name: 'Go to practice' }).getAttribute('href')).toBe(
       '/exercises',
     );
+    // The review is a page of its own, fetched only when asked for.
+    const review = screen.getByRole('link', { name: 'See your answers' });
+    expect(review.getAttribute('href')).toBe('/diagnostic/review');
+    expect(review.getAttribute('data-prefetch')).toBe('false');
   });
 
   it('a result without a suggested topic shows the level only', () => {
@@ -217,6 +230,10 @@ describe('DiagnosticFlow', () => {
     expect(screen.getByText(/can’t show the result right now/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Go to practice' }).getAttribute('href')).toBe(
       '/exercises',
+    );
+    // Answers are stored, so the review is there even without a level.
+    expect(screen.getByRole('link', { name: 'See your answers' }).getAttribute('href')).toBe(
+      '/diagnostic/review',
     );
   });
 

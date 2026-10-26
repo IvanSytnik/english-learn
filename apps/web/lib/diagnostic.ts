@@ -14,6 +14,7 @@ import {
 import {
   type DiagnosticRevealFacts,
   getDiagnosticRevealFacts,
+  getDiagnosticReviewFacts,
   getPlacementContext,
 } from '@englishlearn/db/queries/diagnostic-reveal';
 import {
@@ -22,8 +23,14 @@ import {
   getDiagnosticItemForStudent,
 } from '@englishlearn/db/queries/exercises';
 import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
-import type { CefrLevelValue, DiagnosticAxisValue, Locale } from '@englishlearn/db/schemas';
+import {
+  type CefrLevelValue,
+  type DiagnosticAxisValue,
+  type Locale,
+  localized,
+} from '@englishlearn/db/schemas';
 import { buildPlacementReveal, nextLadderStep, TOTAL_QUESTIONS } from '@englishlearn/learner-model';
+import { contentLocale } from '@/lib/exercise/view';
 import { bootstrapService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 
@@ -36,6 +43,8 @@ import type { Result } from '@/lib/result';
  * No feedback during the test: nothing returned here carries the verdict,
  * the key, an explanation or the question's level. The result after the test
  * carries levels only — per axis and overall — and a suggested first topic.
+ * The review, a page of its own after the test, is the one place the key and
+ * the explanations reach the learner.
  */
 
 /** What the learner sees of a question. */
@@ -58,6 +67,28 @@ export type DiagnosticResultView = {
   axes: { axis: DiagnosticAxisValue; level: CefrLevelValue }[];
   /** A suggestion, not a promise: the first exercise is still the policy's pick. */
   startConcept: { title: string } | null;
+};
+
+/**
+ * The review screen: every question of the completed attempt with the
+ * learner's answer, the key and the explanation. Built field by field from
+ * the review facts — no question level, no item id, no tally.
+ */
+export type DiagnosticReviewView = {
+  questions: {
+    /** 0-based; the learner sees position + 1. */
+    position: number;
+    axis: DiagnosticAxisValue;
+    stem: string;
+    choices: string[];
+    /** Null for "I don't know", or an answer no longer among the options. */
+    chosenIndex: number | null;
+    correctIndex: number;
+    /** The verdict stored when the learner answered. */
+    outcome: 'correct' | 'incorrect' | 'dontKnow';
+    /** In the learner's content language where translated, else English (`lang`). */
+    explanation: { text: string; lang: Locale } | null;
+  }[];
 };
 
 const NO_RESULT: DiagnosticResultView = { level: null, axes: [], startConcept: null };
@@ -107,6 +138,45 @@ export type DiagnosticSubmitOutcome = {
  */
 export async function isDiagnosticDone(userId: string): Promise<boolean> {
   return (await getCompletedAttempt(prisma, userId)) !== null;
+}
+
+/**
+ * The review of the learner's completed attempt, or null when there is none.
+ * The attempt is always the learner's own completed one — never an id from
+ * the client. Read-only: unlike /diagnostic, nothing is bootstrapped here.
+ */
+export async function getDiagnosticReview(
+  userId: string,
+  uiLocale: Locale,
+): Promise<DiagnosticReviewView | null> {
+  const completed = await getCompletedAttempt(prisma, userId);
+  if (!completed) return null;
+  const facts = await getDiagnosticReviewFacts(prisma, {
+    userId,
+    attemptId: completed.attemptId,
+  });
+  if (!facts) return null;
+  const locale = contentLocale(await getNativeLanguage(prisma, userId), uiLocale);
+
+  return {
+    questions: facts.answers.map((a) => {
+      const chosenIndex = a.chosen === null ? -1 : a.choices.indexOf(a.chosen);
+      const text = localized(a.explanation, locale);
+      return {
+        position: a.position,
+        axis: a.axis,
+        stem: a.stem,
+        choices: a.choices,
+        chosenIndex: chosenIndex === -1 ? null : chosenIndex,
+        correctIndex: a.correctIndex,
+        outcome: a.dontKnow ? 'dontKnow' : a.correct ? 'correct' : 'incorrect',
+        explanation:
+          a.explanation && text !== ''
+            ? { text, lang: a.explanation[locale] ? locale : 'en' }
+            : null,
+      };
+    }),
+  };
 }
 
 /**

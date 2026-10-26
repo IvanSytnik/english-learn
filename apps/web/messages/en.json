@@ -104,7 +104,24 @@
       "languageWhy": "Hints and explanations in exercises will be in this language wherever a translation exists.",
       "languageOther": "Other language",
       "languageContinue": "Continue",
-      "languageError": "Your choice wasn't saved. Try again."
+      "languageError": "Your choice wasn't saved. Try again.",
+      "reviewLink": "See your answers"
+    },
+    "diagnosticReview": {
+      "title": "Your answers",
+      "intro": "Each question of the test with your answer, the right one and a short explanation.",
+      "question": "Question {n} · {axis, select, GRAMMAR {Grammar} VOCAB {Vocabulary} other {Listening}}",
+      "outcome": {
+        "correct": "Right",
+        "incorrect": "Not right",
+        "dontKnow": "You chose “I don't know”"
+      },
+      "yourAnswer": "Your answer",
+      "rightAnswer": "Right answer",
+      "answerGone": "This question has changed since the test, so your answer can’t be shown.",
+      "why": "Why",
+      "backToResult": "Back to the result",
+      "goToPractice": "Go to practice"
     },
     "exercises": {
       "title": "Exercises",

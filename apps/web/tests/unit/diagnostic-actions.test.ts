@@ -70,6 +70,8 @@ const store = vi.hoisted(() => ({
   lastFacts: null as null | { answers: { skillTag: unknown }[] },
   /** StudentProfile.nativeLanguage per user; absent = no profile. */
   languages: new Map<string, string | null>(),
+  /** Explanations in the bank also have a Russian translation. */
+  ruWhy: false,
 }));
 
 const {
@@ -150,6 +152,34 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
     store.lastFacts = facts;
     return facts;
   },
+  getDiagnosticReviewFacts: async (_db: unknown, args: { userId: string; attemptId: string }) => {
+    const a = store.attempts.find(
+      (x) => x.id === args.attemptId && x.userId === args.userId && x.status === 'COMPLETED',
+    );
+    if (!a) return null;
+    return {
+      answers: [...a.answers]
+        .sort((x, y) => x.position - y.position)
+        .map((x) => {
+          const q = store.bank.find((b) => b.id === x.itemId);
+          if (!q) throw new Error(`no ${x.itemId}`);
+          return {
+            position: x.position,
+            axis: x.axis,
+            stem: q.stem,
+            choices: q.choices,
+            correctIndex: q.key,
+            chosen: x.dontKnow ? null : x.userAnswer,
+            correct: x.correct,
+            dontKnow: x.dontKnow,
+            explanation: {
+              en: `Why ${q.id}`,
+              ...(store.ruWhy ? { ru: `Почему ${q.id}` } : {}),
+            },
+          };
+        }),
+    };
+  },
   getPlacementContext,
 }));
 vi.mock('@englishlearn/db/queries/student-profile', () => ({
@@ -174,7 +204,9 @@ vi.mock('@englishlearn/db/queries/exercises', () => ({
 
 const { saveNativeLanguageAction, startDiagnosticAction, submitDiagnosticAnswerAction } =
   await import('@/app/[locale]/(student)/diagnostic/actions');
-const { isDiagnosticDone, peekDiagnosticStep } = await import('@/lib/diagnostic');
+const { getDiagnosticReview, isDiagnosticDone, peekDiagnosticStep } = await import(
+  '@/lib/diagnostic'
+);
 
 /** The in-memory attempt queries, with the database's semantics. */
 function useMemoryAttempts() {
@@ -286,6 +318,7 @@ beforeEach(() => {
   store.nextId = 0;
   store.tagged = false;
   store.lastFacts = null;
+  store.ruWhy = false;
   // Most tests are about the test itself: these learners chose a language already.
   store.languages = new Map([
     ['u1', 'ru'],
@@ -830,5 +863,130 @@ describe('the native language, before a new attempt', () => {
     // …and now Start starts.
     const step = await startDiagnosticAction();
     expect(step.ok && step.value.kind).toBe('question');
+  });
+});
+
+describe('the review', () => {
+  /** 16 answers: right, wrong, "I don't know" in turn. */
+  async function passMixed() {
+    for (let i = 0; i < 16; i++) {
+      if (i % 3 === 2) {
+        const q = await currentQuestion();
+        await submitDiagnosticAnswerAction({
+          attemptId: q.attemptId,
+          position: q.position,
+          itemId: q.item.id,
+          dontKnow: true,
+        });
+      } else await answer(i % 3 === 0);
+    }
+    expect(store.attempts[0]?.status).toBe('COMPLETED');
+  }
+
+  it('none before the test is finished: not started, then in progress', async () => {
+    expect(await getDiagnosticReview('u1', 'ru')).toBeNull();
+    await answer(true);
+    expect(await getDiagnosticReview('u1', 'ru')).toBeNull();
+  });
+
+  it("only the learner's own attempt", async () => {
+    await passMixed();
+    expect(await getDiagnosticReview('u2', 'ru')).toBeNull();
+    expect((await getDiagnosticReview('u1', 'ru'))?.questions).toHaveLength(16);
+  });
+
+  it('every question with the answer, the key and a stored verdict, in order', async () => {
+    await passMixed();
+    const review = await getDiagnosticReview('u1', 'en');
+    const stored = store.attempts[0]?.answers ?? [];
+    expect(review?.questions.map((q) => q.position)).toEqual([...Array(16).keys()]);
+    for (const q of review?.questions ?? []) {
+      const a = stored.find((x) => x.position === q.position);
+      const item = BANK.find((b) => b.id === a?.itemId);
+      expect(q.stem).toBe(item?.stem);
+      expect(q.correctIndex).toBe(item?.key);
+      const outcome =
+        q.position % 3 === 2 ? 'dontKnow' : q.position % 3 === 0 ? 'correct' : 'incorrect';
+      expect(q.outcome, `position ${q.position}`).toBe(outcome);
+      expect(q.chosenIndex).toBe(
+        outcome === 'dontKnow'
+          ? null
+          : outcome === 'correct'
+            ? q.correctIndex
+            : (q.correctIndex + 1) % 4,
+      );
+    }
+  });
+
+  it('carries the allowlisted fields only: no ids, no question level, no tally', async () => {
+    await passMixed();
+    const review = await getDiagnosticReview('u1', 'en');
+    expect(Object.keys(review ?? {})).toEqual(['questions']);
+    for (const q of review?.questions ?? []) {
+      expect(Object.keys(q).sort()).toEqual([
+        'axis',
+        'choices',
+        'chosenIndex',
+        'correctIndex',
+        'explanation',
+        'outcome',
+        'position',
+        'stem',
+      ]);
+    }
+    // The fixture's explanation names the item; the view's other fields must not.
+    const json = JSON.stringify(review?.questions.map(({ explanation: _, ...q }) => q));
+    const ids = store.attempts[0]?.answers.map((a) => a.itemId) ?? [];
+    for (const word of [
+      'itemId',
+      'itemLevel',
+      'cefrLevel',
+      'attemptId',
+      'att-',
+      'userAnswer',
+      ...ids,
+    ]) {
+      expect(json, word).not.toContain(word);
+    }
+  });
+
+  it('explanations in the native language where translated, else English with lang="en"', async () => {
+    await passMixed();
+    const first = async (ui: 'ru' | 'en') => (await getDiagnosticReview('u1', ui))?.questions[0];
+    // Native ru, no translation yet: English, marked as such.
+    expect((await first('ru'))?.explanation).toMatchObject({ lang: 'en' });
+    store.ruWhy = true;
+    expect((await first('en'))?.explanation).toMatchObject({ lang: 'ru' });
+    expect((await first('en'))?.explanation?.text).toMatch(/^Почему /);
+    // "Other": the source language, whatever the interface.
+    store.languages.set('u1', 'other');
+    expect((await first('ru'))?.explanation).toMatchObject({ lang: 'en' });
+  });
+
+  it('the verdict is the stored one, even when the key changed since', async () => {
+    await passMixed();
+    const first = store.attempts[0]?.answers.find((a) => a.position === 0);
+    const item = store.bank.find((b) => b.id === first?.itemId);
+    if (item) item.key = (item.key + 1) % 4;
+    const review = await getDiagnosticReview('u1', 'en');
+    expect(review?.questions[0]).toMatchObject({ outcome: 'correct', correctIndex: item?.key });
+  });
+
+  it('an answer no longer among the options names none', async () => {
+    await passMixed();
+    const wrong = store.attempts[0]?.answers.find((a) => a.position === 1);
+    if (wrong) wrong.userAnswer = 'an option since removed';
+    const review = await getDiagnosticReview('u1', 'en');
+    expect(review?.questions[1]).toMatchObject({ outcome: 'incorrect', chosenIndex: null });
+  });
+
+  it('reading the review writes nothing', async () => {
+    await passMixed();
+    vi.clearAllMocks();
+    await getDiagnosticReview('u1', 'ru');
+    expect(bootstrapFromDiagnostic).not.toHaveBeenCalled();
+    expect(completeAttempt).not.toHaveBeenCalled();
+    expect(appendAnswer).not.toHaveBeenCalled();
+    expect(startOrResumeAttempt).not.toHaveBeenCalled();
   });
 });

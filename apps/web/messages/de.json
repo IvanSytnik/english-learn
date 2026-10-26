@@ -104,7 +104,24 @@
       "languageWhy": "Hinweise und Erklärungen in den Übungen erscheinen in dieser Sprache, sofern es eine Übersetzung gibt.",
       "languageOther": "Andere Sprache",
       "languageContinue": "Weiter",
-      "languageError": "Deine Auswahl wurde nicht gespeichert. Versuch es noch einmal."
+      "languageError": "Deine Auswahl wurde nicht gespeichert. Versuch es noch einmal.",
+      "reviewLink": "Antworten ansehen"
+    },
+    "diagnosticReview": {
+      "title": "Deine Antworten",
+      "intro": "Jede Frage des Tests mit deiner Antwort, der richtigen und einer kurzen Erklärung.",
+      "question": "Frage {n} · {axis, select, GRAMMAR {Grammatik} VOCAB {Wortschatz} other {Hörverstehen}}",
+      "outcome": {
+        "correct": "Richtig",
+        "incorrect": "Falsch",
+        "dontKnow": "Du hast „Weiß ich nicht“ gewählt"
+      },
+      "yourAnswer": "Deine Antwort",
+      "rightAnswer": "Richtige Antwort",
+      "answerGone": "Die Frage wurde nach dem Test geändert, deine Antwort lässt sich nicht mehr zeigen.",
+      "why": "Warum",
+      "backToResult": "Zurück zum Ergebnis",
+      "goToPractice": "Zum Üben"
     },
     "exercises": {
       "title": "Übungen",
