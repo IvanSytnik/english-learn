@@ -289,7 +289,8 @@ describe('DiagnosticFlow: the native language step', () => {
     const heading = await screen.findByRole('heading', { name: 'Diagnostic test' });
     expect(saveNativeLanguageAction).toHaveBeenCalledTimes(1);
     expect(saveNativeLanguageAction).toHaveBeenCalledWith({ language: 'uk' });
-    expect(document.activeElement).toBe(heading);
+    // Focus moves in an effect after the commit that shows the heading.
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
   it('a second submit while saving sends nothing more', async () => {
@@ -331,7 +332,8 @@ describe('DiagnosticFlow: the native language step', () => {
     renderFlow({ kind: 'intro' });
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     const heading = await screen.findByRole('heading', { name: 'Your native language' });
-    expect(document.activeElement).toBe(heading);
+    // Focus moves in an effect after the commit that shows the heading.
+    await waitFor(() => expect(document.activeElement).toBe(heading));
     expect(radios().some((r) => r.checked)).toBe(false);
   });
 });
