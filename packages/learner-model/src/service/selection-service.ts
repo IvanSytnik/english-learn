@@ -1,3 +1,5 @@
+import { pickStartConcept } from '../diagnostic/reveal';
+import { isStarted } from '../policy/curriculum';
 import { makeRng, seedFromString } from '../policy/rng';
 import { select } from '../policy/select';
 import {
@@ -6,7 +8,12 @@ import {
   type SelectionInput,
   type SelectionOutcome,
 } from '../policy/types';
-import type { LearnerModelDb } from './db-port';
+import type {
+  CandidateItemRow,
+  LearnerModelDb,
+  MasterySnapshotRow,
+  PrereqEdgeRow,
+} from './db-port';
 
 /**
  * SelectionService: the single read path that answers "what should this user
@@ -60,6 +67,13 @@ export function createSelectionService(db: LearnerModelDb) {
         db.getCandidateItems(input.userId),
       ]);
 
+      const startConceptId = await startConceptFor(db, input.userId, {
+        masteries: masteryRows,
+        prereqEdges: prereqRows,
+        candidates: candidateRows,
+        config,
+      });
+
       const excluded = new Set(input.excludeItemIds ?? []);
       const allowedRows = candidateRows.filter((r) => !excluded.has(r.itemId));
       const pool = allowedRows.length > 0 ? allowedRows : candidateRows;
@@ -94,6 +108,7 @@ export function createSelectionService(db: LearnerModelDb) {
           lastReviewAt: r.lastReviewAt === null ? null : Number(r.lastReviewAt),
         })),
         config,
+        startConceptId,
       };
 
       return select(selectionInput, rng);
@@ -102,3 +117,33 @@ export function createSelectionService(db: LearnerModelDb) {
 }
 
 export type SelectionService = ReturnType<typeof createSelectionService>;
+
+/**
+ * The diagnostic's suggested first concept — the one the result screen and
+ * the dashboard name — under the dashboard's own condition: no concept
+ * started yet and an assessed level. Concepts are those with a candidate item
+ * (the practisable set), so the three surfaces agree by construction.
+ * Nothing extra is read once any concept is started.
+ */
+async function startConceptFor(
+  db: LearnerModelDb,
+  userId: string,
+  reads: {
+    masteries: readonly MasterySnapshotRow[];
+    prereqEdges: readonly PrereqEdgeRow[];
+    candidates: readonly CandidateItemRow[];
+    config: PolicyConfig;
+  },
+): Promise<string | null> {
+  if (reads.candidates.length === 0 || reads.masteries.some((m) => isStarted(m))) return null;
+  const { level, concepts } = await db.getStartContext(userId);
+  if (level === null) return null;
+  const practisable = new Set(reads.candidates.map((c) => c.conceptId));
+  return pickStartConcept({
+    concepts: concepts.filter((c) => practisable.has(c.id)),
+    masteries: reads.masteries,
+    prereqEdges: reads.prereqEdges,
+    level,
+    config: reads.config,
+  });
+}

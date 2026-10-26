@@ -119,6 +119,13 @@ export interface SelectionInput {
   /** All PUBLISHED items in scope (already status-filtered by the reader). */
   readonly candidates: readonly DueItem[];
   readonly config: PolicyConfig;
+  /**
+   * The diagnostic's suggested first concept (pickStartConcept), or absent.
+   * Served right after REVIEW_DUE while it is unlocked, not started and has a
+   * candidate; otherwise ignored. The caller passes it only while no concept
+   * is started, so it decides one question.
+   */
+  readonly startConceptId?: ConceptId | null;
 }
 
 // -----------------------------------------------------------------------------

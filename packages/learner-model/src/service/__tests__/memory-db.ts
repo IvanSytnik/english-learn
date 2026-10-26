@@ -6,6 +6,7 @@ import type {
   LearnerModelDb,
   LearnerModelTx,
   PrereqEdgeRow,
+  StartContextRow,
 } from '../db-port';
 
 /**
@@ -23,6 +24,9 @@ import type {
 export type MemoryDbOptions = {
   items?: Record<string, ItemForOutcome>;
   edges?: PrereqEdgeRow[];
+  /** getStartContext: assessed level per user (absent = null) and concept levels. */
+  assessedLevels?: Record<string, StartContextRow['level']>;
+  concepts?: StartContextRow['concepts'];
 };
 
 export function createMemoryDb(options: MemoryDbOptions = {}) {
@@ -148,6 +152,12 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
         tally.set(p.conceptId, t);
       }
       return [...tally.entries()].map(([conceptId, t]) => ({ conceptId, ...t }));
+    },
+    async getStartContext(userId) {
+      return {
+        level: options.assessedLevels?.[userId] ?? null,
+        concepts: options.concepts ?? [],
+      };
     },
     async getCandidateItems(userId) {
       return Object.entries(items).map(([itemId, item]) => ({

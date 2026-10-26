@@ -277,3 +277,83 @@ describe('select — explanation fields (E2)', () => {
     expect(out.result.lastPracticedAt).toBe(NOW - 60_000);
   });
 });
+
+describe('select — start concept (§9 п. 6)', () => {
+  // Three free roots, nothing due: without a start concept Thompson decides.
+  const roots = [
+    item('i.a', 'c.a', null, -0.5),
+    item('i.b', 'c.b', null, 0.0),
+    item('i.b2', 'c.b', null, 0.5),
+    item('i.c', 'c.c', null, 1.0),
+  ];
+
+  it('introduces the start concept for every seed, before any Beta draw', () => {
+    fc.assert(
+      fc.property(fc.integer(), (seed) => {
+        const rng = makeRng(seed);
+        const out = select(baseInput({ candidates: roots, startConceptId: 'c.b' }), rng);
+        expect(out.ok && out.result).toMatchObject({
+          conceptId: 'c.b',
+          itemId: 'i.b',
+          reason: 'NEW_INTRODUCTION',
+          isNewConcept: true,
+          debugScores: {},
+        });
+        // The rng was not touched: its next value is a fresh generator's first.
+        expect(rng.next()).toBe(makeRng(seed).next());
+      }),
+    );
+  });
+
+  it('a due review still comes first', () => {
+    const out = select(
+      baseInput({
+        candidates: [...roots, item('due', 'c.a', NOW - 1000)],
+        masteries: [mastery('c.a', 0.3, 1)],
+        startConceptId: 'c.b',
+      }),
+      makeRng(1),
+    );
+    expect(out.ok && out.result).toMatchObject({ itemId: 'due', reason: 'REVIEW_DUE' });
+  });
+
+  it('is ignored when started, locked or without a candidate — the result is as without it', () => {
+    fc.assert(
+      fc.property(fc.integer(), (seed) => {
+        const gated = {
+          prereqEdges: [{ from: 'c.a', to: 'c.d', kind: 'PREREQUISITE' as const }],
+          candidates: [...roots, item('i.d', 'c.d', null)],
+        };
+        const cases: [Partial<SelectionInput>, string][] = [
+          [{ candidates: roots, masteries: [mastery('c.b', 0.3, 2)] }, 'c.b'],
+          [gated, 'c.d'],
+          [{ candidates: roots }, 'c.unknown'],
+        ];
+        for (const [over, startConceptId] of cases) {
+          const without = select(baseInput(over), makeRng(seed));
+          const withStart = select(baseInput({ ...over, startConceptId }), makeRng(seed));
+          expect(withStart).toEqual(without);
+        }
+      }),
+    );
+  });
+
+  it('never returns empty or a locked concept, whatever start concept is passed (property)', () => {
+    const concepts = ['c.a', 'c.b', 'c.c', 'c.d', 'c.none'];
+    fc.assert(
+      fc.property(fc.integer(), fc.constantFrom(...concepts), fc.boolean(), (seed, start, seen) => {
+        const out = select(
+          baseInput({
+            candidates: [...roots, item('i.d', 'c.d', null)],
+            prereqEdges: [{ from: 'c.a', to: 'c.d', kind: 'PREREQUISITE' }],
+            masteries: seen ? [mastery('c.a', 0.2, 1)] : [],
+            startConceptId: start,
+          }),
+          makeRng(seed),
+        );
+        expect(out.ok).toBe(true);
+        if (out.ok) expect(out.result.conceptId).not.toBe('c.d');
+      }),
+    );
+  });
+});

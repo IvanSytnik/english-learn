@@ -14,10 +14,14 @@ import type {
 /**
  * The single pure selection function.
  *
- * PRIORITY ORDER (this is the whole policy in three lines):
+ * PRIORITY ORDER (this is the whole policy in four lines):
  *   1. REVIEW_DUE     — any unlocked, already-seen item whose FSRS dueAt ≤ now.
  *                       Scheduling beats exploration; a due card is the highest-
  *                       value thing we can show. Earliest-due wins.
+ *   1½. START CONCEPT — nothing due and the input names a start concept that is
+ *                       unlocked, not started and has a candidate: introduce it
+ *                       (NEW_INTRODUCTION, no Beta draw). The diagnostic result
+ *                       and the dashboard promise this concept first.
  *   2. NEW_INTRODUCTION — nothing due: run Thompson Sampling over unlocked
  *                       concepts to pick what to introduce/practise next, then
  *                       pick the best item within that concept.
@@ -30,7 +34,7 @@ import type {
  * same result, which is what the property tests assert.
  */
 export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
-  const { now, candidates, masteries, eventCounts, prereqEdges, config } = input;
+  const { now, candidates, masteries, eventCounts, prereqEdges, config, startConceptId } = input;
 
   if (candidates.length === 0) {
     return { ok: false, error: 'NO_CANDIDATES' };
@@ -86,6 +90,18 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
   if (dueNow.length > 0) {
     const chosen = dueNow[0] as DueItem;
     return okResult(chosen, 'REVIEW_DUE', {});
+  }
+
+  // ── 1½. The start concept, before any draw ─────────────────────────────────
+  // No rng call here: a start pick leaves the draw sequence of later calls as
+  // it was. pickItemInConcept is null when the concept has no candidate.
+  if (
+    startConceptId != null &&
+    unlocked.has(startConceptId) &&
+    !isStarted(masteryById.get(startConceptId))
+  ) {
+    const item = pickItemInConcept(unlockedCandidates, startConceptId, now);
+    if (item) return okResult(item, 'NEW_INTRODUCTION', {});
   }
 
   // ── 2. NEW_INTRODUCTION via Thompson Sampling over unlocked concepts ─────────

@@ -8,6 +8,7 @@ import type {
   LearnerModelTx,
   MasterySnapshotRow,
   PrereqEdgeRow,
+  StartContextRow,
 } from './db-port';
 
 /**
@@ -250,6 +251,13 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
     WHERE i."status" = 'PUBLISHED'
       AND i."content" -> 'practice' IS NOT NULL
   `;
+    },
+    async getStartContext(userId): Promise<StartContextRow> {
+      const [profile, concepts] = await Promise.all([
+        prisma.studentProfile.findUnique({ where: { userId }, select: { assessedLevel: true } }),
+        prisma.concept.findMany({ select: { id: true, cefrLevel: true } }),
+      ]);
+      return { level: profile?.assessedLevel ?? null, concepts };
     },
     runInTx(fn) {
       return prisma.$transaction((tx) => fn(txOps(tx)));

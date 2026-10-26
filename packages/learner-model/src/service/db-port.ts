@@ -103,7 +103,21 @@ export type LearnerModelDb = {
   getConceptEventCounts(userId: string): Promise<ConceptCountsRow[]>;
   /** PUBLISHED items that have a practice question (Item.content.practice). */
   getCandidateItems(userId: string): Promise<CandidateItemRow[]>;
+  /**
+   * What pickStartConcept needs beyond the selection reads: the assessed level
+   * (StudentProfile.assessedLevel, null before the diagnostic or without a
+   * profile) and every concept's CEFR level. Read only while no concept is
+   * started.
+   */
+  getStartContext(userId: string): Promise<StartContextRow>;
 };
+
+export type StartContextRow = {
+  level: CefrLevelRow | null;
+  concepts: { id: string; cefrLevel: CefrLevelRow }[];
+};
+
+type CefrLevelRow = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 
 export type MasterySnapshotRow = {
   conceptId: string;
@@ -130,7 +144,7 @@ export type CandidateItemRow = {
   conceptId: string;
   irtDiscrimination: number;
   irtDifficulty: number;
-  cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+  cefrLevel: CefrLevelRow;
   /** Next-due Unix ms, or null if no ItemReviewState row for this (user,item). */
   dueAt: bigint | null;
   /** Last review Unix ms, or null if never reviewed (or no ItemReviewState row). */

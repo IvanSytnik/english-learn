@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BootstrapConcept, DiagnosticAnswerFact } from '../../diagnostic';
+import { pickStartConcept } from '../../diagnostic';
 import { createBootstrapService } from '../bootstrap-service';
 import type { ItemForOutcome, LearnerModelDb, PrereqEdgeRow } from '../db-port';
 import { createLearnerService } from '../learner-service';
@@ -112,5 +113,65 @@ describe('bootstrap → selectNext integration', () => {
         expect(out.result.reason).toBe('NEW_INTRODUCTION');
       }
     }
+  });
+});
+
+describe('diagnostic → the first exercise follows the start concept', () => {
+  // Two free roots on different levels and a dependent gated behind one.
+  const A2 = 'vocab.daily_life';
+  const B1 = 'grammar.present_perfect';
+  const items: Record<string, ItemForOutcome> = {
+    ...ITEMS,
+    'item.daily_life.a': { conceptId: A2, irtDiscrimination: 1, irtDifficulty: 0 },
+    'item.present_perfect.a': { conceptId: B1, irtDiscrimination: 1, irtDifficulty: 0 },
+  };
+  const concepts: BootstrapConcept[] = [
+    { id: ROOT, category: 'GRAMMAR', cefrLevel: 'A2' },
+    { id: DEPENDENT, category: 'GRAMMAR', cefrLevel: 'A2' },
+    { id: A2, category: 'VOCAB', cefrLevel: 'A2' },
+    { id: B1, category: 'GRAMMAR', cefrLevel: 'B1' },
+  ];
+
+  it('every seed serves the concept the result names, then Thompson takes over', async () => {
+    const { db, masteries } = createMemoryDb({
+      items,
+      edges: EDGES,
+      assessedLevels: { u1: 'B1' },
+      concepts: concepts.map(({ id, cefrLevel }) => ({ id, cefrLevel })),
+    });
+    await createBootstrapService(db).bootstrapFromDiagnostic({
+      userId: 'u1',
+      diagnosticAttemptId: 'da1',
+      assessedLevel: 'B1',
+      answers: ANSWERS,
+      concepts,
+      occurredAtMs: BigInt(T0),
+    });
+
+    // What the result screen and the dashboard name.
+    const named = pickStartConcept({
+      concepts,
+      masteries: [...masteries.entries()].map(([key, m]) => ({
+        conceptId: key.slice('u1:'.length),
+        pKnown: m.pKnown,
+        observationCount: m.observationCount,
+      })),
+      prereqEdges: EDGES,
+      level: 'B1',
+    });
+    expect(named).toBe(B1);
+    expect(await conceptsPicked(db, T0 + 1000)).toEqual(new Set([B1]));
+
+    // One answer starts it: from then on the draw decides between the roots.
+    const res = await createLearnerService(db).recordOutcome({
+      userId: 'u1',
+      itemId: 'item.present_perfect.a',
+      dontKnow: true,
+      occurredAtMs: BigInt(T0 + 2000),
+    });
+    expect(res.ok).toBe(true);
+    const after = await conceptsPicked(db, T0 + 3000);
+    expect(after.size).toBeGreaterThan(1);
+    expect(after.has(DEPENDENT)).toBe(false);
   });
 });

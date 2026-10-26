@@ -5,6 +5,7 @@ import type {
   LearnerModelDb,
   MasterySnapshotRow,
   PrereqEdgeRow,
+  StartContextRow,
 } from '../db-port';
 import { createSelectionService } from '../selection-service';
 
@@ -14,6 +15,7 @@ function fakeDb(data: {
   edges?: PrereqEdgeRow[];
   counts?: ConceptCountsRow[];
   candidates?: CandidateItemRow[];
+  start?: StartContextRow;
 }): LearnerModelDb {
   return {
     getItemForOutcome: async () => null,
@@ -22,6 +24,7 @@ function fakeDb(data: {
     getPrereqEdges: async () => data.edges ?? [],
     getConceptEventCounts: async () => data.counts ?? [],
     getCandidateItems: async () => data.candidates ?? [],
+    getStartContext: async () => data.start ?? { level: null, concepts: [] },
   };
 }
 
@@ -109,5 +112,69 @@ describe('SelectionService.selectNext', () => {
       excludeItemIds: ['due', 'other'],
     });
     expect(all.ok && all.result.itemId).toBe('due');
+  });
+});
+
+describe('SelectionService.selectNext — start concept', () => {
+  const NOW = 1_700_000_000_000;
+  const candidates = [
+    cand('i.a', 'c.a2', null),
+    cand('i.b', 'c.b1', null),
+    cand('i.c', 'c.b2', null),
+  ];
+  const start: StartContextRow = {
+    level: 'B1',
+    concepts: [
+      { id: 'c.a2', cefrLevel: 'A2' },
+      { id: 'c.b1', cefrLevel: 'B1' },
+      { id: 'c.b2', cefrLevel: 'B2' },
+      // Ties with c.b1 and wins on id, but has nothing to practise: never
+      // the start concept (it would silently fall through to Thompson).
+      { id: 'c.b0.empty', cefrLevel: 'B1' },
+    ],
+  };
+  const picks = async (db: LearnerModelDb) => {
+    const svc = createSelectionService(db);
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 64; seed++) {
+      const out = await svc.selectNext({ userId: 'u1', nowMs: NOW, seed });
+      if (out.ok) seen.add(out.result.conceptId);
+    }
+    return seen;
+  };
+
+  it('with an assessed level and nothing started, the first exercise is pickStartConcept’s', async () => {
+    expect(await picks(fakeDb({ candidates, start }))).toEqual(new Set(['c.b1']));
+  });
+
+  it('without an assessed level Thompson decides', async () => {
+    const seen = await picks(fakeDb({ candidates, start: { ...start, level: null } }));
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('once any concept is started it reads no start context and Thompson decides', async () => {
+    const db = fakeDb({
+      candidates,
+      start,
+      masteries: [
+        {
+          conceptId: 'c.a2',
+          pKnown: 0.3,
+          observationCount: 1,
+          lastUpdatedAt: 0n,
+          pForgetLambda: 0.01,
+        },
+      ],
+    });
+    let reads = 0;
+    const counted: LearnerModelDb = {
+      ...db,
+      getStartContext: (userId) => {
+        reads += 1;
+        return db.getStartContext(userId);
+      },
+    };
+    expect((await picks(counted)).size).toBeGreaterThan(1);
+    expect(reads).toBe(0);
   });
 });
