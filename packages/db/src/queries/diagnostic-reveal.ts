@@ -1,4 +1,7 @@
+import 'server-only';
+
 import type { PrismaClient } from '../generated/client/client';
+import { DiagnosticContentSchema, type LocalizedString } from '../schemas';
 import { PRACTISABLE_ITEM } from './practisable';
 
 /**
@@ -63,6 +66,88 @@ export async function getDiagnosticRevealFacts(
       skillTag: a.item.skillTag,
     })),
   };
+}
+
+/**
+ * The questions of ONE completed diagnostic attempt with the learner's
+ * answers, for the review screen after the test.
+ *
+ * Ownership and completion are part of the query (attemptId AND userId AND
+ * COMPLETED): an unknown, foreign or unfinished attempt returns null. Unlike
+ * the reveal, an attempt without an assessed level is still reviewable.
+ *
+ * Carries the answer key and the explanation — server-side only; the caller
+ * builds the learner's view from an allowlist. No PUBLISHED filter on
+ * purpose: a question archived after the attempt was still answered, so it
+ * stays in the review. Stem, options, key and explanation are the bank's
+ * current ones; the verdict is the stored one.
+ */
+export type DiagnosticReviewFacts = {
+  /** In position order. */
+  answers: {
+    position: number;
+    axis: 'VOCAB' | 'GRAMMAR' | 'LISTENING';
+    stem: string;
+    choices: string[];
+    correctIndex: number;
+    /**
+     * The option the learner picked, as text. Null for "I don't know", or
+     * when an old index-shaped answer no longer names an option.
+     */
+    chosen: string | null;
+    correct: boolean;
+    dontKnow: boolean;
+    explanation: LocalizedString | null;
+  }[];
+};
+
+export async function getDiagnosticReviewFacts(
+  db: Pick<PrismaClient, 'diagnosticAttempt'>,
+  args: { userId: string; attemptId: string },
+): Promise<DiagnosticReviewFacts | null> {
+  const attempt = await db.diagnosticAttempt.findFirst({
+    where: { id: args.attemptId, userId: args.userId, status: 'COMPLETED' },
+    select: {
+      answers: {
+        orderBy: { position: 'asc' },
+        select: {
+          position: true,
+          isCorrect: true,
+          dontKnow: true,
+          userAnswer: true,
+          item: { select: { kind: true, content: true } },
+        },
+      },
+    },
+  });
+  if (!attempt) return null;
+
+  return {
+    answers: attempt.answers.map((a) => {
+      const content = DiagnosticContentSchema.parse(a.item.content);
+      return {
+        position: a.position,
+        axis: a.item.kind,
+        stem: content.source.stem,
+        choices: content.source.choices,
+        correctIndex: content.source.correctIndex,
+        chosen: a.dontKnow ? null : storedChoice(a.userAnswer, content.source.choices),
+        correct: a.isCorrect,
+        dontKnow: a.dontKnow,
+        explanation: content.localized?.explanation ?? null,
+      };
+    }),
+  };
+}
+
+/**
+ * The option text of a stored answer. Answers recorded before 2026-10-26
+ * hold the option's index ("0".."5") instead of its text; no option in the
+ * bank is a bare digit, so the two never clash.
+ */
+function storedChoice(userAnswer: string, choices: string[]): string | null {
+  if (/^\d$/.test(userAnswer)) return choices[Number(userAnswer)] ?? null;
+  return userAnswer === '' ? null : userAnswer;
 }
 
 /**

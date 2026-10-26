@@ -2,8 +2,10 @@ import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import { getPlacementContext } from '@englishlearn/db/queries/diagnostic-reveal';
 import { getConceptProgress } from '@englishlearn/db/queries/learner-progress';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPrismaLearnerDb } from '../service/prisma-db';
+
+vi.mock('server-only', () => ({}));
 
 /**
  * "Something to practise" is written twice: selection's getCandidateItems

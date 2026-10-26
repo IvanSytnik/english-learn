@@ -1,7 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPrismaClient } from '../../create-client';
 import type { PrismaClient } from '../../generated/client/client';
 import { getPlacementContext } from '../diagnostic-reveal';
+
+vi.mock('server-only', () => ({}));
 
 /**
  * getPlacementContext's concept filter against a real, migrated Postgres:

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createPrismaClient } from '../../create-client';
 import type { PrismaClient } from '../../generated/client/client';
 import {
@@ -12,7 +12,9 @@ import {
   getDiagnosticPool,
   startOrResumeAttempt,
 } from '../diagnostic-attempt';
-import { getDiagnosticRevealFacts } from '../diagnostic-reveal';
+import { getDiagnosticRevealFacts, getDiagnosticReviewFacts } from '../diagnostic-reveal';
+
+vi.mock('server-only', () => ({}));
 
 /**
  * Integration tests against a real, migrated Postgres. The guarantees under
@@ -36,8 +38,13 @@ const ITEM = {
   grammarB2: `test-diag-${RUN}-g-b2`,
   vocabB1: `test-diag-${RUN}-v-b1`,
   draft: `test-diag-${RUN}-g-draft`,
+  archived: `test-diag-${RUN}-v-archived`,
 } as const;
 const CONCEPT = `test-diag-${RUN}.concept`;
+const ARCHIVED_CONTENT = {
+  source: { stem: 'She ___ a decision.', choices: ['did', 'took', 'made', 'got'], correctIndex: 2 },
+  localized: { explanation: { en: 'We make a decision.' } },
+};
 const HOUR = 60 * 60 * 1000;
 
 describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
@@ -72,6 +79,13 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
         { id: ITEM.grammarB2, kind: 'GRAMMAR', cefrLevel: 'B2', status: 'PUBLISHED', content },
         { id: ITEM.vocabB1, kind: 'VOCAB', cefrLevel: 'B1', status: 'PUBLISHED', content },
         { id: ITEM.draft, kind: 'GRAMMAR', cefrLevel: 'B1', status: 'DRAFT', content },
+        {
+          id: ITEM.archived,
+          kind: 'VOCAB',
+          cefrLevel: 'B2',
+          status: 'ARCHIVED',
+          content: ARCHIVED_CONTENT,
+        },
       ],
     });
   });
@@ -359,6 +373,111 @@ describe.skipIf(!url)('diagnostic attempt queries (real Postgres)', () => {
           skillTag: null,
         },
       ]);
+    });
+  });
+
+  describe('review facts', () => {
+    /** A completed attempt: a choice, a don't-know, an old index-shaped answer on a since-archived question. */
+    async function completedReview(userId: string): Promise<string> {
+      const { attemptId } = await startOrResumeAttempt(db, userId, new Date());
+      await appendAnswer(db, answer(attemptId, userId, 0, ITEM.grammarB1));
+      await appendAnswer(db, {
+        ...answer(attemptId, userId, 1, ITEM.vocabB1),
+        correct: false,
+        dontKnow: true,
+        userAnswer: '',
+      });
+      // Written directly: appendAnswer takes PUBLISHED questions only, and
+      // answers before 2026-10-26 stored the option's index.
+      await db.diagnosticAnswer.create({
+        data: {
+          attemptId,
+          itemId: ITEM.archived,
+          itemLevel: 'B2',
+          position: 2,
+          isCorrect: true,
+          dontKnow: false,
+          userAnswer: '2',
+        },
+      });
+      await completeAttempt(db, { attemptId, userId, assessedLevel: 'B1', now: new Date() });
+      return attemptId;
+    }
+
+    it("the owner's completed attempt: every answer in position order, archived questions included", async () => {
+      const userId = await newUser();
+      const attemptId = await completedReview(userId);
+      expect(await getDiagnosticReviewFacts(db, { userId, attemptId })).toEqual({
+        answers: [
+          {
+            position: 0,
+            axis: 'GRAMMAR',
+            stem: 'I ___ here.',
+            choices: ['am', 'is'],
+            correctIndex: 0,
+            chosen: 'am',
+            correct: true,
+            dontKnow: false,
+            explanation: null,
+          },
+          {
+            position: 1,
+            axis: 'VOCAB',
+            stem: 'I ___ here.',
+            choices: ['am', 'is'],
+            correctIndex: 0,
+            chosen: null,
+            correct: false,
+            dontKnow: true,
+            explanation: null,
+          },
+          {
+            position: 2,
+            axis: 'VOCAB',
+            stem: 'She ___ a decision.',
+            choices: ['did', 'took', 'made', 'got'],
+            correctIndex: 2,
+            chosen: 'made',
+            correct: true,
+            dontKnow: false,
+            explanation: { en: 'We make a decision.' },
+          },
+        ],
+      });
+    });
+
+    it("another learner's id never loads the attempt", async () => {
+      const attemptId = await completedReview(await newUser());
+      expect(await getDiagnosticReviewFacts(db, { userId: await newUser(), attemptId })).toBeNull();
+    });
+
+    it('an unknown attempt id is null', async () => {
+      const userId = await newUser();
+      await completedReview(userId);
+      expect(await getDiagnosticReviewFacts(db, { userId, attemptId: `nope-${RUN}` })).toBeNull();
+    });
+
+    it('an attempt in progress or abandoned has no review', async () => {
+      const userId = await newUser();
+      const { attemptId } = await startOrResumeAttempt(db, userId, new Date());
+      await appendAnswer(db, answer(attemptId, userId, 0, ITEM.grammarB1));
+      expect(await getDiagnosticReviewFacts(db, { userId, attemptId })).toBeNull();
+
+      await db.diagnosticAttempt.update({
+        where: { id: attemptId },
+        data: { status: 'ABANDONED', activeUserId: null },
+      });
+      expect(await getDiagnosticReviewFacts(db, { userId, attemptId })).toBeNull();
+    });
+
+    it('a completed attempt without an assessed level is still reviewable', async () => {
+      const userId = await newUser();
+      const attemptId = await completedReview(userId);
+      await db.diagnosticAttempt.update({
+        where: { id: attemptId },
+        data: { assessedLevel: null },
+      });
+      expect((await getDiagnosticReviewFacts(db, { userId, attemptId }))?.answers).toHaveLength(3);
     });
   });
 });
