@@ -17,6 +17,10 @@ if (!url && process.env.CI) {
 
 const STRAY = `seed-diag-retired-${Date.now().toString(36)}`;
 
+// A seed run is ~50 upserts, the idempotency test runs it twice: over the
+// 5 s default when turbo runs every package's tests against one Postgres.
+const SEED_TIMEOUT_MS = 15_000;
+
 describe.skipIf(!url)('seedDiagnosticBank (real Postgres)', () => {
   let db: PrismaClient;
 
@@ -60,7 +64,7 @@ describe.skipIf(!url)('seedDiagnosticBank (real Postgres)', () => {
     const second = await seedDiagnosticBank(db, DIAGNOSTIC_BANK);
     expect(second).toEqual({ created: 0, updated: DIAGNOSTIC_BANK.length, archived: 0 });
     expect(await snapshot()).toEqual(rows);
-  });
+  }, SEED_TIMEOUT_MS);
 
   it('rejects an invalid bank before writing anything', async () => {
     const before = await snapshot();
@@ -80,5 +84,5 @@ describe.skipIf(!url)('seedDiagnosticBank (real Postgres)', () => {
     ] as typeof DIAGNOSTIC_BANK;
     await expect(seedDiagnosticBank(db, broken)).rejects.toThrow(/Diagnostic bank is invalid/);
     expect(await snapshot()).toEqual(before);
-  });
+  }, SEED_TIMEOUT_MS);
 });
