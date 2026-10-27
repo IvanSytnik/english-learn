@@ -265,6 +265,148 @@ describe('DiagnosticFlow', () => {
   });
 });
 
+describe('DiagnosticFlow: a lost answer is resent, not a crash', () => {
+  const lost = () =>
+    submitDiagnosticAnswerAction.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  const retryButton = async () => {
+    const button = await screen.findByRole('button', { name: 'Retry' });
+    await waitFor(() => expect(document.activeElement).toBe(button));
+    return button;
+  };
+
+  it('a request that never answers shows Retry, focused, and keeps the question', async () => {
+    lost();
+    renderFlow(asStep(question(0)));
+    key('2');
+    key('Enter');
+    expect((await screen.findByRole('alert')).textContent).toContain("Your answer didn't reach us");
+    await retryButton();
+    expect(screen.getByRole('status').textContent).toBe('Question 1 of 16');
+    expect((screen.getAllByRole('radio')[1] as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('Retry resends the same answer to the same question, then the next one follows', async () => {
+    lost();
+    submitDiagnosticAnswerAction.mockResolvedValueOnce(reply(asStep(question(1))));
+    renderFlow(asStep(question(0)));
+    key('3');
+    key('Enter');
+    fireEvent.click(await retryButton());
+    expect(await screen.findByText('Question 2 of 16')).toBeTruthy();
+    expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(2);
+    expect(submitDiagnosticAnswerAction.mock.calls[1]).toEqual(
+      submitDiagnosticAnswerAction.mock.calls[0],
+    );
+    expect(submitDiagnosticAnswerAction.mock.calls[1]?.[0]).toEqual({
+      attemptId: 'att-1',
+      position: 0,
+      itemId: 'q0',
+      choiceIndex: 2,
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(document.getElementById('diagnostic-stem')),
+    );
+  });
+
+  it('Retry resends "I don\'t know", which has no selection to answer again', async () => {
+    lost();
+    submitDiagnosticAnswerAction.mockResolvedValueOnce(reply(asStep(question(1))));
+    renderFlow(asStep(question(0)));
+    key('0');
+    fireEvent.click(await retryButton());
+    await screen.findByText('Question 2 of 16');
+    expect(submitDiagnosticAnswerAction.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({ dontKnow: true, position: 0 }),
+    );
+  });
+
+  it('a second loss shows Retry again; two clicks in one tick resend once', async () => {
+    lost();
+    lost();
+    submitDiagnosticAnswerAction.mockResolvedValue(reply(asStep(question(1))));
+    renderFlow(asStep(question(0)));
+    key('1');
+    key('Enter');
+    fireEvent.click(await retryButton());
+    await waitFor(() => expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(2));
+    const button = await retryButton();
+    button.click();
+    button.click();
+    await screen.findByText('Question 2 of 16');
+    expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('DiagnosticFlow: a lost Start or language save is retried, not a crash', () => {
+  const offline = () => new TypeError('Failed to fetch');
+  const retryButton = async () => {
+    const button = await screen.findByRole('button', { name: 'Retry' });
+    await waitFor(() => expect(document.activeElement).toBe(button));
+    return button;
+  };
+
+  it('Start that never answers: the intro stays, Retry focused, Retry starts', async () => {
+    startDiagnosticAction
+      .mockRejectedValueOnce(offline())
+      .mockResolvedValueOnce({ ok: true, value: asStep(question(0)) });
+    renderFlow({ kind: 'intro' });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect((await screen.findByRole('alert')).textContent).toContain("Couldn't start the test");
+    const retry = await retryButton();
+    expect(screen.getByRole('heading', { name: 'Diagnostic test' })).toBeTruthy();
+    fireEvent.click(retry);
+    expect(await screen.findByText('Question 1 of 16')).toBeTruthy();
+    expect(startDiagnosticAction).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('two Retry clicks on Start in one tick start once', async () => {
+    startDiagnosticAction
+      .mockRejectedValueOnce(offline())
+      .mockResolvedValue({ ok: true, value: asStep(question(0)) });
+    renderFlow({ kind: 'intro' });
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const retry = await retryButton();
+    retry.click();
+    retry.click();
+    await screen.findByText('Question 1 of 16');
+    expect(startDiagnosticAction).toHaveBeenCalledTimes(2);
+  });
+
+  it('a save that never answers keeps the choice; Retry sends the same language', async () => {
+    saveNativeLanguageAction
+      .mockRejectedValueOnce(offline())
+      .mockResolvedValueOnce({ ok: true, value: { kind: 'intro' } });
+    renderFlow({ kind: 'language' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Українська' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect((await screen.findByRole('alert')).textContent).toContain("Your choice didn't reach us");
+    const retry = await retryButton();
+    expect((screen.getByRole('radio', { name: 'Українська' }) as HTMLInputElement).checked).toBe(
+      true,
+    );
+    fireEvent.click(retry);
+    expect(await screen.findByRole('heading', { name: 'Diagnostic test' })).toBeTruthy();
+    expect(saveNativeLanguageAction).toHaveBeenCalledTimes(2);
+    expect(saveNativeLanguageAction.mock.calls[1]?.[0]).toEqual({ language: 'uk' });
+  });
+
+  it('two Retry clicks on the save in one tick save once', async () => {
+    saveNativeLanguageAction
+      .mockRejectedValueOnce(offline())
+      .mockResolvedValue({ ok: true, value: { kind: 'intro' } });
+    renderFlow({ kind: 'language' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Deutsch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const retry = await retryButton();
+    retry.click();
+    retry.click();
+    await screen.findByRole('heading', { name: 'Diagnostic test' });
+    expect(saveNativeLanguageAction).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('DiagnosticFlow: the native language step', () => {
   const radios = () => screen.getAllByRole('radio') as HTMLInputElement[];
   const continueButton = () =>

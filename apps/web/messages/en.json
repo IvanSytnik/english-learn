@@ -91,6 +91,9 @@
       "answer": "Answer",
       "dontKnow": "I don't know",
       "error": "Your answer didn't go through. Try again.",
+      "sendFailed": "Your answer didn't reach us. Check your connection and try again.",
+      "retry": "Retry",
+      "startFailed": "Couldn't start the test. Check your connection and try again.",
       "doneTitle": "Done!",
       "doneText": "Thank you — your answers are in. Practice now starts from your level.",
       "unavailableTitle": "The diagnostic test is unavailable",
@@ -105,6 +108,7 @@
       "languageOther": "Other language",
       "languageContinue": "Continue",
       "languageError": "Your choice wasn't saved. Try again.",
+      "languageSendFailed": "Your choice didn't reach us. Check your connection and try again.",
       "reviewLink": "See your answers"
     },
     "diagnosticReview": {

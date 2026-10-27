@@ -91,6 +91,9 @@
       "answer": "Antworten",
       "dontKnow": "Weiß ich nicht",
       "error": "Deine Antwort wurde nicht gesendet. Versuch es noch einmal.",
+      "sendFailed": "Deine Antwort ist nicht angekommen. Prüf deine Verbindung und versuch es noch einmal.",
+      "retry": "Erneut versuchen",
+      "startFailed": "Der Test konnte nicht gestartet werden. Prüf deine Verbindung und versuch es noch einmal.",
       "doneTitle": "Fertig!",
       "doneText": "Danke — deine Antworten sind da. Das Üben beginnt jetzt auf deinem Niveau.",
       "unavailableTitle": "Der Einstufungstest ist nicht verfügbar",
@@ -105,6 +108,7 @@
       "languageOther": "Andere Sprache",
       "languageContinue": "Weiter",
       "languageError": "Deine Auswahl wurde nicht gespeichert. Versuch es noch einmal.",
+      "languageSendFailed": "Deine Auswahl ist nicht angekommen. Prüf deine Verbindung und versuch es noch einmal.",
       "reviewLink": "Antworten ansehen"
     },
     "diagnosticReview": {

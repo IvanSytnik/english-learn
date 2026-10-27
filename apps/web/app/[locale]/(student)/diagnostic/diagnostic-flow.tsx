@@ -60,6 +60,10 @@ export function DiagnosticFlow({ initial }: { initial: View }) {
   // new step's heading then takes focus.
   const [moved, setMoved] = useState(false);
   const [pending, startTransition] = useTransition();
+  // Start never came back (network drop): the intro stays, with a Retry.
+  // Starting again is safe — the server resumes an attempt it already made.
+  const [startFailed, setStartFailed] = useState(false);
+  const starting = useRef(false);
 
   const show = useCallback((next: View) => {
     setMoved(true);
@@ -67,8 +71,19 @@ export function DiagnosticFlow({ initial }: { initial: View }) {
   }, []);
 
   const start = useCallback(() => {
+    if (starting.current) return;
+    starting.current = true;
+    setStartFailed(false);
     startTransition(async () => {
-      const res = await startDiagnosticAction();
+      let res: Awaited<ReturnType<typeof startDiagnosticAction>>;
+      try {
+        res = await startDiagnosticAction();
+      } catch {
+        starting.current = false;
+        setStartFailed(true);
+        return;
+      }
+      starting.current = false;
       if (res.ok) show(res.value);
       else show({ kind: res.error === 'NEEDS_LANGUAGE' ? 'language' : 'unavailable' });
     });
@@ -78,7 +93,7 @@ export function DiagnosticFlow({ initial }: { initial: View }) {
     case 'language':
       return <LanguageStep onSaved={show} focusHeading={moved} />;
     case 'intro':
-      return <Intro onStart={start} pending={pending} focusHeading={moved} />;
+      return <Intro onStart={start} pending={pending} failed={startFailed} focusHeading={moved} />;
     case 'question':
       return (
         <Player
@@ -116,26 +131,45 @@ function LanguageStep({
   const t = useTranslations('student.diagnostic');
   const [selected, setSelected] = useState<NativeLanguage | null>(null);
   const [error, setError] = useState(false);
+  // The save never came back (network drop): the choice stays, with a Retry.
+  // Saving again is safe — it only sets the language.
+  const [lost, setLost] = useState(false);
   const [pending, startTransition] = useTransition();
   const sending = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (focusHeading) headingRef.current?.focus();
   }, [focusHeading]);
+  useEffect(() => {
+    if (lost) retryRef.current?.focus();
+  }, [lost]);
 
-  const save = (event: FormEvent) => {
-    event.preventDefault();
+  const send = () => {
     // One save per choice: a second Enter or click while sending does nothing.
     if (selected === null || sending.current) return;
     sending.current = true;
     setError(false);
+    setLost(false);
     startTransition(async () => {
-      const res = await saveNativeLanguageAction({ language: selected });
+      let res: Awaited<ReturnType<typeof saveNativeLanguageAction>>;
+      try {
+        res = await saveNativeLanguageAction({ language: selected });
+      } catch {
+        sending.current = false;
+        setLost(true);
+        return;
+      }
       sending.current = false;
       if (res.ok) onSaved(res.value);
       else setError(true);
     });
+  };
+
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    send();
   };
 
   return (
@@ -191,6 +225,9 @@ function LanguageStep({
             {t('languageError')}
           </p>
         ) : null}
+        {lost ? (
+          <RetryAlert message={t('languageSendFailed')} onRetry={send} retryRef={retryRef} />
+        ) : null}
         <div>
           <button type="submit" className={primaryButton} disabled={pending || selected === null}>
             {t('languageContinue')}
@@ -204,17 +241,24 @@ function LanguageStep({
 function Intro({
   onStart,
   pending,
+  failed,
   focusHeading,
 }: {
   onStart: () => void;
   pending: boolean;
+  /** The last Start never came back: show Retry, focused. */
+  failed: boolean;
   focusHeading: boolean;
 }) {
   const t = useTranslations('student.diagnostic');
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (focusHeading) headingRef.current?.focus();
   }, [focusHeading]);
+  useEffect(() => {
+    if (failed) retryRef.current?.focus();
+  }, [failed]);
   return (
     <Shell>
       <h1 ref={headingRef} tabIndex={-1} className="font-content text-3xl text-ink outline-none">
@@ -230,9 +274,40 @@ function Intro({
           {t('start')}
         </button>
       </div>
+      {failed ? (
+        <RetryAlert message={t('startFailed')} onRetry={onStart} retryRef={retryRef} />
+      ) : null}
     </Shell>
   );
 }
+
+/**
+ * A request that never came back (network drop, server down), with Retry.
+ * The caller focuses Retry when the alert appears. Never disabled by a
+ * transition's `pending` — focus must land on it; callers guard double sends
+ * with a ref.
+ */
+function RetryAlert({
+  message,
+  onRetry,
+  retryRef,
+}: {
+  message: string;
+  onRetry: () => void;
+  retryRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const t = useTranslations('student.diagnostic');
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3">
+      <p className="text-sm text-feedback-incorrect">{message}</p>
+      <button ref={retryRef} type="button" className={quietButton} onClick={onRetry}>
+        {t('retry')}
+      </button>
+    </div>
+  );
+}
+
+type Answer = { choiceIndex: number } | { dontKnow: true };
 
 /** One question at a time; a new question arrives with each answer. */
 function Player({
@@ -248,8 +323,14 @@ function Player({
   const [question, setQuestion] = useState(initialQuestion);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState(false);
+  // An answer whose request never came back (network drop, server down) —
+  // offered for resending as is. Safe either way: a resend of an answer that
+  // was recorded is stale (or DUPLICATE, if concurrent) — not stored again,
+  // and the reply is the current step. Cleared by the next send.
+  const [unsent, setUnsent] = useState<Answer | null>(null);
   const [pending, startTransition] = useTransition();
   const stemRef = useRef<HTMLDivElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
   const sending = useRef(false);
 
   // Every new question: focus its stem (the live region announces "N of 16").
@@ -257,19 +338,33 @@ function Player({
     stemRef.current?.focus();
   }, [question.position]);
 
+  // A lost answer: focus Retry, the next action.
+  const hasUnsent = unsent !== null;
+  useEffect(() => {
+    if (hasUnsent) retryRef.current?.focus();
+  }, [hasUnsent]);
+
   const send = useCallback(
-    (answer: { choiceIndex: number } | { dontKnow: true }) => {
+    (answer: Answer) => {
       // One answer per question: a second Enter while sending does nothing.
       if (sending.current) return;
       sending.current = true;
       setError(false);
+      setUnsent(null);
       startTransition(async () => {
-        const res = await submitDiagnosticAnswerAction({
-          attemptId: question.attemptId,
-          position: question.position,
-          itemId: question.item.id,
-          ...answer,
-        });
+        let res: Awaited<ReturnType<typeof submitDiagnosticAnswerAction>>;
+        try {
+          res = await submitDiagnosticAnswerAction({
+            attemptId: question.attemptId,
+            position: question.position,
+            itemId: question.item.id,
+            ...answer,
+          });
+        } catch {
+          sending.current = false;
+          setUnsent(answer);
+          return;
+        }
         sending.current = false;
         if (!res.ok) {
           if (res.error === 'BANK_EXHAUSTED' || res.error === 'NOT_IN_PROGRESS') onUnavailable();
@@ -426,6 +521,9 @@ function Player({
           <p role="alert" className="text-sm text-feedback-incorrect">
             {t('error')}
           </p>
+        ) : null}
+        {unsent ? (
+          <RetryAlert message={t('sendFailed')} onRetry={() => send(unsent)} retryRef={retryRef} />
         ) : null}
       </section>
     </Shell>
