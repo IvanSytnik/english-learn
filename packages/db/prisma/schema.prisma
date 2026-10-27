@@ -695,6 +695,13 @@ model LearnerEvent {
   /// DB insert time (audit only; never used by the model).
   createdAt DateTime @default(now())
 
+  /// Client-generated key of one answer submission (one per question shown),
+  /// so a retried request records the outcome once. Transport metadata, kept
+  /// out of the payload: the fold never reads it. NULL for events without a
+  /// key (bootstrap, older events) — NULLs never collide in the unique index.
+  idempotencyKey String?
+
+  @@unique([userId, idempotencyKey])
   @@index([userId, occurredAt])
   @@index([type])
 }
