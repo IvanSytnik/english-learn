@@ -21,14 +21,24 @@ export const stem = (page: Page) => page.locator('#diagnostic-stem');
 export const status = (page: Page) => page.getByRole('status');
 export const progress = (page: Page) => page.getByRole('progressbar', { name: 'Прогресс теста' });
 
-/** The bank question whose stem, gap filled or blank, is this text on screen. */
-export function bankQuestion(text: string) {
+/** The bank item whose stem, gap filled or blank, is this text on screen. */
+function bankItem(text: string) {
   const question = DIAGNOSTIC_BANK.find((q) => {
     const [before = '', after = ''] = q.content.source.stem.split('___');
     return text.startsWith(before) && text.endsWith(after);
   });
   if (!question) throw new Error(`question not in the bank: ${text}`);
-  return question.content.source;
+  return question;
+}
+
+/** The bank question whose stem, gap filled or blank, is this text on screen. */
+export function bankQuestion(text: string) {
+  return bankItem(text).content.source;
+}
+
+/** The bank's explanations of the question whose stem is this text on screen. */
+export function bankExplanation(text: string) {
+  return bankItem(text).content.localized?.explanation;
 }
 
 /**

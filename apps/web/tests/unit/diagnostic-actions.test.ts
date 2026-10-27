@@ -72,6 +72,8 @@ const store = vi.hoisted(() => ({
   languages: new Map<string, string | null>(),
   /** Explanations in the bank also have a Russian translation. */
   ruWhy: false,
+  /** Serve this explanation for every question instead (e.g. a real bank one). */
+  why: null as null | { en: string; ru?: string; uk?: string; de?: string },
 }));
 
 const {
@@ -172,7 +174,7 @@ vi.mock('@englishlearn/db/queries/diagnostic-reveal', () => ({
             chosen: x.dontKnow ? null : x.userAnswer,
             correct: x.correct,
             dontKnow: x.dontKnow,
-            explanation: {
+            explanation: store.why ?? {
               en: `Why ${q.id}`,
               ...(store.ruWhy ? { ru: `Почему ${q.id}` } : {}),
             },
@@ -207,6 +209,7 @@ const { saveNativeLanguageAction, startDiagnosticAction, submitDiagnosticAnswerA
 const { getDiagnosticReview, isDiagnosticDone, peekDiagnosticStep } = await import(
   '@/lib/diagnostic'
 );
+const { DIAGNOSTIC_BANK } = await import('@englishlearn/learner-model/seed/diagnostic');
 
 /** The in-memory attempt queries, with the database's semantics. */
 function useMemoryAttempts() {
@@ -319,6 +322,7 @@ beforeEach(() => {
   store.tagged = false;
   store.lastFacts = null;
   store.ruWhy = false;
+  store.why = null;
   // Most tests are about the test itself: these learners chose a language already.
   store.languages = new Map([
     ['u1', 'ru'],
@@ -961,6 +965,30 @@ describe('the review', () => {
     // "Other": the source language, whatever the interface.
     store.languages.set('u1', 'other');
     expect((await first('ru'))?.explanation).toMatchObject({ lang: 'en' });
+  });
+
+  it("the real bank's explanations: the native language's own, by contentLocale", async () => {
+    await passMixed();
+    const shown = async (ui: 'ru' | 'en' | 'uk' | 'de') =>
+      (await getDiagnosticReview('u1', ui))?.questions[0]?.explanation;
+    for (const item of DIAGNOSTIC_BANK) {
+      const why = item.content.localized?.explanation;
+      store.why = why ?? null;
+      // A chosen ru/uk/de wins over the interface locale.
+      for (const native of ['ru', 'uk', 'de'] as const) {
+        store.languages.set('u1', native);
+        expect(await shown('en'), `${item.id} ${native}`).toEqual({
+          text: why?.[native],
+          lang: native,
+        });
+      }
+      // "Other": the source language, whatever the interface.
+      store.languages.set('u1', 'other');
+      expect(await shown('de'), item.id).toEqual({ text: why?.en, lang: 'en' });
+      // Not chosen: the interface locale.
+      store.languages.set('u1', null);
+      expect(await shown('uk'), item.id).toEqual({ text: why?.uk, lang: 'uk' });
+    }
   });
 
   it('the verdict is the stored one, even when the key changed since', async () => {

@@ -4,6 +4,7 @@ import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, diagnosticFootprint } from './helpers/db';
 import {
   answer,
+  bankExplanation,
   bankQuestion,
   chooseNativeLanguage,
   progress,
@@ -190,9 +191,8 @@ test('/ru/diagnostic/review: every answer next to the key, with why, and no tota
     await expect(card).toHaveAccessibleName(new RegExp(`^Вопрос ${n} · (Грамматика|Словарь)$`));
     await expect(card).toHaveAttribute('data-outcome', outcome[plan(n)]);
     // The key shown is the bank's, and the learner's pick is where it was.
-    const { choices, correctIndex } = bankQuestion(
-      (await card.locator('p[lang="en"]').first().textContent()) ?? '',
-    );
+    const stemText = (await card.locator('p[lang="en"]').first().textContent()) ?? '';
+    const { choices, correctIndex } = bankQuestion(stemText);
     const key = card.locator('[data-choice][data-key]');
     await expect(key).toHaveCount(1);
     await expect(key).toContainText(choices[correctIndex] ?? '');
@@ -205,8 +205,10 @@ test('/ru/diagnostic/review: every answer next to the key, with why, and no tota
         choices[plan(n) === 'right' ? correctIndex : (correctIndex + 1) % 4] ?? '',
       );
     }
-    // Native ru, the bank's explanations are English so far: shown, marked lang="en".
-    await expect(card.locator('[data-why] p[lang="en"]')).not.toBeEmpty();
+    // Native ru: the bank's own Russian explanation, marked lang="ru".
+    await expect(card.locator('[data-why] p[lang="ru"]')).toHaveText(
+      bankExplanation(stemText)?.ru ?? '(no ru explanation in the bank)',
+    );
   }
   // A verdict per question, never a total.
   // (Not a page-wide "%": a question itself says "by 10% this year".)

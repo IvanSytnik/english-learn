@@ -43,6 +43,22 @@ describe('diagnostic bank', () => {
     }
   });
 
+  it('every explanation in all four languages, each one really in its language', () => {
+    const cyrillic = /[а-яё]/i;
+    for (const q of DIAGNOSTIC_BANK) {
+      const why = q.content.localized?.explanation;
+      for (const locale of ['en', 'ru', 'uk', 'de'] as const) {
+        expect(why?.[locale]?.trim(), `${q.id} ${locale}`).toBeTruthy();
+      }
+      // Not a copy of the English, nor of each other (ru ≠ uk).
+      expect(why?.ru, q.id).toMatch(cyrillic);
+      expect(why?.uk, q.id).toMatch(cyrillic);
+      expect(why?.de, q.id).not.toMatch(cyrillic);
+      expect(why?.de, q.id).not.toBe(why?.en);
+      expect(why?.uk, q.id).not.toBe(why?.ru);
+    }
+  });
+
   it('the key moves around: no position holds over half a cell, and the bank is even', () => {
     const cells = new Map<string, number[]>();
     for (const q of DIAGNOSTIC_BANK) {
