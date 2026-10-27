@@ -59,6 +59,9 @@ export function ExercisePlayer({
   // An answer whose request never came back (network drop, server down) —
   // offered for resending as is. Cleared by the next send.
   const [unsent, setUnsent] = useState<{ answer: ExerciseAnswer; timeMs: number } | null>(null);
+  // The next question never came back (network drop): feedback stays, with a
+  // Retry. Cleared by the next load.
+  const [nextFailed, setNextFailed] = useState(false);
 
   const shownAt = useRef(Date.now());
   // One request at a time. Set synchronously before calling an action, so a
@@ -78,6 +81,7 @@ export function ExercisePlayer({
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const nextRetryRef = useRef<HTMLButtonElement>(null);
 
   const question = view.question;
   const optionCount = question.type === 'choice' ? question.options.length : 0;
@@ -91,8 +95,8 @@ export function ExercisePlayer({
       else if (question.type === 'cloze') inputRef.current?.focus();
       else promptRef.current?.focus();
     }
-    if (phase === 'feedback') continueRef.current?.focus();
-  }, [phase, question.type, hasUnsent]);
+    if (phase === 'feedback') (nextFailed ? nextRetryRef : continueRef).current?.focus();
+  }, [phase, question.type, hasUnsent, nextFailed]);
 
   const submit = useCallback(
     (answer: ExerciseAnswer, resendTimeMs?: number) => {
@@ -157,8 +161,18 @@ export function ExercisePlayer({
     busy.current = true;
     setPhase('loading');
     setError(false);
+    setNextFailed(false);
     startTransition(async () => {
-      const res = await nextExercise(recentIds);
+      let res: Awaited<ReturnType<typeof nextExercise>>;
+      try {
+        res = await nextExercise(recentIds);
+      } catch {
+        // No reply: nothing was changed on the server, loading again is safe.
+        busy.current = false;
+        setNextFailed(true);
+        setPhase('feedback');
+        return;
+      }
       busy.current = false;
       if (!res.ok) {
         setError(true);
@@ -447,6 +461,20 @@ export function ExercisePlayer({
           />
         ) : null}
       </div>
+      {nextFailed ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-feedback-incorrect">{t('player.nextFailed')}</p>
+          <button
+            ref={nextRetryRef}
+            type="button"
+            className={quietButton}
+            onClick={() => loadNext(recent)}
+            disabled={phase !== 'feedback'}
+          >
+            {t('player.retry')}
+          </button>
+        </div>
+      ) : null}
     </main>
   );
 }

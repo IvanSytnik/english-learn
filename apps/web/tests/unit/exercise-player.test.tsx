@@ -530,3 +530,69 @@ describe('ExercisePlayer — a lost request is resent with the same key', () => 
     expect(sent(1).attemptKey).not.toBe(sent(0).attemptKey);
   });
 });
+
+describe('ExercisePlayer — a lost next question is loaded again', () => {
+  const lostNext = () => nextExercise.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  const retryButton = async () => {
+    const button = await screen.findByRole('button', { name: 'Retry' });
+    await waitFor(() => expect(button).toHaveFocus());
+    return button;
+  };
+  const toFeedback = async () => {
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+  };
+
+  it('a next question that never comes shows Retry, the feedback stays', async () => {
+    lostNext();
+    await toFeedback();
+    key('Enter');
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load the next exercise");
+    await retryButton();
+    // Still on the answered question, counted once.
+    expect(screen.getByText('Correct')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+  });
+
+  it('Retry loads it again, with the same recent items, and the question mounts', async () => {
+    lostNext();
+    nextExercise.mockResolvedValueOnce({ ok: true, value: clozeView });
+    await toFeedback();
+    key('Enter');
+    fireEvent.click(await retryButton());
+    await onClozeQuestion();
+
+    expect(nextExercise).toHaveBeenCalledTimes(2);
+    expect(nextExercise.mock.calls[1]).toEqual(nextExercise.mock.calls[0]);
+    expect(nextExercise.mock.calls[1]?.[0]).toEqual(['item.a']);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('Correct')).toBeNull();
+  });
+
+  it('a second loss shows Retry again, and the third try lands', async () => {
+    lostNext();
+    lostNext();
+    nextExercise.mockResolvedValueOnce({ ok: true, value: clozeView });
+    await toFeedback();
+    key('Enter');
+    fireEvent.click(await retryButton());
+    await waitFor(() => expect(nextExercise).toHaveBeenCalledTimes(2));
+    fireEvent.click(await retryButton());
+    await onClozeQuestion();
+    expect(nextExercise).toHaveBeenCalledTimes(3);
+  });
+
+  it('two Retry clicks in the same tick load one next question', async () => {
+    lostNext();
+    nextExercise.mockResolvedValue({ ok: true, value: clozeView });
+    await toFeedback();
+    key('Enter');
+    const button = await retryButton();
+    button.click();
+    button.click();
+    await onClozeQuestion();
+    expect(nextExercise).toHaveBeenCalledTimes(2);
+  });
+});
