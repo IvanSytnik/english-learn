@@ -1,12 +1,13 @@
 import type { ConceptMasteryRow } from '../../adapters/concept-mastery';
 import type { ItemReviewStateRow } from '../../adapters/item-review-state';
-import type {
-  ItemForOutcome,
-  LearnerEventRow,
-  LearnerModelDb,
-  LearnerModelTx,
-  PrereqEdgeRow,
-  StartContextRow,
+import {
+  IdempotencyKeyTakenError,
+  type ItemForOutcome,
+  type LearnerEventRow,
+  type LearnerModelDb,
+  type LearnerModelTx,
+  type PrereqEdgeRow,
+  type StartContextRow,
 } from '../db-port';
 
 /**
@@ -15,7 +16,9 @@ import type {
  * write paths rely on, so a service that breaks them fails here:
  *   - appendEvent rejects an occurredAt that is not after the user's latest
  *     event (what nextOccurredAt guarantees under the user lock);
- *   - listEventsAsc orders by (occurredAt, id) with the same cursor as Prisma.
+ *   - listEventsAsc orders by (occurredAt, id) with the same cursor as Prisma;
+ *   - appendEvent rejects a (userId, idempotencyKey) pair already taken, like
+ *     the unique index (IdempotencyKeyTakenError, what prisma-db throws).
  *
  * lockUser is a no-op, but every tx method call is logged per transaction
  * (`transactions`), so tests can assert the lock comes first.
@@ -37,6 +40,8 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
   const reviews = new Map<string, ItemReviewStateRow>(); // `${userId}:${itemId}`
   /** Method names called on the tx, one array per runInTx. */
   const transactions: string[][] = [];
+  /** `${userId}:${idempotencyKey}` -> event id (the unique index). */
+  const idempotencyKeys = new Map<string, string>();
   let nextId = 0;
 
   const userEvents = (userId: string) => events.filter((e) => e.userId === userId);
@@ -48,14 +53,25 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
       if (last !== null && event.occurredAt <= last) {
         throw new Error(`memory-db: occurredAt ${event.occurredAt} is not after ${last}`);
       }
+      const key = event.idempotencyKey ?? null;
+      if (key !== null && idempotencyKeys.has(`${event.userId}:${key}`)) {
+        throw new IdempotencyKeyTakenError(event.userId, key);
+      }
       nextId += 1;
+      const id = `evt_${String(nextId).padStart(6, '0')}`;
+      if (key !== null) idempotencyKeys.set(`${event.userId}:${key}`, id);
       events.push({
-        id: `evt_${String(nextId).padStart(6, '0')}`,
+        id,
         userId: event.userId,
         type: event.type,
         occurredAt: event.occurredAt,
         payload: event.payload,
       });
+    },
+    async findEventByIdempotencyKey(userId, idempotencyKey) {
+      const id = idempotencyKeys.get(`${userId}:${idempotencyKey}`);
+      const row = events.find((e) => e.id === id);
+      return row ? { ...row } : null;
     },
     async lastEventOccurredAt(userId) {
       let last: bigint | null = null;
@@ -172,5 +188,5 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
     },
   };
 
-  return { db, events, masteries, reviews, transactions };
+  return { db, tx, events, masteries, reviews, transactions, idempotencyKeys };
 }

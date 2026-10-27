@@ -3,8 +3,8 @@ import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
 import type { FsrsCardStatus, FsrsRating } from '../core/fsrs/types';
 import type { MasteryStage } from '../mastery/stage';
 import { applyItemAttempted } from './apply';
-import type { LearnerModelDb } from './db-port';
-import { buildItemAttemptedEvent } from './event-store';
+import { IdempotencyKeyTakenError, type LearnerModelDb, type LearnerModelTx } from './db-port';
+import { buildItemAttemptedEvent, parseEventRow } from './event-store';
 import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
 
 /**
@@ -32,6 +32,13 @@ export type RecordOutcomeInput = {
    * incorrect answer or don't-know it changes nothing but the frozen flag.
    */
   hinted?: boolean;
+  /**
+   * Client key of this submission, one per question shown. A retry with the
+   * same key records nothing and returns the original outcome
+   * (`duplicate: true`); the same key with another item is
+   * IDEMPOTENCY_CONFLICT. null / absent = no deduplication.
+   */
+  idempotencyKey?: string | null;
 } & (
   | { correct: boolean; dontKnow?: false }
   /**
@@ -48,25 +55,35 @@ export type RecordOutcomeInput = {
  * BKT numbers are mapped to semantic stages by the caller, never shown raw.
  */
 export type RecordOutcomeResult =
-  | {
-      ok: true;
-      occurredAt: bigint;
-      rating: FsrsRating;
-      conceptId: string;
-      /** Stored pKnown just before the outcome (no time decay — §8 #10). */
-      pKnownBefore: number;
-      /** Stored (un-decayed) pKnown after the outcome. */
-      pKnownAfter: number;
-      /** Next FSRS due moment for this item, Unix ms. */
-      nextDueAt: bigint;
-      /** FSRS interval in days; 0 = intra-day learning step ("Back soon"). */
-      scheduledDays: number;
-      cardStatus: FsrsCardStatus;
-      /** Stored ConceptMastery.displayStage before / after this outcome. */
-      stageBefore: MasteryStage;
-      stageAfter: MasteryStage;
-    }
-  | { ok: false; error: 'ITEM_NOT_FOUND' };
+  | ({ ok: true; duplicate: false } & RecordedOutcome)
+  /**
+   * The key was already recorded: nothing was written. The numbers describe
+   * the state now (pKnownBefore = pKnownAfter, stageBefore = stageAfter — no
+   * crossing to announce twice); `original` is the answer as first recorded,
+   * which the retry's own answer must not override.
+   */
+  | ({ ok: true; duplicate: true; original: OriginalAnswer } & RecordedOutcome)
+  | { ok: false; error: 'ITEM_NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' };
+
+export type OriginalAnswer = { correct: boolean; dontKnow: boolean; hinted: boolean };
+
+type RecordedOutcome = {
+  occurredAt: bigint;
+  rating: FsrsRating;
+  conceptId: string;
+  /** Stored pKnown just before the outcome (no time decay — §8 #10). */
+  pKnownBefore: number;
+  /** Stored (un-decayed) pKnown after the outcome. */
+  pKnownAfter: number;
+  /** Next FSRS due moment for this item, Unix ms. */
+  nextDueAt: bigint;
+  /** FSRS interval in days; 0 = intra-day learning step ("Back soon"). */
+  scheduledDays: number;
+  cardStatus: FsrsCardStatus;
+  /** Stored ConceptMastery.displayStage before / after this outcome. */
+  stageBefore: MasteryStage;
+  stageAfter: MasteryStage;
+};
 
 /**
  * Outcome -> FSRS rating mapping (decision 2026-07-04, option a; HARD for a
@@ -89,6 +106,61 @@ export type LearnerServiceDeps = {
   clock?: Clock;
 };
 
+const DAY_MS = 86_400_000n;
+
+/**
+ * The outcome already recorded under `idempotencyKey`, or null if the key is
+ * new. Runs under the user lock, so the projections it reads are exactly what
+ * the original write (and anything after it) left.
+ */
+async function recordedOutcome(
+  tx: LearnerModelTx,
+  input: RecordOutcomeInput,
+  idempotencyKey: string,
+): Promise<RecordOutcomeResult | null> {
+  const row = await tx.findEventByIdempotencyKey(input.userId, idempotencyKey);
+  if (!row) return null;
+  const event = parseEventRow(row);
+  if (event.type !== 'ITEM_ATTEMPTED' || event.payload.itemId !== input.itemId) {
+    return { ok: false, error: 'IDEMPOTENCY_CONFLICT' };
+  }
+
+  const { payload } = event;
+  const [masteryRow, reviewRow] = await Promise.all([
+    tx.getConceptMastery(input.userId, payload.conceptId),
+    tx.getItemReviewState(input.userId, payload.itemId),
+  ]);
+  if (!masteryRow || !reviewRow) {
+    // Every recorded ITEM_ATTEMPTED has both projections (same tx, and replay
+    // rebuilds them under the same lock) — missing ones mean corruption.
+    throw new Error(`projections missing for learner event ${row.id}`);
+  }
+  return {
+    ok: true,
+    duplicate: true,
+    original: {
+      correct: payload.correct,
+      dontKnow: payload.dontKnow === true,
+      hinted: payload.hinted === true,
+    },
+    occurredAt: event.occurredAt,
+    rating: payload.rating,
+    conceptId: payload.conceptId,
+    pKnownBefore: masteryRow.pKnown,
+    pKnownAfter: masteryRow.pKnown,
+    nextDueAt: reviewRow.dueAt,
+    // FSRS puts dueAt exactly scheduledDays after the review (intra-day
+    // learning steps: minutes, so 0) — the interval of the latest review.
+    scheduledDays:
+      reviewRow.lastReviewAt === null
+        ? 0
+        : Number((reviewRow.dueAt - reviewRow.lastReviewAt) / DAY_MS),
+    cardStatus: reviewRow.cardStatus,
+    stageBefore: masteryRow.displayStage,
+    stageAfter: masteryRow.displayStage,
+  };
+}
+
 export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDeps = {}) {
   const clock = deps.clock ?? systemClock;
 
@@ -100,76 +172,92 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
       const correct = input.dontKnow ? false : input.correct;
       const hinted = input.hinted === true;
       const rating = outcomeToRating(correct, hinted);
+      const idempotencyKey = input.idempotencyKey ?? null;
 
-      const next = await db.runInTx(async (tx) => {
-        // 0. Serialize with every other write for this user, then take the
-        //    single "now" for this outcome — event, BKT and FSRS all use it.
-        await tx.lockUser(input.userId);
-        const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
+      try {
+        return await db.runInTx(async (tx): Promise<RecordOutcomeResult> => {
+          // 0. Serialize with every other write for this user. A retried
+          //    submission stops here, before anything is written; then take
+          //    the single "now" for this outcome — event, BKT and FSRS all
+          //    use it.
+          await tx.lockUser(input.userId);
+          if (idempotencyKey !== null) {
+            const recorded = await recordedOutcome(tx, input, idempotencyKey);
+            if (recorded) return recorded;
+          }
+          const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
 
-        const event = buildItemAttemptedEvent({
-          userId: input.userId,
-          itemId: input.itemId,
-          conceptId: item.conceptId,
-          correct,
-          dontKnow: input.dontKnow === true,
-          hinted,
-          timeMs: input.timeMs ?? null,
-          rating,
-          irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
-          occurredAt,
+          const event = buildItemAttemptedEvent({
+            userId: input.userId,
+            itemId: input.itemId,
+            conceptId: item.conceptId,
+            correct,
+            dontKnow: input.dontKnow === true,
+            hinted,
+            timeMs: input.timeMs ?? null,
+            rating,
+            irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
+            occurredAt,
+            idempotencyKey,
+          });
+
+          // 1. The fact, first — projections are derived from it.
+          await tx.appendEvent(event);
+
+          // 2. Read current snapshots INSIDE the tx, under the user lock (no
+          //    concurrent write can change them before step 4).
+          const [masteryRow, reviewRow] = await Promise.all([
+            tx.getConceptMastery(input.userId, item.conceptId),
+            tx.getItemReviewState(input.userId, input.itemId),
+          ]);
+
+          // 3. One shared pure fold — identical to what replay runs.
+          const folded = applyItemAttempted(
+            {
+              bkt: masteryRow ? rowToBktState(masteryRow) : null,
+              fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
+              stage: masteryRow?.displayStage ?? null,
+            },
+            // buildItemAttemptedEvent returned a schema-parsed payload.
+            event.payload as Parameters<typeof applyItemAttempted>[1],
+            occurredAt,
+          );
+
+          // 4. Persist projections.
+          await tx.upsertConceptMastery(
+            input.userId,
+            item.conceptId,
+            bktStateToRow(folded.bkt, folded.stage),
+          );
+          await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
+
+          return {
+            ok: true,
+            duplicate: false,
+            occurredAt,
+            rating,
+            conceptId: item.conceptId,
+            pKnownBefore: folded.pKnownBefore,
+            pKnownAfter: folded.bkt.pKnown,
+            nextDueAt: folded.fsrs.dueAt,
+            scheduledDays: folded.scheduledDays,
+            cardStatus: folded.fsrs.cardStatus,
+            stageBefore: masteryRow?.displayStage ?? 'NOT_STARTED',
+            stageAfter: folded.stage,
+          };
         });
-
-        // 1. The fact, first — projections are derived from it.
-        await tx.appendEvent(event);
-
-        // 2. Read current snapshots INSIDE the tx, under the user lock (no
-        //    concurrent write can change them before step 4).
-        const [masteryRow, reviewRow] = await Promise.all([
-          tx.getConceptMastery(input.userId, item.conceptId),
-          tx.getItemReviewState(input.userId, input.itemId),
-        ]);
-
-        // 3. One shared pure fold — identical to what replay runs.
-        const folded = applyItemAttempted(
-          {
-            bkt: masteryRow ? rowToBktState(masteryRow) : null,
-            fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
-            stage: masteryRow?.displayStage ?? null,
-          },
-          // buildItemAttemptedEvent returned a schema-parsed payload.
-          event.payload as Parameters<typeof applyItemAttempted>[1],
-          occurredAt,
-        );
-
-        // 4. Persist projections.
-        await tx.upsertConceptMastery(
-          input.userId,
-          item.conceptId,
-          bktStateToRow(folded.bkt, folded.stage),
-        );
-        await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
-
-        return {
-          ...folded,
-          occurredAt,
-          stageBefore: masteryRow?.displayStage ?? ('NOT_STARTED' as const),
-        };
-      });
-
-      return {
-        ok: true,
-        occurredAt: next.occurredAt,
-        rating,
-        conceptId: item.conceptId,
-        pKnownBefore: next.pKnownBefore,
-        pKnownAfter: next.bkt.pKnown,
-        nextDueAt: next.fsrs.dueAt,
-        scheduledDays: next.scheduledDays,
-        cardStatus: next.fsrs.cardStatus,
-        stageBefore: next.stageBefore,
-        stageAfter: next.stage,
-      };
+      } catch (e) {
+        // The unique index caught a second write of this key that the user
+        // lock did not serialize (a writer outside it). The aborted tx is
+        // gone and the winner is committed — answer from it in a fresh one.
+        if (!(e instanceof IdempotencyKeyTakenError) || idempotencyKey === null) throw e;
+        const recorded = await db.runInTx(async (tx) => {
+          await tx.lockUser(input.userId);
+          return recordedOutcome(tx, input, idempotencyKey);
+        });
+        if (!recorded) throw e;
+        return recorded;
+      }
     },
   };
 }

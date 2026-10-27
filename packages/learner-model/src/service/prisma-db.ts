@@ -1,14 +1,15 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
-import type {
-  CandidateItemRow,
-  ConceptCountsRow,
-  LearnerEventInsert,
-  LearnerEventRow,
-  LearnerModelDb,
-  LearnerModelTx,
-  MasterySnapshotRow,
-  PrereqEdgeRow,
-  StartContextRow,
+import {
+  type CandidateItemRow,
+  type ConceptCountsRow,
+  IdempotencyKeyTakenError,
+  type LearnerEventInsert,
+  type LearnerEventRow,
+  type LearnerModelDb,
+  type LearnerModelTx,
+  type MasterySnapshotRow,
+  type PrereqEdgeRow,
+  type StartContextRow,
 } from './db-port';
 
 /**
@@ -28,6 +29,18 @@ import type {
 
 type PrismaTxClient = Prisma.TransactionClient;
 
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { code?: unknown }).code === 'P2002';
+}
+
+const EVENT_ROW_SELECT = {
+  id: true,
+  userId: true,
+  type: true,
+  occurredAt: true,
+  payload: true,
+} as const;
+
 function txOps(tx: PrismaTxClient): LearnerModelTx {
   return {
     async lockUser(userId) {
@@ -38,15 +51,33 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
     },
 
     async appendEvent(event: LearnerEventInsert): Promise<void> {
-      await tx.learnerEvent.create({
-        data: {
-          userId: event.userId,
-          type: event.type,
-          occurredAt: event.occurredAt,
-          // payload is validated by ItemAttemptedPayloadSchema in
-          // event-store.ts before it ever reaches this port.
-          payload: event.payload as object,
-        },
+      const idempotencyKey = event.idempotencyKey ?? null;
+      try {
+        await tx.learnerEvent.create({
+          data: {
+            userId: event.userId,
+            type: event.type,
+            occurredAt: event.occurredAt,
+            // payload is validated by ItemAttemptedPayloadSchema in
+            // event-store.ts before it ever reaches this port.
+            payload: event.payload as object,
+            idempotencyKey,
+          },
+        });
+      } catch (e) {
+        // The id is a fresh cuid, so with a key the only unique index this
+        // insert can hit is (userId, idempotencyKey).
+        if (idempotencyKey !== null && isUniqueViolation(e)) {
+          throw new IdempotencyKeyTakenError(event.userId, idempotencyKey);
+        }
+        throw e;
+      }
+    },
+
+    async findEventByIdempotencyKey(userId, idempotencyKey) {
+      return tx.learnerEvent.findUnique({
+        where: { userId_idempotencyKey: { userId, idempotencyKey } },
+        select: EVENT_ROW_SELECT,
       });
     },
 
@@ -152,13 +183,7 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
           : { userId },
         orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
         take: limit,
-        select: {
-          id: true,
-          userId: true,
-          type: true,
-          occurredAt: true,
-          payload: true,
-        },
+        select: EVENT_ROW_SELECT,
       });
       return rows;
     },

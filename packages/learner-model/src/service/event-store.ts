@@ -30,6 +30,8 @@ export type ItemOutcomeFact = {
   irt: IrtParams;
   /** Unix ms. */
   occurredAt: bigint;
+  /** Client submission key — goes on the envelope, never into the payload. */
+  idempotencyKey?: string | null;
 };
 
 export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInsert {
@@ -48,6 +50,7 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
     type: 'ITEM_ATTEMPTED',
     occurredAt: fact.occurredAt,
     payload,
+    idempotencyKey: fact.idempotencyKey ?? null,
   };
 }
 

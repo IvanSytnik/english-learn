@@ -6,12 +6,13 @@ export {
   type BootstrapServiceDeps,
   createBootstrapService,
 } from './bootstrap-service';
-export type {
-  ItemForOutcome,
-  LearnerEventInsert,
-  LearnerEventRow,
-  LearnerModelDb,
-  LearnerModelTx,
+export {
+  IdempotencyKeyTakenError,
+  type ItemForOutcome,
+  type LearnerEventInsert,
+  type LearnerEventRow,
+  type LearnerModelDb,
+  type LearnerModelTx,
 } from './db-port';
 export {
   buildItemAttemptedEvent,
@@ -23,6 +24,7 @@ export {
   createLearnerService,
   type LearnerService,
   type LearnerServiceDeps,
+  type OriginalAnswer,
   outcomeToRating,
   type RecordOutcomeInput,
   type RecordOutcomeResult,

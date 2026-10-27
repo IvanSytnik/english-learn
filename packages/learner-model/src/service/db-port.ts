@@ -26,7 +26,27 @@ export type LearnerEventInsert = {
   occurredAt: bigint;
   /** Pre-validated by the per-type payload schema — see event-store.ts. */
   payload: unknown;
+  /**
+   * Client key of the submission (LearnerEvent.idempotencyKey), unique per
+   * user. Envelope metadata: never part of the payload, never folded.
+   */
+  idempotencyKey?: string | null;
 };
+
+/**
+ * appendEvent hit the (userId, idempotencyKey) unique index: another write
+ * already recorded this submission. The transaction is aborted by then, so
+ * the caller has to look the original up in a fresh one.
+ */
+export class IdempotencyKeyTakenError extends Error {
+  constructor(
+    readonly userId: string,
+    readonly idempotencyKey: string,
+  ) {
+    super(`learner event with idempotency key ${idempotencyKey} already exists for ${userId}`);
+    this.name = 'IdempotencyKeyTakenError';
+  }
+}
 
 export type LearnerEventRow = {
   id: string;
@@ -48,7 +68,17 @@ export type LearnerModelTx = {
    */
   lockUser(userId: string): Promise<void>;
 
+  /** Throws IdempotencyKeyTakenError if the event's key is already used. */
   appendEvent(event: LearnerEventInsert): Promise<void>;
+
+  /**
+   * The user's event recorded under this idempotency key, or null. Race-free
+   * only after lockUser, like hasEventOfType.
+   */
+  findEventByIdempotencyKey(
+    userId: string,
+    idempotencyKey: string,
+  ): Promise<LearnerEventRow | null>;
 
   /** occurredAt of the user's latest event, or null if they have none. */
   lastEventOccurredAt(userId: string): Promise<bigint | null>;
