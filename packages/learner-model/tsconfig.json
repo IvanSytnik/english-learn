@@ -6,6 +6,6 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "seed/**/*"],
+  "include": ["src/**/*", "seed/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

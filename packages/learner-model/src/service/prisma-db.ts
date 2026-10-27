@@ -165,7 +165,15 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
   };
 }
 
-export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
+/**
+ * `txTimeoutMs` overrides Prisma's interactive-transaction timeout (5 s) —
+ * for scripts/replay-all.ts, whose per-user rebuild upserts every row one by
+ * one. The app keeps the default: a live write that slow is a bug.
+ */
+export function createPrismaLearnerDb(
+  prisma: PrismaClient,
+  options: { txTimeoutMs?: number } = {},
+): LearnerModelDb {
   return {
     async getItemForOutcome(itemId) {
       return prisma.item.findUnique({
@@ -260,7 +268,10 @@ export function createPrismaLearnerDb(prisma: PrismaClient): LearnerModelDb {
       return { level: profile?.assessedLevel ?? null, concepts };
     },
     runInTx(fn) {
-      return prisma.$transaction((tx) => fn(txOps(tx)));
+      return prisma.$transaction(
+        (tx) => fn(txOps(tx)),
+        options.txTimeoutMs === undefined ? undefined : { timeout: options.txTimeoutMs },
+      );
     },
   };
 }
