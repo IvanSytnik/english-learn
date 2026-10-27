@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import {
+  type AttemptOutcomeRow,
   type CandidateItemRow,
   type ConceptCountsRow,
   IdempotencyKeyTakenError,
@@ -7,9 +8,9 @@ import {
   type LearnerEventRow,
   type LearnerModelDb,
   type LearnerModelTx,
+  type LevelContextRow,
   type MasterySnapshotRow,
   type PrereqEdgeRow,
-  type StartContextRow,
 } from './db-port';
 
 /**
@@ -285,12 +286,29 @@ export function createPrismaLearnerDb(
       AND i."content" -> 'practice' IS NOT NULL
   `;
     },
-    async getStartContext(userId): Promise<StartContextRow> {
+    async getLevelContext(userId): Promise<LevelContextRow> {
       const [profile, concepts] = await Promise.all([
         prisma.studentProfile.findUnique({ where: { userId }, select: { assessedLevel: true } }),
         prisma.concept.findMany({ select: { id: true, cefrLevel: true } }),
       ]);
       return { level: profile?.assessedLevel ?? null, concepts };
+    },
+    async getAttemptOutcomes(userId): Promise<AttemptOutcomeRow[]> {
+      return prisma.$queryRaw<AttemptOutcomeRow[]>`
+    SELECT
+      payload->>'conceptId' AS "conceptId",
+      (payload->>'correct')::boolean AS "correct",
+      COALESCE((payload->>'hinted')::boolean, false) AS "hinted"
+    FROM "LearnerEvent"
+    WHERE "userId" = ${userId}
+      AND "type" = 'ITEM_ATTEMPTED'
+      AND "occurredAt" > COALESCE(
+        (SELECT MAX("occurredAt") FROM "LearnerEvent"
+          WHERE "userId" = ${userId} AND "type" = 'LEARNER_BOOTSTRAPPED'),
+        -1
+      )
+    ORDER BY "occurredAt" ASC, "id" ASC
+  `;
     },
     runInTx(fn) {
       return prisma.$transaction(

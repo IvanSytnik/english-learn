@@ -134,17 +134,30 @@ export type LearnerModelDb = {
   /** PUBLISHED items that have a practice question (Item.content.practice). */
   getCandidateItems(userId: string): Promise<CandidateItemRow[]>;
   /**
-   * What pickStartConcept needs beyond the selection reads: the assessed level
-   * (StudentProfile.assessedLevel, null before the diagnostic or without a
-   * profile) and every concept's CEFR level. Read only while no concept is
-   * started.
+   * The assessed level (StudentProfile.assessedLevel, null before the
+   * diagnostic or without a profile) and every concept's CEFR level: what
+   * pickStartConcept and level-aware selection (§8 #19) need beyond the
+   * selection reads. Read on every selection.
    */
-  getStartContext(userId: string): Promise<StartContextRow>;
+  getLevelContext(userId: string): Promise<LevelContextRow>;
+  /**
+   * The user's ITEM_ATTEMPTED outcomes since their latest LEARNER_BOOTSTRAPPED
+   * (all of them without one), oldest first by (occurredAt, id) — the level
+   * guard's input. Read only for level-aware selection.
+   */
+  getAttemptOutcomes(userId: string): Promise<AttemptOutcomeRow[]>;
 };
 
-export type StartContextRow = {
+export type LevelContextRow = {
   level: CefrLevelRow | null;
   concepts: { id: string; cefrLevel: CefrLevelRow }[];
+};
+
+export type AttemptOutcomeRow = {
+  conceptId: string;
+  correct: boolean;
+  /** The hint was opened before answering (payload `hinted: true`). */
+  hinted: boolean;
 };
 
 type CefrLevelRow = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';

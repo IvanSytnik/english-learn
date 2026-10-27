@@ -12,6 +12,14 @@ export {
   type UnlockResult,
 } from './curriculum';
 export {
+  type LevelGuardConfig,
+  type LevelGuardInput,
+  type LevelGuardOutcome,
+  type LevelGuardResult,
+  levelGuard,
+} from './level-guard';
+export { levelPriorMean } from './level-score';
+export {
   type BetaParams,
   betaParamsForConcept,
   meanDifficultyByConcept,
@@ -28,6 +36,7 @@ export {
   type ConceptMasterySnapshot,
   DEFAULT_POLICY_CONFIG,
   type DueItem,
+  type LevelPolicyConfig,
   type PolicyConfig,
   type PrereqEdge,
   type RewardStrategy,

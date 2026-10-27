@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { levelPriorMean } from '../level-score';
 import { makeRng } from '../rng';
 import { select } from '../select';
 import { DEFAULT_POLICY_CONFIG, type DueItem, type SelectionInput } from '../types';
@@ -355,5 +356,140 @@ describe('select — start concept (§9 п. 6)', () => {
         if (out.ok) expect(out.result.conceptId).not.toBe('c.d');
       }),
     );
+  });
+});
+
+describe('select — V6b with the learner level (§8 #19)', () => {
+  // CEFR ranks: A2 1, B1 2, B2 3, C1 4.
+  const B1 = 2;
+  const levels = { 'c.a2': 'A2', 'c.b1': 'B1', 'c.b1x': 'B1', 'c.b2': 'B2' } as const;
+  const candidates = [
+    item('i.a2', 'c.a2', null),
+    item('i.b1', 'c.b1', null),
+    item('i.b1x', 'c.b1x', null),
+    item('i.b2', 'c.b2', null),
+  ];
+  const leveled = (over: Partial<SelectionInput> = {}) =>
+    baseInput({ candidates, learnerLevel: { theta: B1 }, conceptLevels: levels, ...over });
+  const tally = (input: SelectionInput, seeds = 400) => {
+    const n: Record<string, number> = {};
+    for (let seed = 0; seed < seeds; seed++) {
+      const out = select(input, makeRng(seed));
+      if (out.ok) n[out.result.conceptId] = (n[out.result.conceptId] ?? 0) + 1;
+    }
+    return n;
+  };
+
+  it('without a level it is today’s policy, byte for byte (absent, null, or levels alone)', () => {
+    fc.assert(
+      fc.property(fc.integer(), fc.boolean(), (seed, mastered) => {
+        const input = baseInput({
+          candidates,
+          masteries: mastered ? [mastery('c.b1', 0.9, 5)] : [],
+          eventCounts: [{ conceptId: 'c.a2', correct: 2, incorrect: 1 }],
+        });
+        const today = select(input, makeRng(seed));
+        expect(select({ ...input, learnerLevel: null }, makeRng(seed))).toEqual(today);
+        expect(select({ ...input, conceptLevels: levels }, makeRng(seed))).toEqual(today);
+      }),
+    );
+  });
+
+  it('same seed + same input => identical result', () => {
+    fc.assert(
+      fc.property(fc.integer(), (seed) => {
+        expect(select(leveled(), makeRng(seed))).toEqual(select(leveled(), makeRng(seed)));
+      }),
+    );
+  });
+
+  it('prefers the target level: both B1 concepts get chosen, B1 wins most draws', () => {
+    const n = tally(leveled());
+    expect(n['c.b1']).toBeGreaterThan(0);
+    expect(n['c.b1x']).toBeGreaterThan(0);
+    expect((n['c.b1'] ?? 0) + (n['c.b1x'] ?? 0)).toBeGreaterThan(0.9 * 400);
+  });
+
+  it('C1 aims at the top content level', () => {
+    const n = tally(leveled({ learnerLevel: { theta: 4 } }));
+    expect(n['c.b2'] ?? 0).toBeGreaterThan(0.9 * 400);
+  });
+
+  it('a mastered concept sits the draw out — one fewer Beta draw — and the others are drawn', () => {
+    fc.assert(
+      fc.property(fc.integer(), (seed) => {
+        const out = select(leveled({ masteries: [mastery('c.b1', 0.9, 3)] }), makeRng(seed));
+        expect(out.ok && out.result.conceptId).not.toBe('c.b1');
+        expect(out.ok && Object.keys(out.result.debugScores).sort()).toEqual([
+          'c.a2',
+          'c.b1x',
+          'c.b2',
+        ]);
+      }),
+    );
+  });
+
+  it('mastery needs the observations too: pKnown 0.9 on 2 outcomes stays in the draw', () => {
+    const out = select(leveled({ masteries: [mastery('c.b1', 0.9, 2)] }), makeRng(1));
+    expect(out.ok && Object.keys(out.result.debugScores)).toContain('c.b1');
+  });
+
+  it('everything mastered: the draw runs over all of them (never empty)', () => {
+    const all = Object.keys(levels).map((id) => mastery(id, 0.95, 5));
+    fc.assert(
+      fc.property(fc.integer(), (seed) => {
+        const out = select(leveled({ masteries: all }), makeRng(seed));
+        expect(out.ok).toBe(true);
+        expect(out.ok && Object.keys(out.result.debugScores)).toHaveLength(4);
+      }),
+    );
+  });
+
+  it('no starvation: always a result, never a locked concept, whatever the level and history', () => {
+    fc.assert(
+      fc.property(
+        fc.integer(),
+        fc.integer({ min: 1, max: 5 }),
+        fc.subarray(Object.keys(levels)),
+        (seed, theta, masteredIds) => {
+          const out = select(
+            leveled({
+              learnerLevel: { theta },
+              masteries: masteredIds.map((id) => mastery(id, 0.95, 5)),
+              candidates: [...candidates, item('locked', 'c.locked', null)],
+              prereqEdges: [{ from: 'c.never', to: 'c.locked', kind: 'PREREQUISITE' }],
+            }),
+            makeRng(seed),
+          );
+          expect(out.ok).toBe(true);
+          expect(out.ok && out.result.conceptId).not.toBe('c.locked');
+        },
+      ),
+    );
+  });
+
+  it('a concept missing from conceptLevels falls back to its item’s level', () => {
+    // item() puts every item at B1: without conceptLevels all four tie on level.
+    const n = tally(leveled({ conceptLevels: {} }));
+    expect(Object.keys(n).sort()).toEqual(['c.a2', 'c.b1', 'c.b1x', 'c.b2']);
+  });
+
+  it('REVIEW_DUE and the start concept still come first', () => {
+    const due = select(
+      leveled({ candidates: [...candidates, item('due', 'c.b2', NOW - 1)] }),
+      makeRng(1),
+    );
+    expect(due.ok && due.result.reason).toBe('REVIEW_DUE');
+    const start = select(leveled({ startConceptId: 'c.a2' }), makeRng(1));
+    expect(start.ok && start.result.conceptId).toBe('c.a2');
+  });
+});
+
+describe('levelPriorMean', () => {
+  const cfg = DEFAULT_POLICY_CONFIG.levelPolicy;
+  it('at the own level 0.25 + 0.65·σ(0.75) ≈ 0.689; tends to pGuess below and 1 − pSlip above', () => {
+    expect(levelPriorMean(2, 2, cfg)).toBeCloseTo(0.25 + 0.65 / (1 + Math.exp(-0.75)), 12);
+    expect(levelPriorMean(5, 0, cfg)).toBeCloseTo(0.9, 2);
+    expect(levelPriorMean(0, 5, cfg)).toBeCloseTo(0.25, 2);
   });
 });

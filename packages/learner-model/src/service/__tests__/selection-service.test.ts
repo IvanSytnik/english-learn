@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_POLICY_CONFIG } from '../../policy/types';
 import type {
+  AttemptOutcomeRow,
   CandidateItemRow,
   ConceptCountsRow,
   LearnerModelDb,
+  LevelContextRow,
   MasterySnapshotRow,
   PrereqEdgeRow,
-  StartContextRow,
 } from '../db-port';
 import { createSelectionService } from '../selection-service';
 
@@ -15,7 +17,8 @@ function fakeDb(data: {
   edges?: PrereqEdgeRow[];
   counts?: ConceptCountsRow[];
   candidates?: CandidateItemRow[];
-  start?: StartContextRow;
+  start?: LevelContextRow;
+  outcomes?: AttemptOutcomeRow[];
 }): LearnerModelDb {
   return {
     getItemForOutcome: async () => null,
@@ -24,7 +27,8 @@ function fakeDb(data: {
     getPrereqEdges: async () => data.edges ?? [],
     getConceptEventCounts: async () => data.counts ?? [],
     getCandidateItems: async () => data.candidates ?? [],
-    getStartContext: async () => data.start ?? { level: null, concepts: [] },
+    getLevelContext: async () => data.start ?? { level: null, concepts: [] },
+    getAttemptOutcomes: async () => data.outcomes ?? [],
   };
 }
 
@@ -122,7 +126,7 @@ describe('SelectionService.selectNext — start concept', () => {
     cand('i.b', 'c.b1', null),
     cand('i.c', 'c.b2', null),
   ];
-  const start: StartContextRow = {
+  const start: LevelContextRow = {
     level: 'B1',
     concepts: [
       { id: 'c.a2', cefrLevel: 'A2' },
@@ -152,7 +156,7 @@ describe('SelectionService.selectNext — start concept', () => {
     expect(seen.size).toBeGreaterThan(1);
   });
 
-  it('once any concept is started it reads no start context and Thompson decides', async () => {
+  it('once any concept is started the start concept no longer applies: the draw decides', async () => {
     const db = fakeDb({
       candidates,
       start,
@@ -166,15 +170,104 @@ describe('SelectionService.selectNext — start concept', () => {
         },
       ],
     });
-    let reads = 0;
-    const counted: LearnerModelDb = {
+    // Today's draw (level-aware off) spreads over the concepts.
+    const svc = createSelectionService(db);
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 64; seed++) {
+      const out = await svc.selectNext({
+        userId: 'u1',
+        nowMs: NOW,
+        seed,
+        config: { ...DEFAULT_POLICY_CONFIG, levelAware: false },
+      });
+      if (out.ok) seen.add(out.result.conceptId);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+});
+
+describe('SelectionService.selectNext — learner level (§8 #19)', () => {
+  const NOW = 1_700_000_000_000;
+  const candidates = [
+    cand('i.a2', 'c.a2', null),
+    cand('i.a2x', 'c.a2x', null),
+    cand('i.b1', 'c.b1', null),
+    cand('i.b1x', 'c.b1x', null),
+    cand('i.b2', 'c.b2', null),
+  ];
+  const level = (assessed: LevelContextRow['level']): LevelContextRow => ({
+    level: assessed,
+    concepts: [
+      { id: 'c.a2', cefrLevel: 'A2' },
+      { id: 'c.a2x', cefrLevel: 'A2' },
+      { id: 'c.b1', cefrLevel: 'B1' },
+      { id: 'c.b1x', cefrLevel: 'B1' },
+      { id: 'c.b2', cefrLevel: 'B2' },
+    ],
+  });
+  // A started concept, so the start concept is out of the way.
+  const started: MasterySnapshotRow[] = [
+    { conceptId: 'c.b1', pKnown: 0.4, observationCount: 1, lastUpdatedAt: 0n, pForgetLambda: 0.01 },
+  ];
+  const tally = async (db: LearnerModelDb, config = DEFAULT_POLICY_CONFIG) => {
+    const svc = createSelectionService(db);
+    const n: Record<string, number> = {};
+    for (let seed = 0; seed < 200; seed++) {
+      const out = await svc.selectNext({ userId: 'u1', nowMs: NOW, seed, config });
+      if (out.ok) n[out.result.conceptId] = (n[out.result.conceptId] ?? 0) + 1;
+    }
+    return n;
+  };
+  const share = (n: Record<string, number>, ids: string[]) =>
+    ids.reduce((s, id) => s + (n[id] ?? 0), 0) / 200;
+  const counting = (db: LearnerModelDb) => {
+    const calls = { outcomes: 0 };
+    const wrapped: LearnerModelDb = {
       ...db,
-      getStartContext: (userId) => {
-        reads += 1;
-        return db.getStartContext(userId);
+      getAttemptOutcomes: (userId) => {
+        calls.outcomes += 1;
+        return db.getAttemptOutcomes(userId);
       },
     };
-    expect((await picks(counted)).size).toBeGreaterThan(1);
-    expect(reads).toBe(0);
+    return { db: wrapped, calls };
+  };
+
+  it('aims at the assessed level', async () => {
+    const n = await tally(fakeDb({ candidates, start: level('B1'), masteries: started }));
+    expect(share(n, ['c.b1', 'c.b1x'])).toBeGreaterThan(0.9);
+  });
+
+  it('the level guard steps down after 4 misses in a row at the target level', async () => {
+    const misses = Array.from({ length: 4 }, () => ({
+      conceptId: 'c.b1',
+      correct: false,
+      hinted: false,
+    }));
+    const n = await tally(
+      fakeDb({ candidates, start: level('B1'), masteries: started, outcomes: misses }),
+    );
+    expect(share(n, ['c.a2', 'c.a2x'])).toBeGreaterThan(0.9);
+  });
+
+  it('level-aware off, or no assessed level: today’s policy, and no outcomes are read', async () => {
+    for (const [ctx, config] of [
+      [level('B1'), { ...DEFAULT_POLICY_CONFIG, levelAware: false }],
+      [level(null), DEFAULT_POLICY_CONFIG],
+    ] as const) {
+      const { db, calls } = counting(fakeDb({ candidates, start: ctx, masteries: started }));
+      const off = await tally(db, config);
+      const today = await tally(fakeDb({ candidates, start: level(null), masteries: started }), {
+        ...DEFAULT_POLICY_CONFIG,
+        levelAware: false,
+      });
+      expect(off).toEqual(today);
+      expect(calls.outcomes).toBe(0);
+    }
+  });
+
+  it('reads the outcomes once per selection on the level-aware path', async () => {
+    const { db, calls } = counting(fakeDb({ candidates, start: level('B1'), masteries: started }));
+    await createSelectionService(db).selectNext({ userId: 'u1', nowMs: NOW, seed: 1 });
+    expect(calls.outcomes).toBe(1);
   });
 });

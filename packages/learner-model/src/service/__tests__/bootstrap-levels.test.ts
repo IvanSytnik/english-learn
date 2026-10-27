@@ -97,11 +97,15 @@ async function bootstrapped(
 }
 
 /** Concepts selectNext picks across many seeds at `nowMs`. */
-async function conceptsPicked(db: LearnerModelDb, nowMs: number): Promise<Set<string>> {
+async function conceptsPicked(
+  db: LearnerModelDb,
+  nowMs: number,
+  config = DEFAULT_POLICY_CONFIG,
+): Promise<Set<string>> {
   const svc = createSelectionService(db);
   const picked = new Set<string>();
   for (let seed = 0; seed < 64; seed++) {
-    const out = await svc.selectNext({ userId: 'u1', nowMs, seed });
+    const out = await svc.selectNext({ userId: 'u1', nowMs, seed, config });
     if (out.ok) picked.add(out.result.conceptId);
   }
   return picked;
@@ -121,7 +125,9 @@ describe('diagnostic level × prerequisite edges', () => {
         expect(row?.pKnown, id).toBeLessThan(DEFAULT_POLICY_CONFIG.prereqThreshold);
       }
       // Once a concept is started the start-concept step stands aside and
-      // Thompson draws over everything open.
+      // Thompson draws over everything open. The gate is what this checks, so
+      // the draw is today's level-blind one: under V6b an A2 learner almost
+      // never draws a B2 concept, which hides nothing about the gate.
       const res = await createLearnerService(db).recordOutcome({
         userId: 'u1',
         itemId: ITEM_OF[B2_ROOT] as string,
@@ -129,7 +135,13 @@ describe('diagnostic level × prerequisite edges', () => {
         occurredAtMs: BigInt(T0 + MINUTE),
       });
       expect(res.ok).toBe(true);
-      expect(await conceptsPicked(db, T0 + MINUTE + 1000)).toEqual(new Set([A2_ROOT, B2_ROOT]));
+      const levelBlind = { ...DEFAULT_POLICY_CONFIG, levelAware: false };
+      expect(await conceptsPicked(db, T0 + MINUTE + 1000, levelBlind)).toEqual(
+        new Set([A2_ROOT, B2_ROOT]),
+      );
+      // Level-aware (§8 #19): still only open concepts, never a gated one.
+      const leveled = await conceptsPicked(db, T0 + MINUTE + 1000);
+      for (const id of leveled) expect([A2_ROOT, B2_ROOT], id).toContain(id);
     });
   }
 

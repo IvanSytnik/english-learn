@@ -28,6 +28,7 @@ import { ALL_ITEMS } from '../seed/items';
 import { initBktState } from '../src/core/bkt/model';
 import type { BktState } from '../src/core/bkt/types';
 import type { FsrsCardState } from '../src/core/fsrs/types';
+import { CEFR_RANK } from '../src/core/graph/types';
 import { buildBootstrapSnapshots, pickStartConcept } from '../src/diagnostic';
 import type { MasteryStage } from '../src/mastery/stage';
 import {
@@ -35,6 +36,8 @@ import {
   DEFAULT_POLICY_CONFIG,
   type DueItem,
   isMastered,
+  type LevelGuardOutcome,
+  levelGuard,
   makeRng,
   meanDifficultyByConcept,
   type Rng,
@@ -97,6 +100,22 @@ const items = ALL_ITEMS.filter((i) => (i.content as { practice?: unknown }).prac
 }));
 const itemById = new Map(items.map((i) => [i.itemId, i]));
 const rank = (conceptId: string) => rankOf.get(conceptId) ?? 0;
+const levelById = new Map(concepts.map((c) => [c.id, c.cefrLevel]));
+const conceptLevel = (conceptId: string) => levelById.get(conceptId) ?? 'A2';
+const conceptLevels = Object.fromEntries(levelById);
+const contentRanks = items.map((i) => CEFR_RANK[conceptLevel(i.conceptId)]);
+
+/** What selection-service hands select() on the level-aware path. */
+function realLevel(assessed: Level, outcomes: readonly LevelGuardOutcome[]) {
+  const { theta } = levelGuard({
+    placedRank: CEFR_RANK[assessed],
+    outcomes,
+    minRank: Math.min(...contentRanks),
+    maxRank: Math.max(...contentRanks),
+    config: DEFAULT_POLICY_CONFIG.levelPolicy.guard,
+  });
+  return { learnerLevel: { theta }, conceptLevels };
+}
 
 const sig = (x: number) => 1 / (1 + Math.exp(-x));
 
@@ -329,7 +348,14 @@ type Pick = {
   key: string;
 };
 
-function runLearner(profile: Level, seed: number, v: Variant | 'REAL', sc: Scenario) {
+/**
+ * 'REAL' — the package's select() as today (no learner level); 'REAL_V6B' —
+ * the package's select() with learnerLevel from the package's levelGuard and
+ * DEFAULT_POLICY_CONFIG: the shipped implementation, checked against CHOSEN.
+ */
+type Policy = Variant | 'REAL' | 'REAL_V6B';
+
+function runLearner(profile: Level, seed: number, v: Policy, sc: Scenario) {
   const policyRng = makeRng(seedFromString(`policy:${profile}:${seed}`));
   const learnerRng = makeRng(seedFromString(`learner:${profile}:${seed}`));
   const trueRank = RANK[profile];
@@ -340,7 +366,8 @@ function runLearner(profile: Level, seed: number, v: Variant | 'REAL', sc: Scena
   };
   // assessedLevel: the lower axis.
   const overall = Math.min(placedOf.GRAMMAR, placedOf.VOCAB);
-  const guardCfg = v === 'REAL' ? undefined : v.guard;
+  const guardCfg = typeof v === 'string' ? undefined : v.guard;
+  const realOutcomes: LevelGuardOutcome[] = [];
   const guards = {
     ALL: new LevelGuard(overall, guardCfg),
     GRAMMAR: new LevelGuard(placedOf.GRAMMAR, guardCfg),
@@ -418,7 +445,11 @@ function runLearner(profile: Level, seed: number, v: Variant | 'REAL', sc: Scena
       startConceptId,
     };
     const out =
-      v === 'REAL' ? select(input, policyRng) : selectVariant(input, policyRng, v, guardFor);
+      v === 'REAL'
+        ? select(input, policyRng)
+        : v === 'REAL_V6B'
+          ? select({ ...input, ...realLevel(assessed, realOutcomes) }, policyRng)
+          : selectVariant(input, policyRng, v, guardFor);
     if (!out.ok) {
       starved++;
       continue;
@@ -435,7 +466,8 @@ function runLearner(profile: Level, seed: number, v: Variant | 'REAL', sc: Scena
       correct: c.correct + (correct ? 1 : 0),
       incorrect: c.incorrect + (correct ? 0 : 1),
     });
-    if (v !== 'REAL') guardFor(conceptId).observe(rank(conceptId), correct);
+    if (typeof v !== 'string') guardFor(conceptId).observe(rank(conceptId), correct);
+    realOutcomes.push({ rank: CEFR_RANK[conceptLevel(conceptId)], correct });
     const fold = applyItemAttempted(
       {
         bkt: bkt.get(conceptId) ?? null,
@@ -578,7 +610,7 @@ function measure(v: Variant | 'REAL', sc: Scenario, profile: Level): Row {
   };
 }
 
-const traceKey = (v: Variant | 'REAL', sc: Scenario, profile: Level, seed: number) =>
+const traceKey = (v: Policy, sc: Scenario, profile: Level, seed: number) =>
   runLearner(profile, seed, v, sc)
     .picks.map((p) => p.key)
     .join(';');
@@ -593,6 +625,19 @@ for (const profile of LEVELS)
       traceKey(BASE[0] as Variant, correct, profile, seed)
     )
       mismatch++;
+// The shipped V6b + level guard must match the calibrated copy, pick for pick.
+let shipped = 0;
+let shippedRuns = 0;
+for (const sc of SCENARIOS)
+  for (const profile of sc.profiles)
+    for (let seed = 0; seed < 25; seed++) {
+      shippedRuns++;
+      if (traceKey('REAL_V6B', sc, profile, seed) !== traceKey(CHOSEN, sc, profile, seed))
+        shipped++;
+    }
+console.info(
+  `shipped select()+levelGuard vs calibrated copy: ${shipped}/${shippedRuns} trajectories differ`,
+);
 let nondeterministic = 0;
 for (const v of VARIANTS)
   for (let seed = 0; seed < 10; seed++) {
@@ -604,7 +649,7 @@ for (const v of VARIANTS)
 console.info(
   `parity with select(): ${mismatch}/200 trajectories differ · reruns differing: ${nondeterministic}/${10 * VARIANTS.length}`,
 );
-if (mismatch > 0) {
+if (mismatch > 0 || shipped > 0) {
   console.error(
     'The select() copy has drifted from the real one — fix it before trusting any number.',
   );

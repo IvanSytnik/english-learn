@@ -1,4 +1,5 @@
 import type { CEFRLevel, ConceptId, EdgeKind } from '../core/graph/types';
+import type { LevelGuardConfig } from './level-guard';
 
 /**
  * Selection policy types.
@@ -63,6 +64,38 @@ export interface PolicyConfig {
    * w·gain + (1−w)·bernoulli. Ignored unless the effective strategy is hybrid.
    */
   readonly hybridGainWeight: number;
+
+  /**
+   * Level-aware selection (§8 #19 stage 2, "V6b"): the service passes the
+   * learner's level to select() only when this is on and an assessed level
+   * exists. Off = today's policy, unchanged.
+   */
+  readonly levelAware: boolean;
+
+  /** V6b and level-guard parameters, calibrated in scripts/sim-policy.ts. */
+  readonly levelPolicy: LevelPolicyConfig;
+}
+
+/**
+ * V6b concept score, for a concept at CEFR rank r and the learner's level θ
+ * aiming at r_t = min(θ, highest rank with content):
+ *
+ *   μ(θ, r)  = clamp(pGuess + (1 − pSlip − pGuess) · σ(k · (θ − r) + c0), 0.1, 0.9)
+ *   s        ~ Beta(strength · μ(θ, r) + correct, strength · (1 − μ(θ, r)) + incorrect)
+ *   score    = −|s − μ(θ, r_t)| − lambda · |r − r_t|
+ *
+ * The highest score wins. pGuess / pSlip are the BKT defaults.
+ */
+export interface LevelPolicyConfig {
+  /** Prior strength in pseudo-observations. */
+  readonly strength: number;
+  /** Logit per CEFR step. */
+  readonly k: number;
+  /** Logit offset at the learner's own level. */
+  readonly c0: number;
+  /** Score penalty per CEFR step away from the target level. */
+  readonly lambda: number;
+  readonly guard: LevelGuardConfig;
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
@@ -71,6 +104,19 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
   prereqMinObservations: 3,
   calibrationGate: 500,
   hybridGainWeight: 0.5,
+  levelAware: true,
+  // Decision 2026-10-27 (HANDOFF §7 «Решения 2026-10-27 (Thompson V6b)»).
+  levelPolicy: Object.freeze({
+    strength: 6,
+    k: 1.5,
+    c0: 0.75,
+    lambda: 0.2,
+    guard: Object.freeze({
+      streak: 4,
+      early: Object.freeze({ n: 7, min: 4 }),
+      recover: Object.freeze({ n: 12, min: 0.85 }),
+    }),
+  }),
 });
 
 // -----------------------------------------------------------------------------
@@ -136,6 +182,17 @@ export interface SelectionInput {
    * is started, so it decides one question.
    */
   readonly startConceptId?: ConceptId | null;
+  /**
+   * The learner's working level θ (CEFR rank, after the level guard). Present
+   * → the Thompson step scores with V6b and leaves mastered concepts out of
+   * the draw; absent or null → today's policy, byte for byte.
+   */
+  readonly learnerLevel?: { readonly theta: number } | null;
+  /**
+   * Each concept's CEFR level (Concept.cefrLevel), read with learnerLevel. A
+   * concept missing here falls back to its candidate item's level.
+   */
+  readonly conceptLevels?: Readonly<Record<ConceptId, CEFRLevel>>;
 }
 
 // -----------------------------------------------------------------------------

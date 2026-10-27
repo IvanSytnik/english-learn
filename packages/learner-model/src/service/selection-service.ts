@@ -1,5 +1,7 @@
+import { CEFR_RANK, type CEFRLevel } from '../core/graph/types';
 import { pickStartConcept } from '../diagnostic/reveal';
 import { isStarted } from '../policy/curriculum';
+import { levelGuard } from '../policy/level-guard';
 import { makeRng, seedFromString } from '../policy/rng';
 import { select } from '../policy/select';
 import {
@@ -11,6 +13,7 @@ import {
 import type {
   CandidateItemRow,
   LearnerModelDb,
+  LevelContextRow,
   MasterySnapshotRow,
   PrereqEdgeRow,
 } from './db-port';
@@ -23,7 +26,7 @@ import type {
  * outcome into projections; this read path folds current projections into a
  * choice. Both talk only to the LearnerModelDb port — no Prisma here.
  *
- * READ-ONLY. No transaction: the four reads are independent snapshots and a
+ * READ-ONLY. No transaction: the reads are independent snapshots and a
  * stale read between them is harmless (worst case the learner gets a slightly
  * out-of-date candidate, self-correcting on the next call). Wrapping them in a
  * tx would hold a lock for zero benefit.
@@ -60,14 +63,15 @@ export function createSelectionService(db: LearnerModelDb) {
       const seed = input.seed ?? (now ^ seedFromString(input.userId)) >>> 0;
       const rng = makeRng(seed);
 
-      const [masteryRows, prereqRows, countRows, candidateRows] = await Promise.all([
+      const [masteryRows, prereqRows, countRows, candidateRows, levelContext] = await Promise.all([
         db.getMasterySnapshots(input.userId),
         db.getPrereqEdges(),
         db.getConceptEventCounts(input.userId),
         db.getCandidateItems(input.userId),
+        db.getLevelContext(input.userId),
       ]);
 
-      const startConceptId = await startConceptFor(db, input.userId, {
+      const startConceptId = startConceptFor(levelContext, {
         masteries: masteryRows,
         prereqEdges: prereqRows,
         candidates: candidateRows,
@@ -77,6 +81,8 @@ export function createSelectionService(db: LearnerModelDb) {
       const excluded = new Set(input.excludeItemIds ?? []);
       const allowedRows = candidateRows.filter((r) => !excluded.has(r.itemId));
       const pool = allowedRows.length > 0 ? allowedRows : candidateRows;
+      // The guard's content bounds come from the pool select() sees, so both cap alike.
+      const learnerLevel = await learnerLevelFor(db, input.userId, levelContext, pool, config);
 
       const selectionInput: SelectionInput = {
         userId: input.userId,
@@ -109,6 +115,12 @@ export function createSelectionService(db: LearnerModelDb) {
         })),
         config,
         startConceptId,
+        ...(learnerLevel
+          ? {
+              learnerLevel: { theta: learnerLevel.theta },
+              conceptLevels: learnerLevel.conceptLevels,
+            }
+          : {}),
       };
 
       return select(selectionInput, rng);
@@ -123,27 +135,68 @@ export type SelectionService = ReturnType<typeof createSelectionService>;
  * the dashboard name — under the dashboard's own condition: no concept
  * started yet and an assessed level. Concepts are those with a candidate item
  * (the practisable set), so the three surfaces agree by construction.
- * Nothing extra is read once any concept is started.
  */
-async function startConceptFor(
-  db: LearnerModelDb,
-  userId: string,
+function startConceptFor(
+  context: LevelContextRow,
   reads: {
     masteries: readonly MasterySnapshotRow[];
     prereqEdges: readonly PrereqEdgeRow[];
     candidates: readonly CandidateItemRow[];
     config: PolicyConfig;
   },
-): Promise<string | null> {
+): string | null {
   if (reads.candidates.length === 0 || reads.masteries.some((m) => isStarted(m))) return null;
-  const { level, concepts } = await db.getStartContext(userId);
-  if (level === null) return null;
+  if (context.level === null) return null;
   const practisable = new Set(reads.candidates.map((c) => c.conceptId));
   return pickStartConcept({
-    concepts: concepts.filter((c) => practisable.has(c.id)),
+    concepts: context.concepts.filter((c) => practisable.has(c.id)),
     masteries: reads.masteries,
     prereqEdges: reads.prereqEdges,
-    level,
+    level: context.level,
     config: reads.config,
   });
+}
+
+/**
+ * The learner's working level for V6b (§8 #19): the assessed level corrected
+ * by the level guard over the practice since the bootstrap. Null — today's
+ * policy — when level-aware selection is off, before the diagnostic, or with
+ * nothing to practise. Outcomes are read only on this path.
+ */
+async function learnerLevelFor(
+  db: LearnerModelDb,
+  userId: string,
+  context: LevelContextRow,
+  candidates: readonly CandidateItemRow[],
+  config: PolicyConfig,
+): Promise<{ theta: number; conceptLevels: Record<string, CEFRLevel> } | null> {
+  if (!config.levelAware || context.level === null || candidates.length === 0) return null;
+
+  const conceptLevels: Record<string, CEFRLevel> = {};
+  for (const c of context.concepts) conceptLevels[c.id] = c.cefrLevel;
+  // A concept's rank: Concept.cefrLevel, else its candidate item's level (as select does).
+  const rankOf = new Map<string, number>();
+  for (const c of candidates) {
+    if (!rankOf.has(c.conceptId)) {
+      rankOf.set(c.conceptId, CEFR_RANK[conceptLevels[c.conceptId] ?? c.cefrLevel]);
+    }
+  }
+  const practisable = [...rankOf.values()];
+  for (const [id, level] of Object.entries(conceptLevels)) {
+    if (!rankOf.has(id)) rankOf.set(id, CEFR_RANK[level]);
+  }
+
+  const outcomes = await db.getAttemptOutcomes(userId);
+  const { theta } = levelGuard({
+    placedRank: CEFR_RANK[context.level],
+    // An outcome on a concept with no known level says nothing about the level.
+    outcomes: outcomes.flatMap((o) => {
+      const rank = rankOf.get(o.conceptId);
+      return rank === undefined ? [] : [{ rank, correct: o.correct, hinted: o.hinted }];
+    }),
+    minRank: Math.min(...practisable),
+    maxRank: Math.max(...practisable),
+    config: config.levelPolicy.guard,
+  });
+  return { theta, conceptLevels };
 }

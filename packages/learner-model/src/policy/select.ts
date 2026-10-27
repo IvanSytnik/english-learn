@@ -1,5 +1,6 @@
-import type { ConceptId } from '../core/graph/types';
-import { computeUnlocked, isStarted } from './curriculum';
+import { CEFR_RANK, type ConceptId } from '../core/graph/types';
+import { computeUnlocked, isMastered, isStarted } from './curriculum';
+import { levelScore } from './level-score';
 import { betaParamsForConcept, meanDifficultyByConcept } from './posterior';
 import { type Rng, sampleBeta } from './rng';
 import type {
@@ -24,7 +25,12 @@ import type {
  *                       and the dashboard promise this concept first.
  *   2. NEW_INTRODUCTION — nothing due: run Thompson Sampling over unlocked
  *                       concepts to pick what to introduce/practise next, then
- *                       pick the best item within that concept.
+ *                       pick the best item within that concept. With the
+ *                       learner's level (input.learnerLevel) the draw is V6b:
+ *                       mastered concepts sit it out (FSRS still reviews
+ *                       them) and each concept is scored against the target
+ *                       level (LevelPolicyConfig); without it, today's argmax
+ *                       of the sampled success rate.
  *   3. EXPLORATION_FLOOR — degenerate fallback so we NEVER return empty when a
  *                       candidate exists (e.g. all dueAt in the future and the
  *                       sampled concept somehow had no item): take the globally
@@ -112,17 +118,42 @@ export function select(input: SelectionInput, rng: Rng): SelectionOutcome {
   const debugScores: Record<ConceptId, number> = {};
   let bestConcept: ConceptId | null = null;
   let bestSample = Number.NEGATIVE_INFINITY;
+  const level = input.learnerLevel ?? null;
 
-  for (const conceptId of conceptIds) {
-    const { alpha, beta } = betaParamsForConcept(
-      countsByConcept.get(conceptId),
-      meanDiff.get(conceptId) ?? 0,
-    );
-    const sample = sampleBeta(rng, alpha, beta);
-    debugScores[conceptId] = sample;
-    if (sample > bestSample) {
-      bestSample = sample;
-      bestConcept = conceptId;
+  if (level === null) {
+    for (const conceptId of conceptIds) {
+      const { alpha, beta } = betaParamsForConcept(
+        countsByConcept.get(conceptId),
+        meanDiff.get(conceptId) ?? 0,
+      );
+      const sample = sampleBeta(rng, alpha, beta);
+      debugScores[conceptId] = sample;
+      if (sample > bestSample) {
+        bestSample = sample;
+        bestConcept = conceptId;
+      }
+    }
+  } else {
+    // V6b. Mastered concepts leave the draw; if every unlocked one is
+    // mastered, the draw runs over all of them.
+    const rankOf = conceptRanks(candidates, input.conceptLevels);
+    const maxRank = Math.max(...rankOf.values());
+    const targetRank = Math.min(level.theta, maxRank);
+    const open = conceptIds.filter((id) => !isMastered(masteryById.get(id), config));
+    for (const conceptId of open.length > 0 ? open : conceptIds) {
+      const score = levelScore(
+        rng,
+        rankOf.get(conceptId) ?? targetRank,
+        level.theta,
+        targetRank,
+        countsByConcept.get(conceptId),
+        config.levelPolicy,
+      );
+      debugScores[conceptId] = score;
+      if (score > bestSample) {
+        bestSample = score;
+        bestConcept = conceptId;
+      }
     }
   }
 
@@ -170,6 +201,22 @@ function pickItemInConcept(
     return a.itemId < b.itemId ? -1 : 1;
   });
   return sorted[0] as DueItem;
+}
+
+/**
+ * CEFR rank of every candidate concept: its Concept.cefrLevel when given,
+ * else the level of its first candidate item.
+ */
+function conceptRanks(
+  candidates: readonly DueItem[],
+  conceptLevels: SelectionInput['conceptLevels'],
+): ReadonlyMap<ConceptId, number> {
+  const ranks = new Map<ConceptId, number>();
+  for (const c of candidates) {
+    if (ranks.has(c.conceptId)) continue;
+    ranks.set(c.conceptId, CEFR_RANK[conceptLevels?.[c.conceptId] ?? c.cefrLevel]);
+  }
+  return ranks;
 }
 
 /** Latest lastReviewAt across a concept's candidate items, or null. */

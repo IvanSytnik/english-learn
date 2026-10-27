@@ -6,8 +6,8 @@ import {
   type LearnerEventRow,
   type LearnerModelDb,
   type LearnerModelTx,
+  type LevelContextRow,
   type PrereqEdgeRow,
-  type StartContextRow,
 } from '../db-port';
 
 /**
@@ -27,9 +27,9 @@ import {
 export type MemoryDbOptions = {
   items?: Record<string, ItemForOutcome>;
   edges?: PrereqEdgeRow[];
-  /** getStartContext: assessed level per user (absent = null) and concept levels. */
-  assessedLevels?: Record<string, StartContextRow['level']>;
-  concepts?: StartContextRow['concepts'];
+  /** getLevelContext: assessed level per user (absent = null) and concept levels. */
+  assessedLevels?: Record<string, LevelContextRow['level']>;
+  concepts?: LevelContextRow['concepts'];
 };
 
 export function createMemoryDb(options: MemoryDbOptions = {}) {
@@ -169,11 +169,31 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
       }
       return [...tally.entries()].map(([conceptId, t]) => ({ conceptId, ...t }));
     },
-    async getStartContext(userId) {
+    async getLevelContext(userId) {
       return {
         level: options.assessedLevels?.[userId] ?? null,
         concepts: options.concepts ?? [],
       };
+    },
+    async getAttemptOutcomes(userId) {
+      // Same order and anchor as prisma-db: after the latest bootstrap, (occurredAt, id).
+      const ordered = [...userEvents(userId)].sort((a, b) =>
+        a.occurredAt !== b.occurredAt
+          ? a.occurredAt < b.occurredAt
+            ? -1
+            : 1
+          : a.id < b.id
+            ? -1
+            : 1,
+      );
+      const lastBootstrap = ordered.findLastIndex((e) => e.type === 'LEARNER_BOOTSTRAPPED');
+      return ordered
+        .slice(lastBootstrap + 1)
+        .filter((e) => e.type === 'ITEM_ATTEMPTED')
+        .map((e) => {
+          const p = e.payload as { conceptId: string; correct: boolean; hinted?: boolean };
+          return { conceptId: p.conceptId, correct: p.correct, hinted: p.hinted === true };
+        });
     },
     async getCandidateItems(userId) {
       return Object.entries(items).map(([itemId, item]) => ({
