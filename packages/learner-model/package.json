@@ -18,7 +18,8 @@
     "seed:concepts": "tsx --env-file-if-exists=../db/.env seed/run.ts",
     "seed:items": "tsx --env-file-if-exists=../db/.env seed/items/run.ts",
     "seed:diagnostic": "tsx --env-file-if-exists=../db/.env seed/diagnostic/run.ts",
-    "replay:all": "tsx --env-file-if-exists=../db/.env scripts/replay-all.ts"
+    "replay:all": "tsx --env-file-if-exists=../db/.env scripts/replay-all.ts",
+    "sim:policy": "tsx scripts/sim-policy.ts"
   },
   "dependencies": {
     "@englishlearn/db": "workspace:*",
