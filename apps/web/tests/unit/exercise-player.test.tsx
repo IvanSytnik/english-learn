@@ -439,3 +439,94 @@ describe('ExercisePlayer — the hint is recorded (§8 #11)', () => {
     expect(sent(0)).toBe(false);
   });
 });
+
+describe('ExercisePlayer — a lost request is resent with the same key', () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  const sent = (n: number) => submitExerciseAttempt.mock.calls[n]?.[0];
+  const lost = () => submitExerciseAttempt.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+  const retryButton = async () => {
+    const button = await screen.findByRole('button', { name: 'Retry' });
+    await waitFor(() => expect(button).toHaveFocus());
+    return button;
+  };
+
+  it('a request that never answers shows Retry instead of crashing the page', async () => {
+    lost();
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    expect(await screen.findByRole('alert')).toHaveTextContent("Your answer didn't reach us");
+    await retryButton();
+    // Still on the question, nothing counted.
+    expect(screen.getByRole('button', { name: /goed/ })).not.toBeDisabled();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('Retry resends the same answer, time, hint and key — and counts it once', async () => {
+    lost();
+    renderPlayer(choiceView);
+    key('h');
+    key('4');
+    key('Enter');
+    fireEvent.click(await retryButton());
+    await onFeedback('Correct');
+
+    expect(submitExerciseAttempt).toHaveBeenCalledTimes(2);
+    expect(sent(0).attemptKey).toMatch(UUID);
+    expect(sent(1)).toEqual(sent(0));
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+  });
+
+  it("Retry resends I don't know, which has no selection to check again", async () => {
+    lost();
+    renderPlayer(choiceView);
+    key('0');
+    fireEvent.click(await retryButton());
+    await waitFor(() => expect(submitExerciseAttempt).toHaveBeenCalledTimes(2));
+    expect(sent(1).answer).toEqual({ type: 'dontKnow' });
+    expect(sent(1).attemptKey).toBe(sent(0).attemptKey);
+  });
+
+  it('checking again after a lost request, even with another answer, keeps the key', async () => {
+    lost();
+    renderPlayer(choiceView);
+    key('1');
+    key('Enter');
+    await retryButton();
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    expect(sent(1).answer).toEqual({ type: 'choice', index: 3 });
+    expect(sent(1).attemptKey).toBe(sent(0).attemptKey);
+  });
+
+  it('a refused answer (server error) keeps the key for the next try too', async () => {
+    submitExerciseAttempt.mockResolvedValueOnce({ ok: false, error: 'NOT_FOUND' });
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong');
+    key('Enter');
+    await onFeedback('Correct');
+    expect(sent(1).attemptKey).toBe(sent(0).attemptKey);
+  });
+
+  it('the next question gets a new key', async () => {
+    nextExercise.mockResolvedValueOnce({ ok: true, value: { ...choiceView, itemId: 'item.c' } });
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    key('Enter');
+    const prompt = document.getElementById('exercise-prompt');
+    await waitFor(() => expect(screen.queryByText('Correct')).toBeNull());
+    await waitFor(() => expect(prompt).toHaveFocus());
+    key('4');
+    key('Enter');
+    await waitFor(() => expect(submitExerciseAttempt).toHaveBeenCalledTimes(2));
+    expect(sent(1).itemId).toBe('item.c');
+    expect(sent(1).attemptKey).toMatch(UUID);
+    expect(sent(1).attemptKey).not.toBe(sent(0).attemptKey);
+  });
+});

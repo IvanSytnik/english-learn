@@ -56,6 +56,9 @@ export function ExercisePlayer({
   const [entries, setEntries] = useState<SessionEntry[]>([]);
   const [recent, setRecent] = useState<string[]>([initial.itemId]);
   const [error, setError] = useState(false);
+  // An answer whose request never came back (network drop, server down) —
+  // offered for resending as is. Cleared by the next send.
+  const [unsent, setUnsent] = useState<{ answer: ExerciseAnswer; timeMs: number } | null>(null);
 
   const shownAt = useRef(Date.now());
   // One request at a time. Set synchronously before calling an action, so a
@@ -67,37 +70,59 @@ export function ExercisePlayer({
   // it — so an answer in the same tick still carries it; reset with the next
   // question.
   const hintUsed = useRef(false);
+  // Idempotency key of this question, made on its first send and kept by
+  // every resend, so the server records the answer once even if a reply was
+  // lost after the write. A new one with the next question.
+  const attemptKey = useRef<string | null>(null);
   const promptRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
 
   const question = view.question;
   const optionCount = question.type === 'choice' ? question.options.length : 0;
 
   // Move focus where the next action is: the answer field / prompt for a new
-  // question, Continue once feedback is in.
+  // question, Retry after a lost request, Continue once feedback is in.
+  const hasUnsent = unsent !== null;
   useEffect(() => {
     if (phase === 'answering') {
-      if (question.type === 'cloze') inputRef.current?.focus();
+      if (hasUnsent) retryRef.current?.focus();
+      else if (question.type === 'cloze') inputRef.current?.focus();
       else promptRef.current?.focus();
     }
     if (phase === 'feedback') continueRef.current?.focus();
-  }, [phase, question.type]);
+  }, [phase, question.type, hasUnsent]);
 
   const submit = useCallback(
-    (answer: ExerciseAnswer) => {
+    (answer: ExerciseAnswer, resendTimeMs?: number) => {
       if (phase !== 'answering' || busy.current) return;
       busy.current = true;
       setPhase('submitting');
       setError(false);
-      const timeMs = Math.max(1, Date.now() - shownAt.current);
+      setUnsent(null);
+      // A resend keeps the time of the first send: the wait is not thinking.
+      const timeMs = resendTimeMs ?? Math.max(1, Date.now() - shownAt.current);
+      attemptKey.current ??= crypto.randomUUID();
+      const request = {
+        itemId: view.itemId,
+        answer,
+        timeMs,
+        hinted: hintUsed.current,
+        attemptKey: attemptKey.current,
+      };
       startTransition(async () => {
-        const res = await submitExerciseAttempt({
-          itemId: view.itemId,
-          answer,
-          timeMs,
-          hinted: hintUsed.current,
-        });
+        let res: Awaited<ReturnType<typeof submitExerciseAttempt>>;
+        try {
+          res = await submitExerciseAttempt(request);
+        } catch {
+          // No reply: the answer may or may not be recorded. Resending with
+          // the same key is safe either way.
+          busy.current = false;
+          setUnsent({ answer, timeMs });
+          setPhase('answering');
+          return;
+        }
         busy.current = false;
         if (!res.ok) {
           setError(true);
@@ -151,6 +176,7 @@ export function ExercisePlayer({
       setText('');
       setHintOpen(false);
       hintUsed.current = false;
+      attemptKey.current = null;
       setWhyOpen(false);
       setFeedback(null);
       shownAt.current = Date.now();
@@ -392,6 +418,20 @@ export function ExercisePlayer({
           <p role="alert" className="text-sm text-feedback-incorrect">
             {t('player.error')}
           </p>
+        ) : null}
+        {unsent ? (
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-feedback-incorrect">{t('player.sendFailed')}</p>
+            <button
+              ref={retryRef}
+              type="button"
+              className={quietButton}
+              onClick={() => submit(unsent.answer, unsent.timeMs)}
+              disabled={phase !== 'answering'}
+            >
+              {t('player.retry')}
+            </button>
+          </div>
         ) : null}
       </section>
 

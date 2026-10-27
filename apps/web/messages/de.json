@@ -196,6 +196,8 @@
       "answerIs": "Antwort: {answer}",
       "stageCrossed": "{concept}: jetzt „{stage}“",
       "error": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "sendFailed": "Deine Antwort ist nicht angekommen. Prüf deine Verbindung und versuch es noch einmal.",
+      "retry": "Erneut senden",
       "done": {
         "title": "Sitzung abgeschlossen",
         "body": "{count, plural, one {Du hast # Frage beantwortet.} other {Du hast # Fragen beantwortet.}}",

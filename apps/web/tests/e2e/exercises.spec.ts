@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
-import { closeDb, itemAttempts, practiceQuestions } from './helpers/db';
+import { closeDb, itemAttemptKeys, itemAttempts, practiceQuestions } from './helpers/db';
 import { chooseNativeLanguage } from './helpers/diagnostic';
 
 test.afterAll(closeDb);
@@ -277,4 +277,56 @@ test('a right answer after the hint is recorded as hinted and rated HARD; the ne
   expect(hinted).toMatchObject({ correct: true, rating: 'HARD', hinted: true });
   expect(plain).toMatchObject({ correct: true, rating: 'GOOD' });
   expect(plain).not.toHaveProperty('hinted');
+});
+
+test('a reply lost after the answer was recorded: Retry (Enter) shows it, nothing is recorded twice', async ({
+  page,
+}) => {
+  const email = await registerFreshLearner(page, 'retry');
+  await page.goto('/ru/exercises?minutes=5');
+  const status = page.getByRole('status');
+  const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
+  await questionType(page);
+
+  // The next server action — the answer — reaches the server and is recorded,
+  // then its reply is dropped: the browser sees a network failure.
+  let dropped = false;
+  await page.route('**/ru/exercises**', async (route) => {
+    const request = route.request();
+    if (dropped || request.method() !== 'POST' || !request.headers()['next-action']) {
+      return route.fallback();
+    }
+    dropped = true;
+    await route.fetch();
+    await route.abort('failed');
+  });
+
+  await dontKnowButton(page).click();
+  // Next keeps its own (empty) role=alert route announcer outside <main>.
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Ответ не дошёл до сервера',
+    AFTER_SUBMIT,
+  );
+  const retry = page.getByRole('button', { name: 'Повторить' });
+  await expect(retry).toBeFocused();
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  const [key] = await itemAttemptKeys(email);
+  expect(key).toMatch(/^[0-9a-f-]{36}$/);
+
+  // Enter on the focused Retry resends with the same key: the server answers
+  // from the recorded attempt and writes nothing.
+  await page.keyboard.press('Enter');
+  await expect(status.locator('[data-verdict="dontKnow"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(progress).toHaveAttribute('aria-valuenow', '1');
+  await expect(retry).toHaveCount(0);
+  expect(await itemAttemptKeys(email)).toEqual([key]);
+
+  // The next question is a new attempt with a new key.
+  await page.keyboard.press('Enter');
+  await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+  await dontKnowButton(page).click();
+  await expect(status.locator('[data-verdict="dontKnow"]')).toBeVisible(AFTER_SUBMIT);
+  const keys = await itemAttemptKeys(email);
+  expect(keys).toHaveLength(2);
+  expect(keys[1]).not.toBe(key);
 });

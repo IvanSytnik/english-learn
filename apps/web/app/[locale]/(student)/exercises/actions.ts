@@ -21,6 +21,7 @@ import {
   gradeAnswer,
   RECENT_EXCLUDE,
   reviewFor,
+  type Verdict,
 } from '@/lib/exercise/view';
 import { learnerService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
@@ -40,6 +41,12 @@ const SubmitSchema = z.object({
   timeMs: z.number().int().positive().max(3_600_000).optional(),
   /** The hint was opened at least once on this question (§8 #11). */
   hinted: z.boolean().optional(),
+  /**
+   * One per question shown, reused by every resend of it: a retry after a
+   * lost reply records nothing new. Optional so a page loaded before this
+   * field existed still submits.
+   */
+  attemptKey: z.uuid().optional(),
 });
 
 async function currentLocale() {
@@ -77,7 +84,7 @@ export async function submitExerciseAttempt(
 
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  const { itemId, answer, timeMs, hinted } = parsed.data;
+  const { itemId, answer, timeMs, hinted, attemptKey } = parsed.data;
 
   const [item, nativeLanguage] = await Promise.all([
     getPublishedPracticeItem(itemId),
@@ -85,13 +92,32 @@ export async function submitExerciseAttempt(
   ]);
   if (!item) return { ok: false, error: 'NOT_FOUND' };
 
-  const verdict = gradeAnswer(item.practice, answer);
+  const graded = gradeAnswer(item.practice, answer);
+  const base = { userId: session.user.id, itemId, timeMs, hinted, idempotencyKey: attemptKey };
   const recorded = await learnerService.recordOutcome(
-    verdict === 'dontKnow'
-      ? { userId: session.user.id, itemId, dontKnow: true, timeMs, hinted }
-      : { userId: session.user.id, itemId, correct: verdict === 'correct', timeMs, hinted },
+    graded === 'dontKnow'
+      ? { ...base, dontKnow: true }
+      : { ...base, correct: graded === 'correct' },
   );
-  if (!recorded.ok) return { ok: false, error: 'NOT_FOUND' };
+  if (!recorded.ok) {
+    // A key reused for another item is a client bug or tampering, not a miss.
+    return {
+      ok: false,
+      error: recorded.error === 'IDEMPOTENCY_CONFLICT' ? 'INVALID' : 'NOT_FOUND',
+    };
+  }
+
+  // A resend of an answer already recorded: report what was recorded, never
+  // the resend's own answer (the learner may have changed it after the reply
+  // was lost). Its option is marked only if it grades the same way.
+  const original = recorded.duplicate ? recorded.original : null;
+  const verdict: Verdict = original
+    ? original.dontKnow
+      ? 'dontKnow'
+      : original.correct
+        ? 'correct'
+        : 'incorrect'
+    : graded;
 
   const locale = await currentLocale();
   const correctAnswer = correctAnswerOf(item.practice);
@@ -106,7 +132,7 @@ export async function submitExerciseAttempt(
     ok: true,
     value: {
       verdict,
-      chosenIndex: answer.type === 'choice' ? answer.index : null,
+      chosenIndex: answer.type === 'choice' && verdict === graded ? answer.index : null,
       correctIndex: item.practice.type === 'choice' ? item.practice.correctIndex : null,
       correctAnswer,
       answerSentence: fillGap(item.practice.prompt, correctAnswer),
@@ -117,7 +143,7 @@ export async function submitExerciseAttempt(
         stageBefore: recorded.stageBefore,
         stageAfter: recorded.stageAfter,
         scheduledDays: recorded.scheduledDays,
-        hinted,
+        hinted: original ? original.hinted : hinted,
       }),
       review: reviewFor(recorded.scheduledDays),
     },

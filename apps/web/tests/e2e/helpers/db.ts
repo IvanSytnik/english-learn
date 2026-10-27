@@ -90,6 +90,17 @@ export async function itemAttempts(email: string) {
   return events.map((e) => e.payload as Record<string, unknown>);
 }
 
+/** Idempotency keys of the learner's recorded answers, oldest first. */
+export async function itemAttemptKeys(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const events = await db().learnerEvent.findMany({
+    where: { userId: user.id, type: 'ITEM_ATTEMPTED' },
+    orderBy: { occurredAt: 'asc' },
+    select: { idempotencyKey: true },
+  });
+  return events.map((e) => e.idempotencyKey);
+}
+
 /** The learner's events of both types, oldest first. */
 export async function learnerEvents(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });

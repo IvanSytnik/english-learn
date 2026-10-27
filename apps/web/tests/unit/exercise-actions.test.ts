@@ -60,6 +60,7 @@ const item = {
 
 const recorded = (over = {}) => ({
   ok: true,
+  duplicate: false,
   occurredAt: 1n,
   rating: 'GOOD',
   conceptId: 'grammar.past_simple',
@@ -236,6 +237,115 @@ describe('submitExerciseAttempt: the language of the "why"', () => {
     getNativeLanguage.mockResolvedValue('pl');
     const res = await submit();
     expect(res.ok && res.value.why).toBe('Неправильный глагол.');
+  });
+});
+
+describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
+  const KEY = '3f1c2b9e-7d4a-4e6f-9a1b-2c3d4e5f6a7b';
+  /** recordOutcome found the key already recorded: nothing new was written. */
+  const duplicate = (original: { correct: boolean; dontKnow?: boolean; hinted?: boolean }) =>
+    recorded({
+      duplicate: true,
+      original: { dontKnow: false, hinted: false, ...original },
+      pKnownBefore: 0.75,
+      pKnownAfter: 0.75,
+      stageBefore: 'SOLID',
+      stageAfter: 'SOLID',
+    });
+
+  it('passes the attempt key to recordOutcome as the idempotency key', async () => {
+    await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: KEY,
+    });
+    expect(recordOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({ correct: true, idempotencyKey: KEY }),
+    );
+  });
+
+  it('without a key records with none (a page loaded before the field existed)', async () => {
+    await submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 3 } });
+    expect(recordOutcome.mock.calls[0]?.[0].idempotencyKey).toBeUndefined();
+  });
+
+  it('rejects a key that is not a UUID without recording', async () => {
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: 'not-a-uuid',
+    });
+    expect(res).toEqual({ ok: false, error: 'INVALID' });
+    expect(recordOutcome).not.toHaveBeenCalled();
+  });
+
+  it('a key reused for another item is INVALID', async () => {
+    recordOutcome.mockResolvedValue({ ok: false, error: 'IDEMPOTENCY_CONFLICT' });
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: KEY,
+    });
+    expect(res).toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  it('a resend reports the recorded verdict, not its own answer', async () => {
+    // Recorded wrong; the resend picks the right option after the reply was lost.
+    recordOutcome.mockResolvedValue(duplicate({ correct: false }));
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: KEY,
+    });
+    expect(res.ok && res.value).toMatchObject({
+      verdict: 'incorrect',
+      // The resend's option is not the recorded one: not marked as picked.
+      chosenIndex: null,
+      correctIndex: 3,
+      correctAnswer: 'went',
+      why: 'Неправильный глагол.',
+      // No stage crossing is announced twice — only the review line.
+      consequence: { kind: 'backInDays', days: 3 },
+    });
+  });
+
+  it('a resend of the same answer keeps its option marked', async () => {
+    recordOutcome.mockResolvedValue(duplicate({ correct: false }));
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 0 },
+      attemptKey: KEY,
+    });
+    expect(res.ok && res.value).toMatchObject({ verdict: 'incorrect', chosenIndex: 0 });
+  });
+
+  it("a recorded I don't know stays I don't know", async () => {
+    recordOutcome.mockResolvedValue(duplicate({ correct: false, dontKnow: true }));
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: KEY,
+    });
+    expect(res.ok && res.value).toMatchObject({ verdict: 'dontKnow', chosenIndex: null });
+  });
+
+  it('the recorded hint decides the consequence line', async () => {
+    recordOutcome.mockResolvedValue(
+      recorded({
+        duplicate: true,
+        original: { correct: true, dontKnow: false, hinted: true },
+        stageBefore: 'DEVELOPING',
+        stageAfter: 'SOLID',
+        scheduledDays: 0,
+      }),
+    );
+    const res = await submitExerciseAttempt({
+      itemId: item.id,
+      answer: { type: 'choice', index: 3 },
+      attemptKey: KEY,
+    });
+    // Even with a crossing in the numbers, a hinted answer announces none.
+    expect(res.ok && res.value.consequence).toEqual({ kind: 'backSoon' });
   });
 });
 

@@ -196,6 +196,8 @@
       "answerIs": "Answer: {answer}",
       "stageCrossed": "{concept} is now {stage}",
       "error": "Something went wrong. Please try again.",
+      "sendFailed": "Your answer didn't reach us. Check your connection and try again.",
+      "retry": "Retry",
       "done": {
         "title": "Session complete",
         "body": "{count, plural, one {You answered # question.} other {You answered # questions.}}",
