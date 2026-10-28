@@ -22,8 +22,10 @@ vi.mock('@englishlearn/db/queries/exercises', () => ({
   getConceptTitles,
 }));
 vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }));
+vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
 const { loadNextExercise } = await import('@/lib/exercise/load');
+const { decryptItemRef } = await import('@/lib/crypto/item-ref');
 
 const item = {
   id: 'item.vocab.travel.luggage',
@@ -64,6 +66,19 @@ const load = (locale: 'en' | 'ru' | 'uk' | 'de') =>
   loadNextExercise({ userId: 'user_1', locale, nowMs: 0 });
 
 describe('loadNextExercise', () => {
+  it('carries an opaque reference for this learner, never the item id (S1)', async () => {
+    getNativeLanguage.mockResolvedValue(null);
+    const view = await load('en');
+    // The id names the answer: item.vocab.travel.luggage.
+    expect(JSON.stringify(view)).not.toContain(item.id);
+    expect(Object.keys(view ?? {})).not.toContain('itemId');
+    expect(await decryptItemRef(view?.itemRef ?? '', 'user_1', 0)).toEqual({
+      ok: true,
+      value: item.id,
+    });
+    expect((await decryptItemRef(view?.itemRef ?? '', 'user_2', 0)).ok).toBe(false);
+  });
+
   it("the hint is in the native language, the title in the interface's", async () => {
     getNativeLanguage.mockResolvedValue('de');
     const view = await load('ru');

@@ -26,10 +26,15 @@ vi.mock('@/lib/exercise/load', () => ({ loadNextExercise }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({ getPublishedPracticeItem }));
 vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }));
 vi.mock('next-intl/server', () => ({ getLocale }));
+vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
 const { nextExercise, submitExerciseAttempt, weekRhythm } = await import(
   '@/app/[locale]/(student)/exercises/actions'
 );
+const { encryptItemRef, ITEM_REF_TTL_MS } = await import('@/lib/crypto/item-ref');
+
+const refFor = (itemId: string, userId = 'user_1', nowMs?: number) =>
+  encryptItemRef({ itemId, userId }, nowMs);
 
 const item = {
   id: 'item.past_simple.irregular_v2',
@@ -57,6 +62,9 @@ const item = {
     cefrLevel: 'A2',
   },
 };
+
+/** What the player echoes back for `item`: issued to user_1. */
+const REF = await refFor(item.id);
 
 const recorded = (over = {}) => ({
   ok: true,
@@ -87,28 +95,48 @@ beforeEach(() => {
 describe('submitExerciseAttempt', () => {
   it('rejects anonymous callers without touching the learner model', async () => {
     auth.mockResolvedValue(null);
-    const res = await submitExerciseAttempt({ itemId: item.id, answer: { type: 'dontKnow' } });
+    const res = await submitExerciseAttempt({ itemRef: REF, answer: { type: 'dontKnow' } });
     expect(res).toEqual({ ok: false, error: 'UNAUTHENTICATED' });
     expect(recordOutcome).not.toHaveBeenCalled();
   });
 
   it('rejects malformed input', async () => {
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 9 },
     });
     expect(res).toEqual({ ok: false, error: 'INVALID' });
   });
 
+  it('rejects a forged, foreign or expired item reference without recording (S1)', async () => {
+    for (const itemRef of [
+      // The raw id: a client that knows or guesses it gets nothing.
+      item.id,
+      'not-a-token',
+      // A real reference for the same item, issued to another learner.
+      await refFor(item.id, 'user_2'),
+      // Issued to this learner more than 24 h ago.
+      await refFor(item.id, 'user_1', Date.now() - ITEM_REF_TTL_MS - 1),
+    ]) {
+      const res = await submitExerciseAttempt({ itemRef, answer: { type: 'choice', index: 3 } });
+      expect(res, itemRef).toEqual({ ok: false, error: 'INVALID' });
+    }
+    expect(getPublishedPracticeItem).not.toHaveBeenCalled();
+    expect(recordOutcome).not.toHaveBeenCalled();
+  });
+
   it('returns NOT_FOUND for an unpublished or practice-less item', async () => {
     getPublishedPracticeItem.mockResolvedValue(null);
-    const res = await submitExerciseAttempt({ itemId: 'x', answer: { type: 'dontKnow' } });
+    const res = await submitExerciseAttempt({
+      itemRef: await refFor('x'),
+      answer: { type: 'dontKnow' },
+    });
     expect(res).toEqual({ ok: false, error: 'NOT_FOUND' });
   });
 
   it('grades on the server and records through recordOutcome', async () => {
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       timeMs: 4200,
     });
@@ -135,7 +163,7 @@ describe('submitExerciseAttempt', () => {
 
   it('reports the review even when the stage crossing takes the consequence line', async () => {
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
     });
     expect(res.ok && res.value.consequence.kind).toBe('stageCrossed');
@@ -144,7 +172,7 @@ describe('submitExerciseAttempt', () => {
 
   it("records I don't know as dontKnow, not as a chosen answer", async () => {
     recordOutcome.mockResolvedValue(recorded({ stageBefore: 'SOLID', scheduledDays: 0 }));
-    const res = await submitExerciseAttempt({ itemId: item.id, answer: { type: 'dontKnow' } });
+    const res = await submitExerciseAttempt({ itemRef: REF, answer: { type: 'dontKnow' } });
     expect(recordOutcome).toHaveBeenCalledWith({
       userId: 'user_1',
       itemId: item.id,
@@ -157,7 +185,7 @@ describe('submitExerciseAttempt', () => {
   });
 
   it('a wrong choice is recorded as incorrect', async () => {
-    await submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 0 } });
+    await submitExerciseAttempt({ itemRef: REF, answer: { type: 'choice', index: 0 } });
     expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({ correct: false }));
   });
 });
@@ -178,7 +206,7 @@ describe('submitExerciseAttempt: the hint (§8 #11)', () => {
       }),
     );
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       hinted: true,
     });
@@ -194,7 +222,7 @@ describe('submitExerciseAttempt: the hint (§8 #11)', () => {
   });
 
   it("passes the hint next to I don't know", async () => {
-    await submitExerciseAttempt({ itemId: item.id, answer: { type: 'dontKnow' }, hinted: true });
+    await submitExerciseAttempt({ itemRef: REF, answer: { type: 'dontKnow' }, hinted: true });
     expect(recordOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ dontKnow: true, hinted: true }),
     );
@@ -202,7 +230,7 @@ describe('submitExerciseAttempt: the hint (§8 #11)', () => {
 
   it('rejects a non-boolean hinted without recording', async () => {
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       hinted: 'yes' as unknown as boolean,
     });
@@ -213,7 +241,7 @@ describe('submitExerciseAttempt: the hint (§8 #11)', () => {
 
 describe('submitExerciseAttempt: the language of the "why"', () => {
   const submit = () =>
-    submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 3 } });
+    submitExerciseAttempt({ itemRef: REF, answer: { type: 'choice', index: 3 } });
 
   it("follows the learner's native language; the consequence line stays in the UI locale", async () => {
     getLocale.mockResolvedValue('en');
@@ -255,7 +283,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
 
   it('passes the attempt key to recordOutcome as the idempotency key', async () => {
     await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: KEY,
     });
@@ -265,13 +293,13 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
   });
 
   it('without a key records with none (a page loaded before the field existed)', async () => {
-    await submitExerciseAttempt({ itemId: item.id, answer: { type: 'choice', index: 3 } });
+    await submitExerciseAttempt({ itemRef: REF, answer: { type: 'choice', index: 3 } });
     expect(recordOutcome.mock.calls[0]?.[0].idempotencyKey).toBeUndefined();
   });
 
   it('rejects a key that is not a UUID without recording', async () => {
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: 'not-a-uuid',
     });
@@ -282,7 +310,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
   it('a key reused for another item is INVALID', async () => {
     recordOutcome.mockResolvedValue({ ok: false, error: 'IDEMPOTENCY_CONFLICT' });
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: KEY,
     });
@@ -293,7 +321,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
     // Recorded wrong; the resend picks the right option after the reply was lost.
     recordOutcome.mockResolvedValue(duplicate({ correct: false }));
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: KEY,
     });
@@ -312,7 +340,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
   it('a resend of the same answer keeps its option marked', async () => {
     recordOutcome.mockResolvedValue(duplicate({ correct: false }));
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 0 },
       attemptKey: KEY,
     });
@@ -322,7 +350,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
   it("a recorded I don't know stays I don't know", async () => {
     recordOutcome.mockResolvedValue(duplicate({ correct: false, dontKnow: true }));
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: KEY,
     });
@@ -340,7 +368,7 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
       }),
     );
     const res = await submitExerciseAttempt({
-      itemId: item.id,
+      itemRef: REF,
       answer: { type: 'choice', index: 3 },
       attemptKey: KEY,
     });
@@ -352,13 +380,27 @@ describe('submitExerciseAttempt: the attempt key (idempotency)', () => {
 describe('nextExercise', () => {
   it('passes only the last few recent items as exclusions', async () => {
     loadNextExercise.mockResolvedValue(null);
-    const res = await nextExercise(['a', 'b', 'c', 'd', 'e']);
+    const refs = await Promise.all(['a', 'b', 'c', 'd', 'e'].map((id) => refFor(id)));
+    const res = await nextExercise(refs);
     expect(res).toEqual({ ok: true, value: null });
     expect(loadNextExercise).toHaveBeenCalledWith({
       userId: 'user_1',
       locale: 'ru',
       excludeItemIds: ['c', 'd', 'e'],
     });
+  });
+
+  it("drops recent references that are not this learner's, instead of failing", async () => {
+    loadNextExercise.mockResolvedValue(null);
+    const refs = [
+      await refFor('mine'),
+      await refFor('theirs', 'user_2'),
+      'item.vocab.travel.luggage',
+    ];
+    expect(await nextExercise(refs)).toEqual({ ok: true, value: null });
+    expect(loadNextExercise).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeItemIds: ['mine'] }),
+    );
   });
 
   it('rejects anonymous callers', async () => {

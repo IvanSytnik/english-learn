@@ -22,7 +22,7 @@ export type DiagnosticActionError = 'UNAUTHENTICATED' | 'FORBIDDEN' | 'INVALID' 
 const Ids = {
   attemptId: z.string().min(1).max(200),
   position: z.number().int().min(0).max(15),
-  itemId: z.string().min(1).max(200),
+  itemRef: z.string().min(1).max(1024),
 };
 const LanguageSchema = z.object({ language: NativeLanguageSchema }).strict();
 const SubmitSchema = z.union([

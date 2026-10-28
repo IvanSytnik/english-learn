@@ -54,7 +54,7 @@ export function ExercisePlayer({
   // not the session. The server keeps no session state to check this against.
   const [completed, setCompleted] = useState(0);
   const [entries, setEntries] = useState<SessionEntry[]>([]);
-  const [recent, setRecent] = useState<string[]>([initial.itemId]);
+  const [recent, setRecent] = useState<string[]>([initial.itemRef]);
   const [error, setError] = useState(false);
   // An answer whose request never came back (network drop, server down) —
   // offered for resending as is. Cleared by the next send.
@@ -109,7 +109,7 @@ export function ExercisePlayer({
       const timeMs = resendTimeMs ?? Math.max(1, Date.now() - shownAt.current);
       attemptKey.current ??= crypto.randomUUID();
       const request = {
-        itemId: view.itemId,
+        itemRef: view.itemRef,
         answer,
         timeMs,
         hinted: hintUsed.current,
@@ -139,7 +139,7 @@ export function ExercisePlayer({
         setPhase('feedback');
       });
     },
-    [phase, view.itemId, view.conceptTitle],
+    [phase, view.itemRef, view.conceptTitle],
   );
 
   const check = useCallback(() => {
@@ -156,7 +156,7 @@ export function ExercisePlayer({
     setHintOpen((open) => !open);
   }, [phase, view.hint]);
 
-  const loadNext = useCallback((recentIds: string[]) => {
+  const loadNext = useCallback((recentRefs: string[]) => {
     if (busy.current) return;
     busy.current = true;
     setPhase('loading');
@@ -165,7 +165,7 @@ export function ExercisePlayer({
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof nextExercise>>;
       try {
-        res = await nextExercise(recentIds);
+        res = await nextExercise(recentRefs);
       } catch {
         // No reply: nothing was changed on the server, loading again is safe.
         busy.current = false;
@@ -185,7 +185,7 @@ export function ExercisePlayer({
       }
       const next = res.value;
       setView(next);
-      setRecent((ids) => [...ids, next.itemId].slice(-10));
+      setRecent((refs) => [...refs, next.itemRef].slice(-10));
       setSelected(null);
       setText('');
       setHintOpen(false);

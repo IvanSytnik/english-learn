@@ -61,7 +61,11 @@ export type ReasonDetail =
   | null;
 
 export type ExerciseView = {
-  itemId: string;
+  /**
+   * Opaque per-user token for the item (`lib/crypto/item-ref.ts`), never the
+   * id: item ids name the answer. Echoed back on submit.
+   */
+  itemRef: string;
   conceptTitle: string;
   reason: SelectionReasonValue;
   isNewConcept: boolean;

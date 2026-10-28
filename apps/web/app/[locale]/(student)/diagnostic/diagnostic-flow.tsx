@@ -357,7 +357,7 @@ function Player({
           res = await submitDiagnosticAnswerAction({
             attemptId: question.attemptId,
             position: question.position,
-            itemId: question.item.id,
+            itemRef: question.item.ref,
             ...answer,
           });
         } catch {

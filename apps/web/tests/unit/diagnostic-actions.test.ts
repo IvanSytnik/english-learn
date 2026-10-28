@@ -97,6 +97,7 @@ const {
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: {} }));
 vi.mock('@/lib/auth', () => ({ auth }));
+vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'ru' }));
 vi.mock('@/lib/learner', () => ({ bootstrapService: { bootstrapFromDiagnostic } }));
 vi.mock('@englishlearn/db/queries/diagnostic-attempt', () => ({
@@ -210,6 +211,7 @@ const { getDiagnosticReview, isDiagnosticDone, peekDiagnosticStep } = await impo
   '@/lib/diagnostic'
 );
 const { DIAGNOSTIC_BANK } = await import('@englishlearn/learner-model/seed/diagnostic');
+const { decryptItemRef, encryptItemRef, ITEM_REF_TTL_MS } = await import('@/lib/crypto/item-ref');
 
 /** The in-memory attempt queries, with the database's semantics. */
 function useMemoryAttempts() {
@@ -274,14 +276,33 @@ async function currentQuestion() {
   return step.value.question;
 }
 
+/** The bank id behind a question's opaque reference, as the server reads it. */
+async function idOf(q: { item: { ref: string } }, userId = 'u1') {
+  const id = await decryptItemRef(q.item.ref, userId);
+  if (!id.ok) throw new Error(`bad ref: ${id.error}`);
+  return id.value;
+}
+
+/** A question with its reference left out: references differ on every issue. */
+function withoutRef<Q extends { item: { ref: string } }>(q: Q) {
+  return { ...q, item: { ...q.item, ref: expect.any(String) } };
+}
+
+function stepWithoutRef<S extends { kind: string }>(step: S) {
+  return 'question' in step && step.kind === 'question'
+    ? { ...step, question: withoutRef(step.question as { item: { ref: string } }) }
+    : step;
+}
+
 /** Answer the current question; right = pick the key. */
 async function answer(right: boolean) {
   const q = await currentQuestion();
-  const key = BANK.find((x) => x.id === q.item.id)?.key ?? 0;
+  const id = await idOf(q);
+  const key = BANK.find((x) => x.id === id)?.key ?? 0;
   return submitDiagnosticAnswerAction({
     attemptId: q.attemptId,
     position: q.position,
-    itemId: q.item.id,
+    itemRef: q.item.ref,
     choiceIndex: right ? key : (key + 1) % 4,
   });
 }
@@ -361,7 +382,7 @@ describe('access', () => {
         await submitDiagnosticAnswerAction({
           attemptId: 'a',
           position: 0,
-          itemId: 'q',
+          itemRef: 'q',
           dontKnow: true,
         }),
       ).toEqual({ ok: false, error: 'FORBIDDEN' });
@@ -372,10 +393,10 @@ describe('access', () => {
   it('rejects malformed input', async () => {
     const q = await currentQuestion();
     for (const bad of [
-      { attemptId: q.attemptId, position: 0, itemId: q.item.id, choiceIndex: 9 },
-      { attemptId: q.attemptId, position: 0, itemId: q.item.id, choiceIndex: 1.5 },
-      { attemptId: q.attemptId, position: 16, itemId: q.item.id, choiceIndex: 0 },
-      { attemptId: q.attemptId, position: 0, itemId: q.item.id, choiceIndex: 0, dontKnow: true },
+      { attemptId: q.attemptId, position: 0, itemRef: q.item.ref, choiceIndex: 9 },
+      { attemptId: q.attemptId, position: 0, itemRef: q.item.ref, choiceIndex: 1.5 },
+      { attemptId: q.attemptId, position: 16, itemRef: q.item.ref, choiceIndex: 0 },
+      { attemptId: q.attemptId, position: 0, itemRef: q.item.ref, choiceIndex: 0, dontKnow: true },
     ]) {
       expect(await submitDiagnosticAnswerAction(bad as never), JSON.stringify(bad)).toEqual({
         ok: false,
@@ -391,7 +412,7 @@ describe('access', () => {
       await submitDiagnosticAnswerAction({
         attemptId: q.attemptId,
         position: q.position,
-        itemId: q.item.id,
+        itemRef: q.item.ref,
         choiceIndex: 0,
       }),
     ).toEqual({ ok: false, error: 'NOT_IN_PROGRESS' });
@@ -404,8 +425,23 @@ describe('no feedback during the test', () => {
     const step = await startDiagnosticAction();
     expect(
       step.ok && step.value.kind === 'question' && Object.keys(step.value.question.item),
-    ).toEqual(['id', 'stem', 'choices']);
+    ).toEqual(['ref', 'stem', 'choices']);
     expectNoLeak(step);
+  });
+
+  it('a question never shows its item id, and so not its level (S2)', async () => {
+    for (let i = 0; i < 4; i++) {
+      const q = await currentQuestion();
+      const id = await idOf(q);
+      expect(JSON.stringify(q)).not.toContain(id);
+      expect(Buffer.from(q.item.ref, 'base64url').toString('latin1')).not.toContain(id);
+      // Bank ids here are `q-{axis}-{level}-{n}`, like `seed-diag-{axis}-{level}-{nn}`.
+      // The fixture's stem names its level on purpose (the real ones do not);
+      // the ref is random base64 and may contain "B1" by chance.
+      const rest = JSON.stringify({ ...q, item: { ...q.item, stem: '', ref: '' } });
+      for (const level of LEVELS) expect(rest, level).not.toContain(level);
+      await answer(true);
+    }
   });
 
   it('the reply to a right or a wrong answer looks the same and says nothing about it', async () => {
@@ -422,26 +458,54 @@ describe('the attempt', () => {
     await answer(true);
     const a = await currentQuestion();
     const b = await currentQuestion();
-    expect(b).toEqual(a);
+    expect(b).toEqual(withoutRef(a));
+    expect(await idOf(b)).toBe(await idOf(a));
     expect(a.position).toBe(1);
     expect(store.attempts).toHaveLength(1);
   });
 
   it('an answer to a question other than the current one is stale and not recorded', async () => {
     const q = await currentQuestion();
-    const other = BANK.find((x) => x.kind === 'GRAMMAR' && x.id !== q.item.id);
+    const id = await idOf(q);
+    const other = BANK.find((x) => x.kind === 'GRAMMAR' && x.id !== id);
     const res = await submitDiagnosticAnswerAction({
       attemptId: q.attemptId,
       position: q.position,
-      itemId: other?.id ?? '',
+      itemRef: await encryptItemRef({ itemId: other?.id ?? '', userId: 'u1' }),
       choiceIndex: 0,
     });
     expect(res).toEqual({
       ok: true,
-      value: { stale: true, step: { kind: 'question', question: q } },
+      value: { stale: true, step: { kind: 'question', question: withoutRef(q) } },
     });
     expect(store.attempts[0]?.answers).toHaveLength(0);
     expect(appendAnswer).not.toHaveBeenCalled();
+  });
+
+  it('a forged, foreign or expired reference is stale and not recorded', async () => {
+    const q = await currentQuestion();
+    const id = await idOf(q);
+    const now = Date.now();
+    for (const itemRef of [
+      // The raw id, as a client that guessed it would send it.
+      id,
+      // A valid reference to the right item, issued to another learner.
+      await encryptItemRef({ itemId: id, userId: 'u2' }),
+      // Issued for this learner more than 24 h ago.
+      await encryptItemRef({ itemId: id, userId: 'u1' }, now - ITEM_REF_TTL_MS - 1),
+    ]) {
+      const res = await submitDiagnosticAnswerAction({
+        attemptId: q.attemptId,
+        position: q.position,
+        itemRef,
+        choiceIndex: 0,
+      });
+      expect(res.ok && res.value.stale, itemRef).toBe(true);
+    }
+    expect(appendAnswer).not.toHaveBeenCalled();
+    // The fresh reference still works.
+    await answer(true);
+    expect(store.attempts[0]?.answers).toHaveLength(1);
   });
 
   it('a double submit lands on the same next step with one stored answer', async () => {
@@ -449,12 +513,14 @@ describe('the attempt', () => {
     const input = {
       attemptId: q.attemptId,
       position: q.position,
-      itemId: q.item.id,
+      itemRef: q.item.ref,
       choiceIndex: 0,
     };
     const first = await submitDiagnosticAnswerAction(input);
     const second = await submitDiagnosticAnswerAction(input);
-    expect(first.ok && second.ok && second.value.step).toEqual(first.ok && first.value.step);
+    expect(first.ok && second.ok && stepWithoutRef(second.value.step)).toEqual(
+      first.ok && stepWithoutRef(first.value.step),
+    );
     expect(store.attempts[0]?.answers).toHaveLength(1);
   });
 
@@ -463,14 +529,14 @@ describe('the attempt', () => {
     const input = {
       attemptId: q.attemptId,
       position: q.position,
-      itemId: q.item.id,
+      itemRef: q.item.ref,
       choiceIndex: 0,
     };
     const [a, b] = await Promise.all([
       submitDiagnosticAnswerAction(input),
       submitDiagnosticAnswerAction(input),
     ]);
-    expect(a.ok && a.value.step).toEqual(b.ok && b.value.step);
+    expect(a.ok && stepWithoutRef(a.value.step)).toEqual(b.ok && stepWithoutRef(b.value.step));
     expect(store.attempts[0]?.answers).toHaveLength(1);
   });
 
@@ -479,7 +545,7 @@ describe('the attempt', () => {
     await submitDiagnosticAnswerAction({
       attemptId: q.attemptId,
       position: q.position,
-      itemId: q.item.id,
+      itemRef: q.item.ref,
       choiceIndex: 2,
     });
     expect(store.attempts[0]?.answers[0]?.userAnswer).toBe('y');
@@ -491,7 +557,7 @@ describe('the attempt', () => {
     const res = await submitDiagnosticAnswerAction({
       attemptId: q.attemptId,
       position: q.position,
-      itemId: q.item.id,
+      itemRef: q.item.ref,
       choiceIndex: 4,
     });
     expect(res).toEqual({ ok: false, error: 'INVALID_CHOICE' });
@@ -503,7 +569,7 @@ describe('the attempt', () => {
     await submitDiagnosticAnswerAction({
       attemptId: q.attemptId,
       position: q.position,
-      itemId: q.item.id,
+      itemRef: q.item.ref,
       dontKnow: true,
     });
     expect(store.attempts[0]?.answers[0]).toMatchObject({
@@ -615,7 +681,7 @@ describe('peek (opening /diagnostic)', () => {
     startOrResumeAttempt.mockClear();
     expect(await peekDiagnosticStep('u1', new Date(), 'ru')).toEqual({
       ok: true,
-      value: { kind: 'question', question: current },
+      value: { kind: 'question', question: withoutRef(current) },
     });
     expect(startOrResumeAttempt).not.toHaveBeenCalled();
   });
@@ -639,7 +705,7 @@ describe('the result', () => {
         last = await submitDiagnosticAnswerAction({
           attemptId: q.attemptId,
           position: q.position,
-          itemId: q.item.id,
+          itemRef: q.item.ref,
           dontKnow: true,
         });
       }
@@ -879,7 +945,7 @@ describe('the review', () => {
         await submitDiagnosticAnswerAction({
           attemptId: q.attemptId,
           position: q.position,
-          itemId: q.item.id,
+          itemRef: q.item.ref,
           dontKnow: true,
         });
       } else await answer(i % 3 === 0);

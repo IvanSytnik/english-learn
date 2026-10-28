@@ -30,6 +30,7 @@ import {
   localized,
 } from '@englishlearn/db/schemas';
 import { buildPlacementReveal, nextLadderStep, TOTAL_QUESTIONS } from '@englishlearn/learner-model';
+import { decryptItemRef, encryptItemRef } from '@/lib/crypto/item-ref';
 import { contentLocale } from '@/lib/exercise/view';
 import { bootstrapService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
@@ -53,7 +54,11 @@ export type DiagnosticQuestionView = {
   /** 0-based; the learner sees position + 1 of `total`. */
   position: number;
   total: number;
-  item: { id: string; stem: string; choices: string[] };
+  /**
+   * `ref` is an opaque per-user token (`lib/crypto/item-ref.ts`), never the
+   * item id: bank ids carry the question's level (`seed-diag-grammar-b1-03`).
+   */
+  item: { ref: string; stem: string; choices: string[] };
 };
 
 /**
@@ -118,7 +123,7 @@ export type DiagnosticError =
   /** A new attempt needs the learner's native language first. */
   | 'NEEDS_LANGUAGE';
 
-export type DiagnosticAnswerInput = { attemptId: string; position: number; itemId: string } & (
+export type DiagnosticAnswerInput = { attemptId: string; position: number; itemRef: string } & (
   | { choiceIndex: number; dontKnow?: never }
   | { dontKnow: true; choiceIndex?: never }
 );
@@ -244,16 +249,22 @@ export async function submitDiagnosticAnswer(
   now: Date,
   locale: Locale,
 ): Promise<Result<DiagnosticSubmitOutcome, DiagnosticError>> {
-  const current = await stepOf(userId, input.attemptId, now, locale);
+  const current = await resolveStep(userId, input.attemptId, now, locale);
   if (!current.ok) return current;
   const expected = current.value;
+  // A reference that does not decrypt for this learner (expired in a tab left
+  // open, foreign, forged) is treated like any other stale answer: nothing is
+  // recorded and the current question comes back with a fresh reference.
+  const ref = await decryptItemRef(input.itemRef, userId, now.getTime());
   if (
     expected.kind !== 'question' ||
     expected.question.position !== input.position ||
-    expected.question.item.id !== input.itemId
+    !ref.ok ||
+    expected.itemId !== ref.value
   ) {
-    return { ok: true, value: { stale: true, step: expected } };
+    return { ok: true, value: { stale: true, step: toStep(expected) } };
   }
+  const itemId = expected.itemId;
 
   // The option as text, not its index: the review shows what the learner
   // picked even if the bank later reorders or rewrites the options.
@@ -263,7 +274,7 @@ export async function submitDiagnosticAnswer(
     const choice = expected.question.item.choices[input.choiceIndex];
     if (choice === undefined) return { ok: false, error: 'INVALID_CHOICE' };
     userAnswer = choice;
-    const verdict = await checkDiagnosticAnswer(input.itemId, input.choiceIndex);
+    const verdict = await checkDiagnosticAnswer(itemId, input.choiceIndex);
     if (!verdict) return { ok: false, error: 'ITEM_NOT_FOUND' };
     correct = verdict.correct;
   }
@@ -272,7 +283,7 @@ export async function submitDiagnosticAnswer(
     attemptId: input.attemptId,
     userId,
     position: input.position,
-    itemId: input.itemId,
+    itemId,
     correct,
     dontKnow: input.dontKnow === true,
     userAnswer,
@@ -286,13 +297,33 @@ export async function submitDiagnosticAnswer(
   return next.ok ? { ok: true, value: { stale: false, step: next.value } } : next;
 }
 
-/** Replay the attempt through the ladder; finalize it once all answers are in. */
+/** A step plus, for a question, the item id the client never sees. */
+type ResolvedStep =
+  | { kind: 'question'; question: DiagnosticQuestionView; itemId: string }
+  | { kind: 'completed'; result: DiagnosticResultView };
+
+/** Drop the server-only item id: built field by field, never a spread. */
+function toStep(step: ResolvedStep): DiagnosticStep {
+  return step.kind === 'question' ? { kind: 'question', question: step.question } : step;
+}
+
 async function stepOf(
   userId: string,
   attemptId: string,
   now: Date,
   locale: Locale,
 ): Promise<Result<DiagnosticStep, DiagnosticError>> {
+  const step = await resolveStep(userId, attemptId, now, locale);
+  return step.ok ? { ok: true, value: toStep(step.value) } : step;
+}
+
+/** Replay the attempt through the ladder; finalize it once all answers are in. */
+async function resolveStep(
+  userId: string,
+  attemptId: string,
+  now: Date,
+  locale: Locale,
+): Promise<Result<ResolvedStep, DiagnosticError>> {
   const state = await getAttemptState(prisma, attemptId, userId);
   if (state?.status === 'COMPLETED') {
     return { ok: true, value: await completedStep(userId, attemptId, locale, true) };
@@ -314,11 +345,16 @@ async function stepOf(
         ok: true,
         value: {
           kind: 'question',
+          itemId: item.id,
           question: {
             attemptId,
             position: step.position,
             total: TOTAL_QUESTIONS,
-            item: { id: item.id, stem: item.stem, choices: item.choices },
+            item: {
+              ref: await encryptItemRef({ itemId: item.id, userId }, now.getTime()),
+              stem: item.stem,
+              choices: item.choices,
+            },
           },
         },
       };
@@ -356,7 +392,7 @@ async function completedStep(
   attemptId: string,
   locale: Locale,
   bootstrap: boolean,
-): Promise<DiagnosticStep> {
+): Promise<{ kind: 'completed'; result: DiagnosticResultView }> {
   try {
     const facts = await getDiagnosticRevealFacts(prisma, { userId, attemptId });
     if (!facts) {

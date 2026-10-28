@@ -8,6 +8,7 @@ import type { WeekRhythm } from '@englishlearn/learner-model';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { decryptItemRef } from '@/lib/crypto/item-ref';
 import { loadNextExercise } from '@/lib/exercise/load';
 import { loadWeekRhythm } from '@/lib/exercise/rhythm';
 import {
@@ -28,10 +29,11 @@ import type { Result } from '@/lib/result';
 
 export type ExerciseActionError = 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'UNAVAILABLE';
 
-const ItemIdSchema = z.string().min(1).max(200);
+/** An opaque item reference (`lib/crypto/item-ref.ts`), never a raw id. */
+const ItemRefSchema = z.string().min(1).max(1024);
 
 const SubmitSchema = z.object({
-  itemId: ItemIdSchema,
+  itemRef: ItemRefSchema,
   answer: z.discriminatedUnion('type', [
     z.object({ type: z.literal('choice'), index: z.number().int().min(0).max(3) }),
     z.object({ type: z.literal('text'), value: z.string().max(200) }),
@@ -54,20 +56,28 @@ async function currentLocale() {
   return isLocale(locale) ? locale : 'en';
 }
 
-/** The next exercise for the signed-in learner, skipping recently shown items. */
+/**
+ * The next exercise for the signed-in learner, skipping recently shown items.
+ * The recent list only steers selection: a reference that does not decrypt
+ * for this learner (expired, foreign, forged) is dropped, not an error.
+ */
 export async function nextExercise(
-  recentItemIds: string[],
+  recentItemRefs: string[],
 ): Promise<Result<ExerciseView | null, ExerciseActionError>> {
   const session = await auth();
   if (!session?.user) return { ok: false, error: 'UNAUTHENTICATED' };
+  const userId = session.user.id;
 
-  const parsed = z.array(ItemIdSchema).max(20).safeParse(recentItemIds);
+  const parsed = z.array(ItemRefSchema).max(20).safeParse(recentItemRefs);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
+  const recent = await Promise.all(
+    parsed.data.slice(-RECENT_EXCLUDE).map((ref) => decryptItemRef(ref, userId)),
+  );
 
   const view = await loadNextExercise({
-    userId: session.user.id,
+    userId,
     locale: await currentLocale(),
-    excludeItemIds: parsed.data.slice(-RECENT_EXCLUDE),
+    excludeItemIds: recent.flatMap((r) => (r.ok ? [r.value] : [])),
   });
   return { ok: true, value: view };
 }
@@ -84,7 +94,11 @@ export async function submitExerciseAttempt(
 
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  const { itemId, answer, timeMs, hinted, attemptKey } = parsed.data;
+  const { itemRef, answer, timeMs, hinted, attemptKey } = parsed.data;
+  // Forged, foreign or expired: nothing is recorded.
+  const ref = await decryptItemRef(itemRef, session.user.id);
+  if (!ref.ok) return { ok: false, error: 'INVALID' };
+  const itemId = ref.value;
 
   const [item, nativeLanguage] = await Promise.all([
     getPublishedPracticeItem(itemId),

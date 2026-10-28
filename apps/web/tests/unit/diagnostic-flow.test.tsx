@@ -36,11 +36,11 @@ vi.mock('@/i18n/navigation', () => ({
 
 const { DiagnosticFlow } = await import('@/app/[locale]/(student)/diagnostic/diagnostic-flow');
 
-const question = (position: number, id = `q${position}`): DiagnosticQuestionView => ({
+const question = (position: number, ref = `ref-q${position}`): DiagnosticQuestionView => ({
   attemptId: 'att-1',
   position,
   total: 16,
-  item: { id, stem: `Sentence ${position} ___ here.`, choices: ['am', 'is', 'are', 'be'] },
+  item: { ref, stem: `Sentence ${position} ___ here.`, choices: ['am', 'is', 'are', 'be'] },
 });
 const asStep = (q: DiagnosticQuestionView) => ({ kind: 'question' as const, question: q });
 const reply = (step: unknown, stale = false) => ({ ok: true, value: { stale, step } });
@@ -120,7 +120,7 @@ describe('DiagnosticFlow', () => {
     expect(submitDiagnosticAnswerAction).toHaveBeenCalledWith({
       attemptId: 'att-1',
       position: 0,
-      itemId: 'q0',
+      itemRef: 'ref-q0',
       choiceIndex: 1,
     });
     expect(document.body.textContent).not.toMatch(/correct|right|wrong|incorrect/i);
@@ -175,7 +175,7 @@ describe('DiagnosticFlow', () => {
     await pressed;
     await waitFor(() => expect(submitDiagnosticAnswerAction).toHaveBeenCalledTimes(2));
     expect(submitDiagnosticAnswerAction).toHaveBeenLastCalledWith(
-      expect.objectContaining({ position: 1, itemId: 'q1', dontKnow: true }),
+      expect.objectContaining({ position: 1, itemRef: 'ref-q1', dontKnow: true }),
     );
   });
 
@@ -300,7 +300,7 @@ describe('DiagnosticFlow: a lost answer is resent, not a crash', () => {
     expect(submitDiagnosticAnswerAction.mock.calls[1]?.[0]).toEqual({
       attemptId: 'att-1',
       position: 0,
-      itemId: 'q0',
+      itemRef: 'ref-q0',
       choiceIndex: 2,
     });
     expect(screen.queryByRole('alert')).toBeNull();

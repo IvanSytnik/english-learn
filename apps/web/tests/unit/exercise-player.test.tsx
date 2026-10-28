@@ -28,7 +28,7 @@ vi.mock('@/i18n/navigation', () => ({
 const { ExercisePlayer } = await import('@/app/[locale]/(student)/exercises/exercise-player');
 
 const choiceView: ExerciseView = {
-  itemId: 'item.a',
+  itemRef: 'ref-item.a',
   conceptTitle: 'Past Simple',
   reason: 'REVIEW_DUE',
   isNewConcept: false,
@@ -42,7 +42,7 @@ const choiceView: ExerciseView = {
 };
 const clozeView: ExerciseView = {
   ...choiceView,
-  itemId: 'item.b',
+  itemRef: 'ref-item.b',
   question: { type: 'cloze', prompt: 'There are three ___ on the shelf. (box)' },
 };
 const feedback: ExerciseFeedback = {
@@ -144,7 +144,7 @@ describe('ExercisePlayer', () => {
     key('Enter');
     await waitFor(() =>
       expect(submitExerciseAttempt).toHaveBeenCalledWith(
-        expect.objectContaining({ itemId: 'item.a', answer: { type: 'choice', index: 3 } }),
+        expect.objectContaining({ itemRef: 'ref-item.a', answer: { type: 'choice', index: 3 } }),
       ),
     );
     expect(await screen.findByText('Correct')).toBeInTheDocument();
@@ -195,7 +195,7 @@ describe('ExercisePlayer', () => {
     key('Enter');
     await onFeedback('Correct');
     key('Enter');
-    await waitFor(() => expect(nextExercise).toHaveBeenCalledWith(['item.a']));
+    await waitFor(() => expect(nextExercise).toHaveBeenCalledWith(['ref-item.a']));
     expect(await onClozeQuestion()).toBeInTheDocument();
   });
 
@@ -339,7 +339,7 @@ describe('ExercisePlayer', () => {
 });
 
 describe('ExercisePlayer — the hint is recorded (§8 #11)', () => {
-  const secondView: ExerciseView = { ...choiceView, itemId: 'item.c' };
+  const secondView: ExerciseView = { ...choiceView, itemRef: 'ref-item.c' };
   const sent = (n: number) => submitExerciseAttempt.mock.calls[n]?.[0]?.hinted;
   const onChoiceQuestion = async () => {
     const prompt = document.getElementById('exercise-prompt');
@@ -513,7 +513,10 @@ describe('ExercisePlayer — a lost request is resent with the same key', () => 
   });
 
   it('the next question gets a new key', async () => {
-    nextExercise.mockResolvedValueOnce({ ok: true, value: { ...choiceView, itemId: 'item.c' } });
+    nextExercise.mockResolvedValueOnce({
+      ok: true,
+      value: { ...choiceView, itemRef: 'ref-item.c' },
+    });
     renderPlayer(choiceView);
     key('4');
     key('Enter');
@@ -525,7 +528,7 @@ describe('ExercisePlayer — a lost request is resent with the same key', () => 
     key('4');
     key('Enter');
     await waitFor(() => expect(submitExerciseAttempt).toHaveBeenCalledTimes(2));
-    expect(sent(1).itemId).toBe('item.c');
+    expect(sent(1).itemRef).toBe('ref-item.c');
     expect(sent(1).attemptKey).toMatch(UUID);
     expect(sent(1).attemptKey).not.toBe(sent(0).attemptKey);
   });
@@ -566,7 +569,7 @@ describe('ExercisePlayer — a lost next question is loaded again', () => {
 
     expect(nextExercise).toHaveBeenCalledTimes(2);
     expect(nextExercise.mock.calls[1]).toEqual(nextExercise.mock.calls[0]);
-    expect(nextExercise.mock.calls[1]?.[0]).toEqual(['item.a']);
+    expect(nextExercise.mock.calls[1]?.[0]).toEqual(['ref-item.a']);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText('Correct')).toBeNull();
   });

@@ -4,6 +4,7 @@ import { prisma } from '@englishlearn/db';
 import { getConceptTitles, getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
 import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import type { Locale } from '@englishlearn/db/schemas';
+import { encryptItemRef } from '@/lib/crypto/item-ref';
 import { selectionService } from '@/lib/learner';
 import { contentLocale, type ExerciseView, hintFor, reasonDetail, toQuestion } from './view';
 
@@ -42,7 +43,7 @@ export async function loadNextExercise(args: {
   );
 
   return {
-    itemId: item.id,
+    itemRef: await encryptItemRef({ itemId: item.id, userId: args.userId }, now),
     conceptTitle: titles.get(selection.conceptId) ?? item.concept.name,
     reason: selection.reason,
     isNewConcept: selection.isNewConcept,
