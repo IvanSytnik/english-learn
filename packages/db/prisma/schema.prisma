@@ -35,6 +35,8 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   passwordHash  String?
+  passwordChangedAt DateTime?
+  signupSource  String?
   name          String?
   image         String?
   role          UserRole  @default(STUDENT)
@@ -247,8 +249,8 @@ model VocabExercise {
   updatedAt     DateTime       @updatedAt
 
   skillTag    SkillTag?      @relation(fields: [skillTagId], references: [id])
-  createdBy   User?          @relation("VocabCreatedBy", fields: [createdById], references: [id])
-  reviewedBy  User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id])
+  createdBy   User?          @relation("VocabCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy  User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   attempts    VocabAttempt[]
 
   @@index([cefrLevel, status])
@@ -294,8 +296,8 @@ model GrammarExercise {
   updatedAt     DateTime       @updatedAt
 
   skillTag    SkillTag?        @relation(fields: [skillTagId], references: [id])
-  createdBy   User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id])
-  reviewedBy  User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id])
+  createdBy   User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy  User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   attempts    GrammarAttempt[]
 
   @@index([cefrLevel, status])
@@ -341,8 +343,8 @@ model ListeningExercise {
   updatedAt     DateTime       @updatedAt
 
   skillTag    SkillTag?           @relation(fields: [skillTagId], references: [id])
-  createdBy   User?               @relation("ListeningCreatedBy", fields: [createdById], references: [id])
-  reviewedBy  User?               @relation("ListeningReviewedBy", fields: [reviewedById], references: [id])
+  createdBy   User?               @relation("ListeningCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy  User?               @relation("ListeningReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   attempts    ListeningAttempt[]
 
   @@index([cefrLevel, status])
@@ -403,8 +405,8 @@ model DiagnosticItem {
   updatedAt     DateTime       @updatedAt
 
   skillTag    SkillTag?            @relation(fields: [skillTagId], references: [id])
-  createdBy   User?                @relation("DiagnosticCreatedBy", fields: [createdById], references: [id])
-  reviewedBy  User?                @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id])
+  createdBy   User?                @relation("DiagnosticCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy  User?                @relation("DiagnosticReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   answers     DiagnosticAnswer[]
 
   @@index([cefrLevel, kind, status])
