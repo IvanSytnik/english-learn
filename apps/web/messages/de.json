@@ -266,5 +266,14 @@
     "successMessage": "Danke! Dein Feedback wurde gesendet.",
     "errorMessage": "Dein Feedback konnte nicht gesendet werden. Bitte versuche es erneut.",
     "charCount": "{count} / {max} Zeichen"
+  },
+  "email": {
+    "passwordReset": {
+      "subject": "EnglishLearn-Passwort zurücksetzen",
+      "intro": "Wir haben eine Anfrage erhalten, das Passwort deines EnglishLearn-Kontos zurückzusetzen. Öffne den Link, um ein neues festzulegen:",
+      "action": "Neues Passwort festlegen",
+      "expiry": "Der Link funktioniert einmal und läuft nach 1 Stunde ab.",
+      "ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail — dein Passwort bleibt unverändert."
+    }
   }
 }

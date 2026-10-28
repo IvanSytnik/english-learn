@@ -17,7 +17,16 @@
     "build": {
       "dependsOn": ["^build", "^db:generate"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["NEXT_PUBLIC_*", "DATABASE_URL", "DIRECT_URL", "AUTH_SECRET", "SKIP_ENV_VALIDATION"]
+      "env": [
+        "NEXT_PUBLIC_*",
+        "DATABASE_URL",
+        "DIRECT_URL",
+        "AUTH_SECRET",
+        "SKIP_ENV_VALIDATION",
+        "RESEND_API_KEY",
+        "EMAIL_FROM",
+        "APP_URL"
+      ]
     },
     "dev": {
       "cache": false,

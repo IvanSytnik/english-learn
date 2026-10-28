@@ -3,11 +3,17 @@ import NextAuth from 'next-auth';
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { collapseSlashes, resolveAccess } from './lib/access';
+import { jwtWithRevocation } from './lib/auth/session-revocation';
 import { authConfig } from './lib/auth.config';
 
 const intl = createIntlMiddleware(routing);
 
-const { auth } = NextAuth(authConfig);
+// Same revocation check as lib/auth.ts: a session from before a password
+// change is cleared here, so the gate below treats it as a guest.
+const { auth } = NextAuth({
+  ...authConfig,
+  callbacks: { ...authConfig.callbacks, jwt: jwtWithRevocation },
+});
 
 /**
  * Next.js 16: `proxy.ts` replaces `middleware.ts`.

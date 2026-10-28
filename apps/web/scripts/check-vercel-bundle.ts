@@ -20,7 +20,8 @@ import path from 'node:path';
 
 const repoRoot = path.resolve(import.meta.dirname, '../../..');
 const outDir = path.resolve(process.argv[2] ?? path.join(import.meta.dirname, '../.vercel/output'));
-const FUNCTIONS = ['api/health.func', '[locale]/register.func'];
+// _middleware.func is proxy.ts: its session-revocation check queries the DB.
+const FUNCTIONS = ['api/health.func', '[locale]/register.func', '_middleware.func'];
 
 type VcConfig = { handler: string; runtime?: string; filePathMap?: Record<string, string> };
 

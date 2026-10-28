@@ -40,6 +40,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
+    "resend": "catalog:",
     "server-only": "catalog:",
     "tailwind-merge": "catalog:",
     "zod": "catalog:",

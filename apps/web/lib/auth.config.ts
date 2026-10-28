@@ -1,8 +1,9 @@
 import type { NextAuthConfig } from 'next-auth';
 
 /**
- * Edge-safe Auth.js config (used in proxy.ts).
- * No database adapter here — that goes in lib/auth.ts.
+ * DB-free Auth.js config shared by proxy.ts and lib/auth.ts.
+ * No database adapter here — that goes in lib/auth.ts. Both wrap the jwt
+ * callback with the password-change revocation (lib/auth/session-revocation.ts).
  * No `authorized` callback: when proxy.ts passes a handler to `auth()`, Auth.js
  * ignores a `false` result, so the session gate lives in lib/access.ts instead.
  */

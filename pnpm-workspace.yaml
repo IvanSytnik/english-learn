@@ -66,6 +66,9 @@ catalog:
   # Error monitoring (no-op without a DSN)
   "@sentry/nextjs": "11.7.0"
 
+  # Transactional email (password reset; console fallback without a key)
+  resend: "4.8.0"
+
   # Testing
   vitest: "4.1.9"
   "@vitest/coverage-v8": "4.1.9"

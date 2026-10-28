@@ -20,6 +20,11 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().optional(),
     // Optional: without a DSN Sentry stays disabled (sentry.*.config.ts).
     SENTRY_DSN: z.string().url().optional(),
+    // Optional: without a key the mailer logs the reset link instead (dev, tests).
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().default('EnglishLearn <noreply@sytnik-studio.com>'),
+    // Origin for links in emails. Never taken from the request Host (reset-link poisoning).
+    APP_URL: z.string().url().default('http://localhost:3000'),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   },
   client: {
