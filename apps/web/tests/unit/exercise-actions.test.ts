@@ -84,12 +84,39 @@ const recorded = (over = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  auth.mockResolvedValue({ user: { id: 'user_1' } });
+  auth.mockResolvedValue({ user: { id: 'user_1', role: 'STUDENT' } });
   getPublishedPracticeItem.mockResolvedValue(item);
   recordOutcome.mockResolvedValue(recorded());
   getLocale.mockResolvedValue('ru');
   // Not chosen: the "why" follows the interface locale, as before the choice existed.
   getNativeLanguage.mockResolvedValue(null);
+});
+
+describe('only learners practise (S5)', () => {
+  it.each([
+    'TUTOR',
+    'ADMIN',
+  ])('a %s is refused by both actions, with nothing read or recorded', async (role) => {
+    auth.mockResolvedValue({ user: { id: 'user_1', role } });
+    expect(await submitExerciseAttempt({ itemRef: REF, answer: { type: 'dontKnow' } })).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(await nextExercise([])).toEqual({ ok: false, error: 'FORBIDDEN' });
+    expect(getPublishedPracticeItem).not.toHaveBeenCalled();
+    expect(recordOutcome).not.toHaveBeenCalled();
+    expect(loadNextExercise).not.toHaveBeenCalled();
+  });
+
+  it('a session without a role is refused', async () => {
+    auth.mockResolvedValue({ user: { id: 'user_1' } });
+    expect(await submitExerciseAttempt({ itemRef: REF, answer: { type: 'dontKnow' } })).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(await nextExercise([])).toEqual({ ok: false, error: 'FORBIDDEN' });
+    expect(recordOutcome).not.toHaveBeenCalled();
+  });
 });
 
 describe('submitExerciseAttempt', () => {

@@ -8,6 +8,7 @@ import type { WeekRhythm } from '@englishlearn/learner-model';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { authorizeAction } from '@/lib/authz';
 import { decryptItemRef } from '@/lib/crypto/item-ref';
 import { loadNextExercise } from '@/lib/exercise/load';
 import { loadWeekRhythm } from '@/lib/exercise/rhythm';
@@ -27,7 +28,13 @@ import {
 import { learnerService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 
-export type ExerciseActionError = 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'UNAVAILABLE';
+export type ExerciseActionError =
+  | 'UNAUTHENTICATED'
+  /** Signed in, but not a learner: practice writes to the learner model. */
+  | 'FORBIDDEN'
+  | 'INVALID'
+  | 'NOT_FOUND'
+  | 'UNAVAILABLE';
 
 /** An opaque item reference (`lib/crypto/item-ref.ts`), never a raw id. */
 const ItemRefSchema = z.string().min(1).max(1024);
@@ -64,9 +71,9 @@ async function currentLocale() {
 export async function nextExercise(
   recentItemRefs: string[],
 ): Promise<Result<ExerciseView | null, ExerciseActionError>> {
-  const session = await auth();
-  if (!session?.user) return { ok: false, error: 'UNAUTHENTICATED' };
-  const userId = session.user.id;
+  const user = await authorizeAction('STUDENT');
+  if (!user.ok) return user;
+  const userId = user.value.id;
 
   const parsed = z.array(ItemRefSchema).max(20).safeParse(recentItemRefs);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
@@ -89,25 +96,26 @@ export async function nextExercise(
 export async function submitExerciseAttempt(
   input: z.input<typeof SubmitSchema>,
 ): Promise<Result<ExerciseFeedback, ExerciseActionError>> {
-  const session = await auth();
-  if (!session?.user) return { ok: false, error: 'UNAUTHENTICATED' };
+  const user = await authorizeAction('STUDENT');
+  if (!user.ok) return user;
+  const userId = user.value.id;
 
   const parsed = SubmitSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
   const { itemRef, answer, timeMs, hinted, attemptKey } = parsed.data;
   // Forged, foreign or expired: nothing is recorded.
-  const ref = await decryptItemRef(itemRef, session.user.id);
+  const ref = await decryptItemRef(itemRef, userId);
   if (!ref.ok) return { ok: false, error: 'INVALID' };
   const itemId = ref.value;
 
   const [item, nativeLanguage] = await Promise.all([
     getPublishedPracticeItem(itemId),
-    getNativeLanguage(prisma, session.user.id),
+    getNativeLanguage(prisma, userId),
   ]);
   if (!item) return { ok: false, error: 'NOT_FOUND' };
 
   const graded = gradeAnswer(item.practice, answer);
-  const base = { userId: session.user.id, itemId, timeMs, hinted, idempotencyKey: attemptKey };
+  const base = { userId: userId, itemId, timeMs, hinted, idempotencyKey: attemptKey };
   const recorded = await learnerService.recordOutcome(
     graded === 'dontKnow'
       ? { ...base, dontKnow: true }
