@@ -1,5 +1,12 @@
 export { ConceptTitleSchema, getConceptTitle } from './concept';
 export * from './exercises';
+export {
+  type CreateBetaFeedback,
+  type CreateBetaFeedbackInput,
+  CreateBetaFeedbackSchema,
+  FeedbackKindSchema,
+  type FeedbackKindValue,
+} from './feedback';
 export * from './items';
 export * from './learner-events';
 export {
