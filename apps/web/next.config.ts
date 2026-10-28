@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { withSentryConfig } from '@sentry/nextjs/config';
 import createNextIntlPlugin from 'next-intl/plugin';
 // Fail the build early on missing/invalid env vars.
 import './lib/env';
@@ -28,4 +29,11 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['bcryptjs'],
 };
 
-export default withNextIntl(nextConfig);
+// No authToken: source maps are not uploaded, so the build needs no Sentry secrets.
+// The tunnel proxies browser events through our origin (ad blockers drop sentry.io);
+// proxy.ts's matcher skips it.
+export default withSentryConfig(withNextIntl(nextConfig), {
+  silent: true,
+  telemetry: false,
+  tunnelRoute: '/monitoring',
+});

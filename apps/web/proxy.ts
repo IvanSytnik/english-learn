@@ -33,10 +33,11 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Everything except API routes, Next internals and real static assets.
+  // Everything except API routes, Next internals, the Sentry tunnel
+  // (next.config.ts `tunnelRoute`) and real static assets.
   // Only known asset extensions are skipped: a dot elsewhere in a path
   // (e.g. /admin/users/jane.doe) must still go through the proxy.
   matcher: [
-    '/((?!api|_next|_vercel|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|css|js|map|txt|xml|webmanifest|woff|woff2)$).*)',
+    '/((?!api|_next|_vercel|monitoring|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|css|js|map|txt|xml|webmanifest|woff|woff2)$).*)',
   ],
 };

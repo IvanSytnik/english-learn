@@ -63,6 +63,9 @@ catalog:
   # Build-time guard against importing server modules into client components
   server-only: "0.0.1"
 
+  # Error monitoring (no-op without a DSN)
+  "@sentry/nextjs": "11.7.0"
+
   # Testing
   vitest: "4.1.9"
   "@vitest/coverage-v8": "4.1.9"

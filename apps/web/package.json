@@ -27,6 +27,7 @@
     "@englishlearn/ui": "workspace:*",
     "@hookform/resolvers": "catalog:",
     "@prisma/client": "catalog:",
+    "@sentry/nextjs": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
     "@tanstack/react-query": "catalog:",
     "bcryptjs": "catalog:",

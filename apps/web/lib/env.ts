@@ -18,10 +18,16 @@ export const env = createEnv({
     AUTH_GOOGLE_SECRET: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
+    // Optional: without a DSN Sentry stays disabled (sentry.*.config.ts).
+    SENTRY_DSN: z.string().url().optional(),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   },
-  client: {},
-  experimental__runtimeEnv: {},
+  client: {
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  },
+  experimental__runtimeEnv: {
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,
 });

@@ -1,7 +1,9 @@
 'use client';
 
 import { Button } from '@englishlearn/ui';
+import * as Sentry from '@sentry/nextjs';
 import { useTranslations } from 'next-intl';
+import { useEffect } from 'react';
 
 /**
  * Error boundary for every page under [locale]. The root layout (and its
@@ -9,12 +11,17 @@ import { useTranslations } from 'next-intl';
  * itself is never rendered: its message may carry server internals.
  */
 export default function LocaleError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
   const t = useTranslations('errors');
+
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center p-6">

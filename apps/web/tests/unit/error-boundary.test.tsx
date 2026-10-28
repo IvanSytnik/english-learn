@@ -1,17 +1,23 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { describe, expect, it, vi } from 'vitest';
-import LocaleError from '@/app/[locale]/error';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../messages/en.json';
 import ru from '../../messages/ru.json';
 
+const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
+vi.mock('@sentry/nextjs', () => ({ captureException }));
+
+const { default: LocaleError } = await import('@/app/[locale]/error');
+
 const SECRET = 'connect ECONNREFUSED 10.0.0.5:5432 at PrismaClient.query';
 
-function renderError(locale: 'en' | 'ru', reset = vi.fn()) {
+beforeEach(() => vi.clearAllMocks());
+
+function renderError(locale: 'en' | 'ru', reset = vi.fn(), error = new Error(SECRET)) {
   const messages = locale === 'en' ? en : ru;
   render(
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <LocaleError error={Object.assign(new Error(SECRET), { digest: 'abc123' })} reset={reset} />
+      <LocaleError error={Object.assign(error, { digest: 'abc123' })} reset={reset} />
     </NextIntlClientProvider>,
   );
   return reset;
@@ -32,6 +38,12 @@ describe('[locale]/error.tsx', () => {
     const reset = renderError('en');
     fireEvent.click(screen.getByRole('button', { name: en.errors.retry }));
     expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the error to Sentry once', () => {
+    const error = new Error(SECRET);
+    renderError('en', vi.fn(), error);
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error);
   });
 
   it('never shows the raw error message', () => {
