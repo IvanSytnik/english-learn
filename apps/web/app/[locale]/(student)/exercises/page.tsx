@@ -22,6 +22,8 @@ export default async function ExercisesPage({
   const locale = await getLocale();
   const session = await auth();
   if (!session?.user) return redirect({ href: '/login', locale });
+  // Practice reads and writes the learner model, which only students have.
+  if (session.user.role !== 'STUDENT') return redirect({ href: '/dashboard', locale });
 
   // No valid length yet (missing, unknown or repeated ?minutes=): ask first.
   const minutes = parseSessionMinutes((await searchParams).minutes);
