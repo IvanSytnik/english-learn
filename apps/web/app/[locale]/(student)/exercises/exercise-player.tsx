@@ -21,6 +21,7 @@ import type {
   ExerciseView,
   ReasonDetail,
 } from '@/lib/exercise/view';
+import { FeedbackDialog } from '../_components/feedback-dialog';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
 import { nextExercise, submitExerciseAttempt } from './actions';
 import { SessionSummary } from './session-summary';
@@ -40,6 +41,7 @@ export function ExercisePlayer({
   sessionLength: number;
 }) {
   const t = useTranslations('learning');
+  const tf = useTranslations('feedback');
   const router = useRouter();
   const [, startTransition] = useTransition();
 
@@ -62,6 +64,8 @@ export function ExercisePlayer({
   // The next question never came back (network drop): feedback stays, with a
   // Retry. Cleared by the next load.
   const [nextFailed, setNextFailed] = useState(false);
+  // The "Report an issue" dialog, about the question on screen.
+  const [reportOpen, setReportOpen] = useState(false);
 
   const shownAt = useRef(Date.now());
   // One request at a time. Set synchronously before calling an action, so a
@@ -475,6 +479,23 @@ export function ExercisePlayer({
           </button>
         </div>
       ) : null}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setReportOpen(true)}
+          className="text-xs text-ink-muted underline-offset-4 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          data-report-issue=""
+        >
+          {tf('reportIssue')}
+        </button>
+      </div>
+      <FeedbackDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        initialKind="CONTENT_ERROR"
+        itemRef={view.itemRef}
+      />
     </main>
   );
 }

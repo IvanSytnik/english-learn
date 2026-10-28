@@ -229,6 +229,7 @@
   },
   "feedback": {
     "trigger": "Feedback",
+    "reportIssue": "Report an issue",
     "title": "Send feedback",
     "kindLabel": "What is it about?",
     "kinds": {

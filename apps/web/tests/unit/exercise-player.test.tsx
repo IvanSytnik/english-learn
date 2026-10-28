@@ -1,16 +1,19 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExerciseFeedback, ExerciseView } from '@/lib/exercise/view';
 import en from '../../messages/en.json';
 
-const { submitExerciseAttempt, nextExercise, weekRhythm, push } = vi.hoisted(() => ({
-  submitExerciseAttempt: vi.fn(),
-  nextExercise: vi.fn(),
-  weekRhythm: vi.fn(),
-  push: vi.fn(),
-}));
+const { submitExerciseAttempt, nextExercise, weekRhythm, push, submitBetaFeedbackAction } =
+  vi.hoisted(() => ({
+    submitExerciseAttempt: vi.fn(),
+    nextExercise: vi.fn(),
+    weekRhythm: vi.fn(),
+    push: vi.fn(),
+    submitBetaFeedbackAction: vi.fn(),
+  }));
+vi.mock('@/app/[locale]/(student)/actions/feedback', () => ({ submitBetaFeedbackAction }));
 vi.mock('@/app/[locale]/(student)/exercises/actions', () => ({
   submitExerciseAttempt,
   nextExercise,
@@ -597,5 +600,74 @@ describe('ExercisePlayer — a lost next question is loaded again', () => {
     button.click();
     await onClozeQuestion();
     expect(nextExercise).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ExercisePlayer — report an issue about the question on screen', () => {
+  // jsdom has HTMLDialogElement but no modal behaviour (see feedback-dialog.test.tsx).
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+      this.open = false;
+      this.dispatchEvent(new Event('close'));
+    };
+  });
+  beforeEach(() => {
+    submitBetaFeedbackAction.mockResolvedValue({ ok: true, value: undefined });
+  });
+
+  const report = async (text: string) => {
+    fireEvent.click(screen.getByRole('button', { name: en.feedback.reportIssue }));
+    expect(screen.getByRole('radio', { name: en.feedback.kinds.contentError })).toBeChecked();
+    fireEvent.change(screen.getByRole('textbox', { name: en.feedback.textLabel }), {
+      target: { value: text },
+    });
+    fireEvent.click(screen.getByRole('button', { name: en.feedback.submit }));
+    await screen.findByText(en.feedback.successMessage);
+  };
+
+  it('sends a content error with the reference of the current question', async () => {
+    renderPlayer(choiceView);
+    await report('Two options are correct here');
+    expect(submitBetaFeedbackAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'CONTENT_ERROR',
+        text: 'Two options are correct here',
+        itemRef: 'ref-item.a',
+      }),
+    );
+    // Only the opaque reference: no raw id is ever sent from the player.
+    expect(Object.keys(submitBetaFeedbackAction.mock.calls[0]?.[0] ?? {})).not.toContain('itemId');
+  });
+
+  it('after Continue, a report is about the new question', async () => {
+    nextExercise.mockResolvedValueOnce({
+      ok: true,
+      value: { ...choiceView, itemRef: 'ref-item.c' },
+    });
+    renderPlayer(choiceView);
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    key('Enter');
+    // The next question is on screen once its prompt holds focus and the feedback is gone.
+    await waitFor(() => expect(document.getElementById('exercise-prompt')).toHaveFocus());
+    await waitFor(() => expect(screen.queryByText('Correct')).toBeNull());
+    await report('Typo in the sentence');
+    expect(submitBetaFeedbackAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ itemRef: 'ref-item.c' }),
+    );
+  });
+
+  it('Esc and digits typed in the dialog do not pause or answer the session', () => {
+    renderPlayer(choiceView);
+    fireEvent.click(screen.getByRole('button', { name: en.feedback.reportIssue }));
+    const field = screen.getByRole('textbox', { name: en.feedback.textLabel });
+    key('1', field);
+    key('Escape', field);
+    expect(push).not.toHaveBeenCalled();
+    expect(submitExerciseAttempt).not.toHaveBeenCalled();
   });
 });

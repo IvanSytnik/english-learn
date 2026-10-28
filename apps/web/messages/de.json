@@ -229,6 +229,7 @@
   },
   "feedback": {
     "trigger": "Feedback",
+    "reportIssue": "Problem melden",
     "title": "Feedback senden",
     "kindLabel": "Worum geht es?",
     "kinds": {
