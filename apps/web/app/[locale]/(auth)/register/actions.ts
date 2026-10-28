@@ -2,11 +2,14 @@
 
 import { Prisma, prisma } from '@englishlearn/db';
 import { hash } from 'bcryptjs';
+import { headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
 import { z } from 'zod';
 import { signIn } from '@/lib/auth';
+import { clientIp, withinAuthLimits } from '@/lib/auth/rate-limit';
 import { redirectAfterAuth } from '@/lib/auth-redirect';
 import type { Result } from '@/lib/result';
+import { HONEYPOT_FIELD } from './honeypot';
 
 // Issue messages are error codes, localized by the form (auth.register.errors.<field>.<code>).
 const registerSchema = z.object({
@@ -17,7 +20,7 @@ const registerSchema = z.object({
 
 export type RegisterField = keyof z.input<typeof registerSchema>;
 export type RegisterFieldError = 'REQUIRED' | 'INVALID' | 'TOO_SHORT' | 'TOO_LONG';
-export type RegisterError = 'VALIDATION' | 'EMAIL_TAKEN' | 'AUTH_FAILED';
+export type RegisterError = 'VALIDATION' | 'EMAIL_TAKEN' | 'RATE_LIMITED' | 'AUTH_FAILED';
 export type RegisterState =
   | (Result<never, RegisterError> & {
       fieldErrors?: Partial<Record<RegisterField, RegisterFieldError>>;
@@ -30,6 +33,9 @@ export async function registerUser(
   _prev: RegisterState,
   formData: FormData,
 ): Promise<RegisterState> {
+  // A bot gets what a sign-up looks like — the redirect — and nothing is written.
+  if (formData.get(HONEYPOT_FIELD)) return redirectAfterAuth(formData.get('callbackUrl'));
+
   const raw = {
     name: formData.get('name'),
     email: formData.get('email'),
@@ -52,6 +58,11 @@ export async function registerUser(
   const { name, email, password } = parsed.data;
 
   try {
+    // Counted before the lookup, so EMAIL_TAKEN cannot be probed past the limit.
+    if (!(await withinAuthLimits([['register:ip', clientIp(await headers())]]))) {
+      return { ok: false, error: 'RATE_LIMITED', values };
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return { ok: false, error: 'EMAIL_TAKEN', values };

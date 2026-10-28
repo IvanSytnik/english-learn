@@ -8,7 +8,7 @@ export default async function LoginPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const t = await getTranslations('auth.login');
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, reset } = await searchParams;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md items-center justify-center p-6">
@@ -18,7 +18,10 @@ export default async function LoginPage({
         </CardHeader>
         <CardContent>
           {/* Validated by the action (isSafeCallbackPath), not here. */}
-          <LoginForm callbackUrl={typeof callbackUrl === 'string' ? callbackUrl : undefined} />
+          <LoginForm
+            callbackUrl={typeof callbackUrl === 'string' ? callbackUrl : undefined}
+            passwordReset={reset === '1'}
+          />
         </CardContent>
       </Card>
     </main>

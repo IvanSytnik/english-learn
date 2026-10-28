@@ -26,8 +26,11 @@
       "signUp": "Registrieren",
       "errors": {
         "invalidCredentials": "E-Mail oder Passwort ist falsch.",
-        "generic": "Anmeldung fehlgeschlagen. Bitte versuche es erneut."
-      }
+        "generic": "Anmeldung fehlgeschlagen. Bitte versuche es erneut.",
+        "rateLimited": "Zu viele Anmeldeversuche. Warte ein paar Minuten und versuche es erneut."
+      },
+      "forgotPassword": "Passwort vergessen?",
+      "resetDone": "Dein Passwort wurde geändert. Melde dich mit dem neuen an."
     },
     "register": {
       "title": "Konto erstellen",
@@ -52,7 +55,41 @@
           "REQUIRED": "Gib ein Passwort ein.",
           "TOO_SHORT": "Das Passwort muss mindestens 8 Zeichen lang sein.",
           "TOO_LONG": "Das Passwort darf höchstens 120 Zeichen lang sein."
-        }
+        },
+        "rateLimited": "Zu viele Registrierungen aus diesem Netzwerk. Versuche es später erneut."
+      }
+    },
+    "forgot": {
+      "title": "Passwort zurücksetzen",
+      "description": "Gib die E-Mail-Adresse deines Kontos ein, und wir schicken dir einen Link für ein neues Passwort.",
+      "email": "E-Mail",
+      "submit": "Link senden",
+      "sending": "Wird gesendet…",
+      "backToLogin": "Zurück zur Anmeldung",
+      "sentTitle": "Schau in dein Postfach",
+      "sentBody": "Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir dir einen Link zum Zurücksetzen geschickt. Er ist 1 Stunde gültig.",
+      "errors": {
+        "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+        "rateLimited": "Zu viele Anfragen. Versuche es in einer Stunde erneut.",
+        "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+      }
+    },
+    "reset": {
+      "title": "Neues Passwort festlegen",
+      "password": "Neues Passwort",
+      "confirm": "Neues Passwort bestätigen",
+      "hint": "Mindestens 8 Zeichen.",
+      "submit": "Passwort ändern",
+      "saving": "Wird gespeichert…",
+      "backToLogin": "Zurück zur Anmeldung",
+      "requestNew": "Neuen Link anfordern",
+      "invalidLink": "Dieser Link ist unvollständig. Öffne den Link aus der E-Mail erneut oder fordere einen neuen an.",
+      "errors": {
+        "tooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+        "tooLong": "Das Passwort darf höchstens 120 Zeichen lang sein.",
+        "mismatch": "Die Passwörter stimmen nicht überein.",
+        "invalidToken": "Dieser Link ist ungültig, bereits benutzt oder abgelaufen.",
+        "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
       }
     }
   },

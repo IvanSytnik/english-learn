@@ -16,6 +16,9 @@ export const AUTH_LIMITS = {
 
 export type AuthLimitName = keyof typeof AUTH_LIMITS;
 
+/** `CredentialsSignin.code` when `authorize` refused for throttling (lib/auth.ts). */
+export const RATE_LIMITED_CODE = 'rate_limited';
+
 /**
  * The caller's IP. On Vercel `x-forwarded-for` is set by the edge (a client
  * value is overwritten), so its first entry is trustworthy there; elsewhere

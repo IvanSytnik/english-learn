@@ -5,6 +5,13 @@ import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 import { Link } from '@/i18n/navigation';
 import { type RegisterField, type RegisterState, registerUser } from './actions';
+import { HONEYPOT_FIELD } from './honeypot';
+
+const ERROR_KEY = {
+  EMAIL_TAKEN: 'errors.emailTaken',
+  RATE_LIMITED: 'errors.rateLimited',
+  AUTH_FAILED: 'errors.generic',
+} as const;
 
 export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
   const t = useTranslations('auth.register');
@@ -27,12 +34,17 @@ export function RegisterForm({ callbackUrl }: { callbackUrl?: string }) {
   return (
     <form action={formAction} className="space-y-4">
       {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
+      {/* Honeypot: off-screen, out of the tab order and hidden from assistive tech, so
+          only bots fill it. Not type="hidden" or display:none, which bots skip. */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" defaultValue="" />
+      </div>
       {failed && failed.error !== 'VALIDATION' ? (
         <p
           role="alert"
           className="rounded-control border border-feedback-incorrect bg-surface-2 p-3 text-sm text-feedback-incorrect"
         >
-          {failed.error === 'EMAIL_TAKEN' ? t('errors.emailTaken') : t('errors.generic')}
+          {t(ERROR_KEY[failed.error])}
         </p>
       ) : null}
       <div>

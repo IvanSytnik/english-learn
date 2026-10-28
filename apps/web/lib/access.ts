@@ -16,7 +16,7 @@ export type AccessDecision = 'allow' | { redirect: string };
 const LOCALE_PREFIX = new RegExp(`^/(${locales.join('|')})(?=/|$)`);
 
 const SESSION_REQUIRED = ['/dashboard', '/diagnostic', '/exercises', '/tutor'];
-const GUEST_ONLY = ['/login', '/register'];
+const GUEST_ONLY = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 function inSection(path: string, sections: string[]): boolean {
   return sections.some((section) => path === section || path.startsWith(`${section}/`));

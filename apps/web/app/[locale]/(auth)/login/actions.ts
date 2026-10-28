@@ -1,13 +1,14 @@
 'use server';
 
 import { unstable_rethrow } from 'next/navigation';
-import { AuthError } from 'next-auth';
+import { AuthError, CredentialsSignin } from 'next-auth';
 import { signIn } from '@/lib/auth';
+import { RATE_LIMITED_CODE } from '@/lib/auth/rate-limit';
 import { redirectAfterAuth } from '@/lib/auth-redirect';
 import type { Result } from '@/lib/result';
 
 // One error for unknown email and wrong password alike (no account enumeration).
-export type LoginError = 'INVALID_CREDENTIALS' | 'AUTH_FAILED';
+export type LoginError = 'INVALID_CREDENTIALS' | 'RATE_LIMITED' | 'AUTH_FAILED';
 export type LoginState = Result<never, LoginError> | null;
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
@@ -19,6 +20,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     });
   } catch (err) {
     unstable_rethrow(err);
+    if (err instanceof CredentialsSignin && err.code === RATE_LIMITED_CODE) {
+      return { ok: false, error: 'RATE_LIMITED' };
+    }
     if (err instanceof AuthError) {
       return {
         ok: false,

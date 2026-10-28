@@ -26,8 +26,11 @@
       "signUp": "Sign up",
       "errors": {
         "invalidCredentials": "Incorrect email or password.",
-        "generic": "Sign-in failed. Please try again."
-      }
+        "generic": "Sign-in failed. Please try again.",
+        "rateLimited": "Too many sign-in attempts. Wait a few minutes and try again."
+      },
+      "forgotPassword": "Forgot password?",
+      "resetDone": "Your password has been changed. Sign in with the new one."
     },
     "register": {
       "title": "Create your account",
@@ -52,7 +55,41 @@
           "REQUIRED": "Enter a password.",
           "TOO_SHORT": "Password must be at least 8 characters.",
           "TOO_LONG": "Password must be at most 120 characters."
-        }
+        },
+        "rateLimited": "Too many sign-ups from this network. Try again later."
+      }
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "description": "Enter the email you signed up with and we'll send you a link to choose a new password.",
+      "email": "Email",
+      "submit": "Send reset link",
+      "sending": "Sending…",
+      "backToLogin": "Back to sign in",
+      "sentTitle": "Check your email",
+      "sentBody": "If an account exists for that email, we've sent a link to reset the password. It expires in 1 hour.",
+      "errors": {
+        "invalidEmail": "Enter a valid email address.",
+        "rateLimited": "Too many requests. Try again in an hour.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "password": "New password",
+      "confirm": "Confirm new password",
+      "hint": "At least 8 characters.",
+      "submit": "Change password",
+      "saving": "Saving…",
+      "backToLogin": "Back to sign in",
+      "requestNew": "Request a new link",
+      "invalidLink": "This reset link is incomplete. Open the link from the email again, or request a new one.",
+      "errors": {
+        "tooShort": "Password must be at least 8 characters.",
+        "tooLong": "Password must be at most 120 characters.",
+        "mismatch": "Passwords don't match.",
+        "invalidToken": "This reset link is invalid, already used or expired.",
+        "generic": "Something went wrong. Please try again."
       }
     }
   },

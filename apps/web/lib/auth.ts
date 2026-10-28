@@ -1,9 +1,10 @@
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@englishlearn/db';
 import { compare } from 'bcryptjs';
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { z } from 'zod';
+import { clientIp, emailSubject, RATE_LIMITED_CODE, withinAuthLimits } from './auth/rate-limit';
 import { jwtWithRevocation } from './auth/session-revocation';
 import { authConfig } from './auth.config';
 
@@ -17,6 +18,11 @@ const credentialsSchema = z.object({
 // a wrong password and response time does not reveal which accounts exist.
 const DUMMY_HASH = '$2b$10$4QIKH6DGwwh048z8q8ARUOzDTmPgnatnXjQj0uMQqj52YwCTmEDci';
 
+/** Lets the login action tell throttling from a wrong password. */
+class RateLimitedSignin extends CredentialsSignin {
+  override code = RATE_LIMITED_CODE;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
@@ -28,10 +34,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(raw) {
+      // Throttled here, not in the login action: POST /api/auth/callback/credentials
+      // reaches authorize without the action.
+      async authorize(raw, request) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
+
+        const allowed = await withinAuthLimits([
+          ['login:ip', clientIp(request.headers)],
+          ['login:email', emailSubject(email)],
+        ]);
+        if (!allowed) throw new RateLimitedSignin();
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash) {

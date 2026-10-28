@@ -15,11 +15,33 @@ function keys(obj: Record<string, unknown>, prefix = ''): string[] {
   );
 }
 
+function lookup(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], obj);
+}
+
 describe('message catalogues', () => {
   it('every locale has exactly the English key set', () => {
     const reference = keys(en).sort();
     for (const [locale, messages] of Object.entries(MESSAGES)) {
       expect(keys(messages).sort(), locale).toEqual(reference);
+    }
+  });
+
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: password reset copy is complete and translated', (locale) => {
+    const messages = MESSAGES[locale] as Record<string, unknown>;
+    for (const ns of ['auth.forgot', 'auth.reset', 'email.passwordReset']) {
+      const own = keys(messages).filter((k) => k.startsWith(`${ns}.`));
+      expect(own.length, ns).toBeGreaterThan(0);
+      for (const key of own) {
+        const value = lookup(messages, key);
+        expect(typeof value === 'string' && value.trim() !== '', key).toBe(true);
+        // Not left in English ("Email" is the same word in most of them).
+        if (locale !== 'en' && !key.endsWith('.email')) {
+          expect(value, key).not.toBe(lookup(en, key));
+        }
+      }
     }
   });
 

@@ -51,12 +51,14 @@ describe('resolveAccess', () => {
     });
 
     describe('guest-only pages', () => {
-      it.each(['/login', '/register'])('guest on %s → allow', (path) => {
+      const guestOnly = ['/login', '/register', '/forgot-password', '/reset-password'];
+
+      it.each(guestOnly)('guest on %s → allow', (path) => {
         expect(resolveAccess(`${prefix}${path}`, null)).toBe('allow');
       });
 
       it.each(
-        SIGNED_IN.flatMap((who) => ['/login', '/register'].map((p) => [who, p] as const)),
+        SIGNED_IN.flatMap((who) => guestOnly.map((p) => [who, p] as const)),
       )('%s on %s → localized dashboard', (who, path) => {
         expect(resolveAccess(`${prefix}${path}`, sessionFor(who))).toEqual({
           redirect: `${prefix}/dashboard`,
