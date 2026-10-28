@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient } from '../../create-client';
 import type { PrismaClient } from '../../generated/client/client';
 import { CreateBetaFeedbackSchema } from '../../schemas/feedback';
-import { createBetaFeedback } from '../feedback';
+import { BETA_FEEDBACK_LIST_MAX, createBetaFeedback, getBetaFeedbacks } from '../feedback';
 
 /**
  * BetaFeedback against a real, migrated Postgres: the column default, SQL NULL
@@ -112,5 +112,30 @@ describe.skipIf(!url)('createBetaFeedback (real Postgres)', () => {
 
     expect(await db.betaFeedback.count({ where: { userId } })).toBe(0);
     expect(await db.betaFeedback.count({ where: { userId: kept } })).toBe(1);
+  });
+
+  it('getBetaFeedbacks: newest first, with the author', async () => {
+    const userId = await newUser();
+    const older = await createBetaFeedback(db, {
+      userId,
+      kind: 'OTHER',
+      text: 'Older report',
+      url: '/en/dashboard',
+    });
+    const newer = await createBetaFeedback(db, {
+      userId,
+      kind: 'BUG',
+      text: 'Newer report',
+      url: '/en/exercises',
+    });
+    await db.betaFeedback.update({
+      where: { id: older.id },
+      data: { createdAt: new Date(newer.createdAt.getTime() - 60_000) },
+    });
+
+    const list = await getBetaFeedbacks(db, { limit: BETA_FEEDBACK_LIST_MAX });
+    const mine = list.filter((f) => f.id === older.id || f.id === newer.id);
+    expect(mine.map((f) => f.id)).toEqual([newer.id, older.id]);
+    expect(mine[0]?.user.email).toBe(`${RUN}-${userIds.length - 1}@test.local`);
   });
 });

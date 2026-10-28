@@ -24,3 +24,40 @@ export async function createBetaFeedback(
     },
   });
 }
+
+export const BETA_FEEDBACK_LIST_DEFAULT = 100;
+export const BETA_FEEDBACK_LIST_MAX = 500;
+
+/** One report for the admin list, with who sent it. */
+export type BetaFeedbackListEntry = Pick<
+  BetaFeedback,
+  'id' | 'kind' | 'text' | 'url' | 'itemId' | 'conceptId' | 'createdAt'
+> & { user: { email: string; name: string | null } };
+
+/**
+ * The newest reports first, for the admin list. Admin-only: callers must have
+ * checked the role. `limit` is clamped to 1..500 (default 100); metadata is
+ * left out of the list.
+ */
+export async function getBetaFeedbacks(
+  db: Pick<PrismaClient, 'betaFeedback'>,
+  { limit = BETA_FEEDBACK_LIST_DEFAULT }: { limit?: number } = {},
+): Promise<BetaFeedbackListEntry[]> {
+  const take = Number.isFinite(limit)
+    ? Math.min(BETA_FEEDBACK_LIST_MAX, Math.max(1, Math.trunc(limit)))
+    : BETA_FEEDBACK_LIST_DEFAULT;
+  return db.betaFeedback.findMany({
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take,
+    select: {
+      id: true,
+      kind: true,
+      text: true,
+      url: true,
+      itemId: true,
+      conceptId: true,
+      createdAt: true,
+      user: { select: { email: true, name: true } },
+    },
+  });
+}

@@ -144,7 +144,22 @@
       "grammar": "Grammar",
       "listening": "Listening",
       "diagnostic": "Diagnostic",
-      "skillTags": "Skill Tags"
+      "skillTags": "Skill Tags",
+      "feedback": "Feedback"
+    },
+    "feedback": {
+      "title": "Beta feedback",
+      "subtitle": "{count, plural, =0 {No reports} one {# report, newest first} other {# reports, newest first}}",
+      "empty": "No feedback yet.",
+      "columns": {
+        "createdAt": "Sent",
+        "user": "User",
+        "kind": "Kind",
+        "text": "Message",
+        "url": "Page",
+        "item": "Item",
+        "concept": "Concept"
+      }
     }
   },
   "notFound": {

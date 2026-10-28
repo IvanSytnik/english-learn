@@ -144,7 +144,22 @@
       "grammar": "Grammatik",
       "listening": "Hörverstehen",
       "diagnostic": "Diagnose",
-      "skillTags": "Fähigkeiten"
+      "skillTags": "Fähigkeiten",
+      "feedback": "Feedback"
+    },
+    "feedback": {
+      "title": "Beta-Feedback",
+      "subtitle": "{count, plural, =0 {Keine Meldungen} one {# Meldung, neueste zuerst} other {# Meldungen, neueste zuerst}}",
+      "empty": "Noch kein Feedback.",
+      "columns": {
+        "createdAt": "Gesendet",
+        "user": "Nutzer",
+        "kind": "Art",
+        "text": "Nachricht",
+        "url": "Seite",
+        "item": "Item",
+        "concept": "Thema"
+      }
     }
   },
   "notFound": {

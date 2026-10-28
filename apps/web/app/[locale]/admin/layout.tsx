@@ -51,6 +51,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin/ai-review" className="text-ink-muted hover:text-ink hover:underline">
             {t('aiReview')}
           </Link>
+          <Link href="/admin/feedback" className="text-ink-muted hover:text-ink hover:underline">
+            {t('feedback')}
+          </Link>
         </nav>
       </aside>
       <main className="flex-1 p-6">{children}</main>
