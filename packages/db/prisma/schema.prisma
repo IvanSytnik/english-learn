@@ -109,6 +109,17 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Fixed-window counter for auth throttling (`consumeRateLimit`). `key` is
+/// `<action>:<ip|email>`; an expired row is reset in place on the next hit.
+model AuthRateLimit {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 // ─────────────────────────────────────────────────────────────
 // Student profile
 // ─────────────────────────────────────────────────────────────
