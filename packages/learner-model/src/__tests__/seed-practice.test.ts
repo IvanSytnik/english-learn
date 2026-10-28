@@ -1,4 +1,4 @@
-import { PRACTICE_GAP, safeParseItemContent } from '@englishlearn/db/schemas';
+import { PRACTICE_GAP, type Practice, safeParseItemContent } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
 import { ALL_ITEMS } from '../../seed/items';
 import { ITEM_PRACTICE } from '../../seed/items/practice';
@@ -21,6 +21,31 @@ describe('seed item practice (U2)', () => {
   it('every prompt shows exactly one gap', () => {
     for (const [id, p] of Object.entries(ITEM_PRACTICE)) {
       expect(p.prompt.split(PRACTICE_GAP).length, id).toBe(2);
+    }
+  });
+
+  it('the H hint never contains the answer, in any language (S3)', () => {
+    // hintFor() shows `translation` (vocab word, collocation) or `meaning`
+    // (idiom) before the learner answers; the headword in it gives the answer away.
+    const word = (answer: string) =>
+      new RegExp(`(?<!\\p{L})${answer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\p{L})`, 'iu');
+    for (const item of ALL_ITEMS) {
+      const { localized = {}, practice } = item.content as {
+        localized?: Record<string, Record<string, string> | undefined>;
+        practice: Practice;
+      };
+      const answers = (
+        practice.type === 'choice'
+          ? [practice.options[practice.correctIndex]]
+          : practice.acceptedAnswers
+      ).filter((a): a is string => a !== undefined && a !== '—');
+      for (const field of ['translation', 'meaning']) {
+        for (const [locale, text] of Object.entries(localized[field] ?? {})) {
+          for (const answer of answers) {
+            expect(text, `${item.id} ${field}.${locale}`).not.toMatch(word(answer));
+          }
+        }
+      }
     }
   });
 

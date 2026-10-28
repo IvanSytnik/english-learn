@@ -26,7 +26,10 @@ export const VOCAB_ITEMS: SeedItem[] = [
         ipa: '/ˈʃɛdjuːl/',
       },
       localized: {
-        translation: { en: 'schedule; timetable', ru: 'расписание, график' },
+        translation: {
+          en: 'a plan of what you will do and when; timetable',
+          ru: 'расписание, график',
+        },
         exampleTranslation: {
           en: 'My schedule is very busy this week.',
           ru: 'Моё расписание на этой неделе очень плотное.',
@@ -46,7 +49,7 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'I buy groceries every Saturday.',
       },
       localized: {
-        translation: { en: 'food shopping; groceries', ru: 'продукты (покупки)' },
+        translation: { en: 'food and household items you buy in a shop', ru: 'продукты (покупки)' },
         exampleTranslation: {
           en: 'I buy groceries every Saturday.',
           ru: 'Я покупаю продукты каждую субботу.',
@@ -109,7 +112,7 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'Please have your boarding pass and passport ready.',
       },
       localized: {
-        translation: { en: 'boarding pass', ru: 'посадочный талон' },
+        translation: { en: 'the card that lets you get on a plane', ru: 'посадочный талон' },
         exampleTranslation: {
           en: 'Please have your boarding pass and passport ready.',
           ru: 'Пожалуйста, приготовьте посадочный талон и паспорт.',
