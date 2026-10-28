@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
 import { type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
+import { FeedbackButton } from '../_components/feedback-button';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
 import { ConceptList } from './concept-list';
 
@@ -35,11 +36,14 @@ export default async function DashboardPage() {
     <main className="mx-auto max-w-4xl p-6">
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold">{t('title')}</h1>
-        <form action={logout}>
-          <Button variant="ghost" type="submit">
-            {tc('signOut')}
-          </Button>
-        </form>
+        <div className="flex items-center gap-2">
+          <FeedbackButton />
+          <form action={logout}>
+            <Button variant="ghost" type="submit">
+              {tc('signOut')}
+            </Button>
+          </form>
+        </div>
       </header>
 
       <p className="mb-2 text-ink-muted">{t('welcome', { name: session.user.name ?? 'friend' })}</p>

@@ -226,5 +226,24 @@
       "dayOpen": "keine Sitzung",
       "today": "heute"
     }
+  },
+  "feedback": {
+    "trigger": "Feedback",
+    "title": "Feedback senden",
+    "kindLabel": "Worum geht es?",
+    "kinds": {
+      "contentError": "Fehler im Inhalt",
+      "bug": "Etwas funktioniert nicht",
+      "suggestion": "Vorschlag",
+      "other": "Sonstiges"
+    },
+    "textLabel": "Deine Nachricht",
+    "textPlaceholder": "Beschreibe, was dir aufgefallen ist (mindestens 5 Zeichen)",
+    "submit": "Senden",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "successMessage": "Danke! Dein Feedback wurde gesendet.",
+    "errorMessage": "Dein Feedback konnte nicht gesendet werden. Bitte versuche es erneut.",
+    "charCount": "{count} / {max} Zeichen"
   }
 }

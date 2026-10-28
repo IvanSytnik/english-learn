@@ -226,5 +226,24 @@
       "dayOpen": "no session",
       "today": "today"
     }
+  },
+  "feedback": {
+    "trigger": "Feedback",
+    "title": "Send feedback",
+    "kindLabel": "What is it about?",
+    "kinds": {
+      "contentError": "Mistake in the content",
+      "bug": "Something is broken",
+      "suggestion": "Suggestion",
+      "other": "Something else"
+    },
+    "textLabel": "Your message",
+    "textPlaceholder": "Describe what you noticed (at least 5 characters)",
+    "submit": "Send",
+    "cancel": "Cancel",
+    "close": "Close",
+    "successMessage": "Thank you! Your feedback has been sent.",
+    "errorMessage": "Could not send your feedback. Please try again.",
+    "charCount": "{count} / {max} characters"
   }
 }
