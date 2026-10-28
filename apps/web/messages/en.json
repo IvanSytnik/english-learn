@@ -167,6 +167,11 @@
     "description": "The page you are looking for does not exist.",
     "home": "Go to home page"
   },
+  "errors": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Your progress is safe — please try again.",
+    "retry": "Try again"
+  },
   "learning": {
     "reason": {
       "review": "Review",

@@ -167,6 +167,11 @@
     "description": "Die gesuchte Seite existiert nicht.",
     "home": "Zur Startseite"
   },
+  "errors": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Ein unerwarteter Fehler ist aufgetreten. Dein Fortschritt ist gespeichert – bitte versuche es erneut.",
+    "retry": "Erneut versuchen"
+  },
   "learning": {
     "reason": {
       "review": "Wiederholung",
