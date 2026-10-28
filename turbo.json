@@ -17,13 +17,7 @@
     "build": {
       "dependsOn": ["^build", "^db:generate"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": [
-        "NEXT_PUBLIC_*",
-        "DATABASE_URL",
-        "DIRECT_URL",
-        "AUTH_SECRET",
-        "SKIP_ENV_VALIDATION"
-      ]
+      "env": ["NEXT_PUBLIC_*", "DATABASE_URL", "DIRECT_URL", "AUTH_SECRET", "SKIP_ENV_VALIDATION"]
     },
     "dev": {
       "cache": false,

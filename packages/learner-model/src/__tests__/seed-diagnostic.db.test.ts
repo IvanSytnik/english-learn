@@ -51,38 +51,46 @@ describe.skipIf(!url)('seedDiagnosticBank (real Postgres)', () => {
     await db.$disconnect();
   });
 
-  it('publishes the bank, archives what left it, and a second run changes nothing', async () => {
-    const first = await seedDiagnosticBank(db, DIAGNOSTIC_BANK);
-    expect(first.created + first.updated).toBe(DIAGNOSTIC_BANK.length);
-    expect(first.archived).toBeGreaterThanOrEqual(1);
+  it(
+    'publishes the bank, archives what left it, and a second run changes nothing',
+    async () => {
+      const first = await seedDiagnosticBank(db, DIAGNOSTIC_BANK);
+      expect(first.created + first.updated).toBe(DIAGNOSTIC_BANK.length);
+      expect(first.archived).toBeGreaterThanOrEqual(1);
 
-    const rows = await snapshot();
-    expect(rows.find((r) => r.id === STRAY)?.status).toBe('ARCHIVED');
-    const published = rows.filter((r) => r.status === 'PUBLISHED');
-    expect(published.map((r) => r.id).sort()).toEqual(DIAGNOSTIC_BANK.map((q) => q.id).sort());
+      const rows = await snapshot();
+      expect(rows.find((r) => r.id === STRAY)?.status).toBe('ARCHIVED');
+      const published = rows.filter((r) => r.status === 'PUBLISHED');
+      expect(published.map((r) => r.id).sort()).toEqual(DIAGNOSTIC_BANK.map((q) => q.id).sort());
 
-    const second = await seedDiagnosticBank(db, DIAGNOSTIC_BANK);
-    expect(second).toEqual({ created: 0, updated: DIAGNOSTIC_BANK.length, archived: 0 });
-    expect(await snapshot()).toEqual(rows);
-  }, SEED_TIMEOUT_MS);
+      const second = await seedDiagnosticBank(db, DIAGNOSTIC_BANK);
+      expect(second).toEqual({ created: 0, updated: DIAGNOSTIC_BANK.length, archived: 0 });
+      expect(await snapshot()).toEqual(rows);
+    },
+    SEED_TIMEOUT_MS,
+  );
 
-  it('rejects an invalid bank before writing anything', async () => {
-    const before = await snapshot();
-    // Every valid question is changed too, so any write before the bad one shows.
-    const broken = [
-      ...DIAGNOSTIC_BANK.slice(1).map((q) => ({
-        ...q,
-        content: {
-          ...q.content,
-          source: { ...q.content.source, stem: `CHANGED ${q.content.source.stem}` },
+  it(
+    'rejects an invalid bank before writing anything',
+    async () => {
+      const before = await snapshot();
+      // Every valid question is changed too, so any write before the bad one shows.
+      const broken = [
+        ...DIAGNOSTIC_BANK.slice(1).map((q) => ({
+          ...q,
+          content: {
+            ...q.content,
+            source: { ...q.content.source, stem: `CHANGED ${q.content.source.stem}` },
+          },
+        })),
+        {
+          ...DIAGNOSTIC_BANK[0],
+          content: { source: { stem: 'x ___', choices: ['a', 'b'], correctIndex: 5 } },
         },
-      })),
-      {
-        ...DIAGNOSTIC_BANK[0],
-        content: { source: { stem: 'x ___', choices: ['a', 'b'], correctIndex: 5 } },
-      },
-    ] as typeof DIAGNOSTIC_BANK;
-    await expect(seedDiagnosticBank(db, broken)).rejects.toThrow(/Diagnostic bank is invalid/);
-    expect(await snapshot()).toEqual(before);
-  }, SEED_TIMEOUT_MS);
+      ] as typeof DIAGNOSTIC_BANK;
+      await expect(seedDiagnosticBank(db, broken)).rejects.toThrow(/Diagnostic bank is invalid/);
+      expect(await snapshot()).toEqual(before);
+    },
+    SEED_TIMEOUT_MS,
+  );
 });

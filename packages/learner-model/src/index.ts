@@ -13,68 +13,65 @@
 export * as bkt from './core/bkt';
 export * from './core/graph';
 export * from './core/graph/types';
-export * from './policy';
-export * from './mastery';
-export * from './rhythm';
-export * from './progress';
-export { createSelectionService, type SelectionService } from './service/selection-service';
-
 // Diagnostic v2: bootstrap pipeline (pure) + write-path service.
 export {
+  type AnswerTally,
+  type AxisEstimate,
+  type AxisReveal,
   accuracyBasedEstimator,
   axisAtPosition,
+  type BootstrapConcept,
+  type BootstrapInput,
+  type BootstrapOutput,
   buildBootstrapSnapshots,
+  buildPlacementReveal,
+  type ConceptCategoryValue,
   categoryToAxis,
+  type DiagnosticAnswerFact,
+  FORMULA_VERSION,
   LADDER_AXES,
   LADDER_LEVELS,
   LADDER_START,
   type LadderAnswer,
   type LadderAxis,
-  ladderAxisLevel,
-  ladderEstimator,
   type LadderInput,
   type LadderLevel,
-  ladderLevel,
   type LadderPoolItem,
   type LadderStep,
   LEVEL_TAIL,
+  ladderAxisLevel,
+  ladderEstimator,
+  ladderLevel,
+  MAPPING_V1,
+  type MappingConstants,
   mapScoreToPKnown,
   nextLadderStep,
-  QUESTIONS_PER_AXIS,
-  STREAK_TO_STEP,
-  TOTAL_QUESTIONS,
-  MAPPING_V1,
-  FORMULA_VERSION,
-  type ThetaEstimator,
-  type AxisEstimate,
-  type BootstrapConcept,
-  type ConceptCategoryValue,
-  type DiagnosticAnswerFact,
-  type MappingConstants,
-  type BootstrapInput,
-  type BootstrapOutput,
-  buildPlacementReveal,
-  pickStartConcept,
-  type AnswerTally,
-  type AxisReveal,
   type PlacementReveal,
   type PlacementRevealInput,
+  pickStartConcept,
+  QUESTIONS_PER_AXIS,
   type RevealAnswerFact,
   type RevealConcept,
   type RevealSkillTag,
+  STREAK_TO_STEP,
   type StartConceptInput,
+  type ThetaEstimator,
+  TOTAL_QUESTIONS,
 } from './diagnostic';
-
+export * from './mastery';
+export * from './policy';
+export * from './progress';
+export * from './rhythm';
 export {
   applyLearnerBootstrapped,
   type BootstrapConceptState,
   type BootstrapFold,
 } from './service/apply';
-
 export {
   buildLearnerBootstrappedEvent,
-  parseEventRow,
-  type ParsedLearnerEvent,
   type ParsedItemAttemptedEvent,
   type ParsedLearnerBootstrappedEvent,
+  type ParsedLearnerEvent,
+  parseEventRow,
 } from './service/event-store';
+export { createSelectionService, type SelectionService } from './service/selection-service';
