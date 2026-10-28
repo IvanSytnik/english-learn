@@ -53,6 +53,7 @@ model User {
   conceptMasteries ConceptMastery[]
   itemReviewStates ItemReviewState[]
   learnerEvents LearnerEvent[]
+  betaFeedbacks BetaFeedback[]
 
 
   // Content authorship
@@ -704,4 +705,32 @@ model LearnerEvent {
   @@unique([userId, idempotencyKey])
   @@index([userId, occurredAt])
   @@index([type])
+}
+
+enum FeedbackKind {
+  CONTENT_ERROR
+  BUG
+  SUGGESTION
+  OTHER
+}
+
+/// A beta tester's report from the in-app feedback form. Append-only; read by
+/// admins. itemId / conceptId are soft references (no FK): a report must
+/// survive the content it is about being reworked or deleted.
+model BetaFeedback {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      FeedbackKind @default(CONTENT_ERROR)
+  text      String
+  /// Page the report was sent from (path + query, no origin).
+  url       String
+  itemId    String?
+  conceptId String?
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  @@index([userId])
+  @@index([itemId])
+  @@index([createdAt])
 }
