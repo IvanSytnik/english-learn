@@ -48,10 +48,6 @@ model User {
   sessions           Session[]
   profile            StudentProfile?
   diagnosticAttempts DiagnosticAttempt[]
-  vocabAttempts      VocabAttempt[]
-  grammarAttempts    GrammarAttempt[]
-  listeningAttempts  ListeningAttempt[]
-  skillLevels        SkillLevel[]
   conceptMasteries ConceptMastery[]
   itemReviewStates ItemReviewState[]
   learnerEvents LearnerEvent[]
@@ -59,12 +55,6 @@ model User {
 
 
   // Content authorship
-  createdVocabExercises      VocabExercise[]     @relation("VocabCreatedBy")
-  reviewedVocabExercises     VocabExercise[]     @relation("VocabReviewedBy")
-  createdGrammarExercises    GrammarExercise[]   @relation("GrammarCreatedBy")
-  reviewedGrammarExercises   GrammarExercise[]   @relation("GrammarReviewedBy")
-  createdListeningExercises  ListeningExercise[] @relation("ListeningCreatedBy")
-  reviewedListeningExercises ListeningExercise[] @relation("ListeningReviewedBy")
   createdDiagnosticItems     DiagnosticItem[]    @relation("DiagnosticCreatedBy")
   reviewedDiagnosticItems    DiagnosticItem[]    @relation("DiagnosticReviewedBy")
 
@@ -213,172 +203,9 @@ model SkillTag {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  vocabExercises     VocabExercise[]
-  grammarExercises   GrammarExercise[]
-  listeningExercises ListeningExercise[]
-  skillLevels        SkillLevel[]
   diagnosticItems    DiagnosticItem[]
 
   @@index([category, cefrLevel])
-}
-
-model SkillLevel {
-  id         String    @id @default(cuid())
-  userId     String
-  skillTagId String
-  mastery    Float     @default(0)
-  attempts   Int       @default(0)
-  lastSeenAt DateTime?
-  updatedAt  DateTime  @updatedAt
-
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skillTag SkillTag @relation(fields: [skillTagId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, skillTagId])
-  @@index([userId])
-}
-
-// ─────────────────────────────────────────────────────────────
-// Vocabulary: multiple choice
-// ─────────────────────────────────────────────────────────────
-
-model VocabExercise {
-  id            String         @id @default(cuid())
-  cefrLevel     CefrLevel
-  source        ExerciseSource @default(CURATED)
-  status        ContentStatus  @default(DRAFT)
-  skillTagId    String?
-
-  /// JSON payload validated by VocabContentSchema (packages/db/src/schemas/exercises/vocab.ts).
-  /// Structure: { source: { targetLexeme, exampleSentence? }, localized: { ... }, choices, correctIndex }
-  content       Json
-
-  generatorMeta Json?
-  createdById   String?
-  reviewedById  String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  skillTag    SkillTag?      @relation(fields: [skillTagId], references: [id])
-  createdBy   User?          @relation("VocabCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  reviewedBy  User?          @relation("VocabReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  attempts    VocabAttempt[]
-
-  @@index([cefrLevel, status])
-  @@index([skillTagId])
-  @@index([status])
-}
-
-model VocabAttempt {
-  id            String   @id @default(cuid())
-  userId        String
-  exerciseId    String
-  selectedIndex Int
-  isCorrect     Boolean
-  timeMs        Int?
-  createdAt     DateTime @default(now())
-
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise VocabExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([exerciseId])
-}
-
-// ─────────────────────────────────────────────────────────────
-// Grammar: fill-in-the-blank
-// ─────────────────────────────────────────────────────────────
-
-model GrammarExercise {
-  id            String         @id @default(cuid())
-  cefrLevel     CefrLevel
-  source        ExerciseSource @default(CURATED)
-  status        ContentStatus  @default(DRAFT)
-  skillTagId    String?
-
-  /// JSON payload validated by GrammarContentSchema.
-  /// Structure: { source: { template, acceptedAnswers }, localized: { instructions, hint?, explanation? } }
-  content       Json
-
-  generatorMeta Json?
-  createdById   String?
-  reviewedById  String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  skillTag    SkillTag?        @relation(fields: [skillTagId], references: [id])
-  createdBy   User?            @relation("GrammarCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  reviewedBy  User?            @relation("GrammarReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  attempts    GrammarAttempt[]
-
-  @@index([cefrLevel, status])
-  @@index([skillTagId])
-  @@index([status])
-}
-
-model GrammarAttempt {
-  id         String   @id @default(cuid())
-  userId     String
-  exerciseId String
-  userAnswer String
-  isCorrect  Boolean
-  timeMs     Int?
-  createdAt  DateTime @default(now())
-
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise GrammarExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([exerciseId])
-}
-
-// ─────────────────────────────────────────────────────────────
-// Listening: transcription
-// ─────────────────────────────────────────────────────────────
-
-model ListeningExercise {
-  id            String         @id @default(cuid())
-  cefrLevel     CefrLevel
-  source        ExerciseSource @default(CURATED)
-  status        ContentStatus  @default(DRAFT)
-  skillTagId    String?
-
-  /// JSON payload validated by ListeningContentSchema.
-  /// Structure: { source: { audioUrl, durationSec, transcript }, localized: { instructions, contextNote? }, questions: [...] }
-  content       Json
-
-  generatorMeta Json?
-  createdById   String?
-  reviewedById  String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  skillTag    SkillTag?           @relation(fields: [skillTagId], references: [id])
-  createdBy   User?               @relation("ListeningCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  reviewedBy  User?               @relation("ListeningReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  attempts    ListeningAttempt[]
-
-  @@index([cefrLevel, status])
-  @@index([skillTagId])
-  @@index([status])
-}
-
-model ListeningAttempt {
-  id         String   @id @default(cuid())
-  userId     String
-  exerciseId String
-  userAnswer String   @db.Text
-  similarity Float
-  isCorrect  Boolean
-  playCount  Int      @default(1)
-  timeMs     Int?
-  createdAt  DateTime @default(now())
-
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise ListeningExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([exerciseId])
 }
 
 // ─────────────────────────────────────────────────────────────
