@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CreateBetaFeedbackSchema, METADATA_MAX_BYTES } from '../feedback';
+import {
+  CreateBetaFeedbackSchema,
+  METADATA_MAX_BYTES,
+  parseVocabFeedbackMetadata,
+  VocabFeedbackMetadataSchema,
+} from '../feedback';
 
 describe('CreateBetaFeedbackSchema', () => {
   const valid = { text: 'Wrong answer key', url: '/en/exercises' };
@@ -53,5 +58,39 @@ describe('CreateBetaFeedbackSchema', () => {
     expect(CreateBetaFeedbackSchema.safeParse({ ...valid, metadata: cyrillic }).success).toBe(
       false,
     );
+  });
+});
+
+describe('VocabFeedbackMetadataSchema', () => {
+  const vocab = { lexemeId: 'clx1', lemma: 'run', vocabMode: 'cloze' } as const;
+
+  it('accepts a word report in every practice mode and fits the metadata cap', () => {
+    for (const vocabMode of ['recognition', 'cloze', 'recall'] as const) {
+      expect(VocabFeedbackMetadataSchema.parse({ ...vocab, vocabMode })).toEqual({
+        ...vocab,
+        vocabMode,
+      });
+    }
+    const feedback = CreateBetaFeedbackSchema.safeParse({
+      text: 'The German gloss is wrong.',
+      url: '/en/words',
+      metadata: VocabFeedbackMetadataSchema.parse(vocab),
+    });
+    expect(feedback.success).toBe(true);
+  });
+
+  it.each([
+    ['an unknown mode', { ...vocab, vocabMode: 'spelling' }],
+    ['a missing lexeme id', { lemma: 'run', vocabMode: 'cloze' }],
+    ['an over-long lemma', { ...vocab, lemma: 'x'.repeat(101) }],
+    ['an extra field', { ...vocab, correctAnswer: 'ran' }],
+  ])('rejects %s', (_, metadata) => {
+    expect(VocabFeedbackMetadataSchema.safeParse(metadata).success).toBe(false);
+  });
+
+  it('reads the vocabulary context back from a stored row, or null', () => {
+    expect(parseVocabFeedbackMetadata(vocab)).toEqual(vocab);
+    expect(parseVocabFeedbackMetadata({ itemRef: 'abc' })).toBeNull();
+    expect(parseVocabFeedbackMetadata(null)).toBeNull();
   });
 });

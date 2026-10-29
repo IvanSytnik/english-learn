@@ -24,7 +24,8 @@
     "vocab:import": "tsx --env-file-if-exists=.env scripts/import-cefr-j.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf src/generated .turbo node_modules"
+    "clean": "rm -rf src/generated .turbo node_modules",
+    "vocab:sample": "tsx --env-file-if-exists=.env scripts/sample-vocab.ts"
   },
   "prisma": {
     "seed": "tsx --env-file-if-exists=.env src/seed.ts"

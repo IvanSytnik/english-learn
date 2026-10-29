@@ -6,6 +6,9 @@ export {
   CreateBetaFeedbackSchema,
   FeedbackKindSchema,
   type FeedbackKindValue,
+  parseVocabFeedbackMetadata,
+  type VocabFeedbackMetadata,
+  VocabFeedbackMetadataSchema,
 } from './feedback';
 export * from './items';
 export * from './learner-events';

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PracticeModeSchema } from './learner-events';
 
 /** Mirrors Prisma enum FeedbackKind. Keep in sync with schema.prisma. */
 export const FeedbackKindSchema = z.enum(['CONTENT_ERROR', 'BUG', 'SUGGESTION', 'OTHER']);
@@ -30,3 +31,24 @@ export const CreateBetaFeedbackSchema = z.object({
 
 export type CreateBetaFeedbackInput = z.input<typeof CreateBetaFeedbackSchema>;
 export type CreateBetaFeedback = z.output<typeof CreateBetaFeedbackSchema>;
+
+/**
+ * BetaFeedback.metadata for a report about a word ("report error" in the
+ * vocabulary player): which lexeme, as shown, in which practice mode. Lives
+ * in the free-form `metadata` (no migration); the action builds it on the
+ * server, the client never supplies the lexeme id.
+ */
+export const VocabFeedbackMetadataSchema = z
+  .object({
+    lexemeId: z.string().trim().min(1),
+    lemma: z.string().trim().min(1).max(100),
+    vocabMode: PracticeModeSchema,
+  })
+  .strict();
+export type VocabFeedbackMetadata = z.infer<typeof VocabFeedbackMetadataSchema>;
+
+/** The vocabulary context of a stored feedback row, or null if it has none (or a malformed one). */
+export function parseVocabFeedbackMetadata(metadata: unknown): VocabFeedbackMetadata | null {
+  const parsed = VocabFeedbackMetadataSchema.safeParse(metadata);
+  return parsed.success ? parsed.data : null;
+}
