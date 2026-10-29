@@ -62,6 +62,7 @@ export * from './mastery';
 export * from './policy';
 export * from './progress';
 export * from './rhythm';
+export * from './vocab';
 export {
   applyLearnerBootstrapped,
   type BootstrapConceptState,
