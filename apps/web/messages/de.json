@@ -346,6 +346,10 @@
       "cefrjText": "Teile unserer Niveaubeschreibungen und unseres Wortschatzes beruhen auf dem CEFR-J-Rahmen (Tono-Labor, Tokyo University of Foreign Studies).",
       "fontsTitle": "Schriften",
       "fontsText": "Gesetzt in Literata, Onest und JetBrains Mono, alle unter der SIL Open Font License veröffentlicht."
+    },
+    "footer": {
+      "label": "Rechtliches",
+      "copyright": "© 2026 EnglishLearn"
     }
   }
 }

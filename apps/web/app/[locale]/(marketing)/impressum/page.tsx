@@ -4,7 +4,7 @@ export default async function ImpressumPage() {
   const t = await getTranslations('legal.impressum');
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
       <h1 className="font-content text-4xl text-ink">{t('title')}</h1>
       <dl className="mt-10 grid gap-x-8 gap-y-4 sm:grid-cols-[max-content_1fr]">
         <dt className="text-sm text-ink-muted">{t('operatorLabel')}</dt>

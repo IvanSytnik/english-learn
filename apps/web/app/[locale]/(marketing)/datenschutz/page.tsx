@@ -6,7 +6,7 @@ export default async function DatenschutzPage() {
   const t = await getTranslations('legal.datenschutz');
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
       <h1 className="font-content text-4xl text-ink">{t('title')}</h1>
       <p className="mt-6 leading-relaxed text-ink-muted">{t('intro')}</p>
       <section aria-labelledby="processors" className="mt-12">

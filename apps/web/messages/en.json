@@ -346,6 +346,10 @@
       "cefrjText": "Parts of our level descriptions and vocabulary are based on the CEFR-J framework (Tono Laboratory, Tokyo University of Foreign Studies).",
       "fontsTitle": "Fonts",
       "fontsText": "Set in Literata, Onest and JetBrains Mono, all released under the SIL Open Font License."
+    },
+    "footer": {
+      "label": "Legal",
+      "copyright": "© 2026 EnglishLearn"
     }
   }
 }

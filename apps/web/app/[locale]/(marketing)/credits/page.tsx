@@ -4,7 +4,7 @@ export default async function CreditsPage() {
   const t = await getTranslations('legal.credits');
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
       <h1 className="font-content text-4xl text-ink">{t('title')}</h1>
       <section aria-labelledby="cefrj" className="mt-12">
         <h2 id="cefrj" className="font-content text-2xl text-ink">

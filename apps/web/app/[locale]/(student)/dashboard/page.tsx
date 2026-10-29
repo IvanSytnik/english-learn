@@ -1,6 +1,7 @@
 import { isLocale } from '@englishlearn/db/schemas';
 import { Button, buttonVariants } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { Footer } from '@/app/_components/footer';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
 import { type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
@@ -33,49 +34,54 @@ export default async function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t('title')}</h1>
-        <div className="flex items-center gap-2">
-          <FeedbackButton />
-          <form action={logout}>
-            <Button variant="ghost" type="submit">
-              {tc('signOut')}
-            </Button>
-          </form>
-        </div>
-      </header>
+    <>
+      <main className="mx-auto max-w-4xl p-6">
+        <header className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold">{t('title')}</h1>
+          <div className="flex items-center gap-2">
+            <FeedbackButton />
+            <form action={logout}>
+              <Button variant="ghost" type="submit">
+                {tc('signOut')}
+              </Button>
+            </form>
+          </div>
+        </header>
 
-      <p className="mb-2 text-ink-muted">{t('welcome', { name: session.user.name ?? 'friend' })}</p>
-      {student?.level ? (
-        <p className="mb-2 text-ink" data-dashboard-level>
-          {t('level', { level: student.level })}
+        <p className="mb-2 text-ink-muted">
+          {t('welcome', { name: session.user.name ?? 'friend' })}
         </p>
-      ) : null}
+        {student?.level ? (
+          <p className="mb-2 text-ink" data-dashboard-level>
+            {t('level', { level: student.level })}
+          </p>
+        ) : null}
 
-      <div className="mt-6 mb-10">
-        {cta.kind === 'diagnostic' ? (
-          // No prefetch: rendering /diagnostic for a finished attempt writes
-          // (ensureBootstrapped), so it must run only when the learner clicks.
-          <Link href="/diagnostic" prefetch={false} className={buttonVariants({ size: 'lg' })}>
-            {t('findLevel')}
-          </Link>
-        ) : (
-          <Link href="/exercises" className={buttonVariants({ size: 'lg' })}>
-            {cta.kind === 'review' ? t('review', { count: cta.count }) : t('continuePractice')}
-          </Link>
-        )}
-      </div>
-
-      {student?.showWeekRhythm ? (
-        <div className="mb-10">
-          <WeekRhythmPanel />
+        <div className="mt-6 mb-10">
+          {cta.kind === 'diagnostic' ? (
+            // No prefetch: rendering /diagnostic for a finished attempt writes
+            // (ensureBootstrapped), so it must run only when the learner clicks.
+            <Link href="/diagnostic" prefetch={false} className={buttonVariants({ size: 'lg' })}>
+              {t('findLevel')}
+            </Link>
+          ) : (
+            <Link href="/exercises" className={buttonVariants({ size: 'lg' })}>
+              {cta.kind === 'review' ? t('review', { count: cta.count }) : t('continuePractice')}
+            </Link>
+          )}
         </div>
-      ) : null}
 
-      {student ? (
-        <ConceptList sections={student.sections} diagnosticDone={student.diagnosticDone} />
-      ) : null}
-    </main>
+        {student?.showWeekRhythm ? (
+          <div className="mb-10">
+            <WeekRhythmPanel />
+          </div>
+        ) : null}
+
+        {student ? (
+          <ConceptList sections={student.sections} diagnosticDone={student.diagnosticDone} />
+        ) : null}
+      </main>
+      <Footer />
+    </>
   );
 }

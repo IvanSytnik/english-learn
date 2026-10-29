@@ -346,6 +346,10 @@
       "cefrjText": "Часть описаний уровней и словаря основана на системе CEFR-J (лаборатория Тоно, Токийский университет иностранных языков).",
       "fontsTitle": "Шрифты",
       "fontsText": "Набрано шрифтами Literata, Onest и JetBrains Mono, распространяемыми по лицензии SIL Open Font License."
+    },
+    "footer": {
+      "label": "Правовая информация",
+      "copyright": "© 2026 EnglishLearn"
     }
   }
 }
