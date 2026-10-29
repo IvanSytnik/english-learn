@@ -1,4 +1,5 @@
 import { localDayStartMs } from '../vocab/day';
+import { summarizeVocab, type VocabSummary } from '../vocab/overview';
 import { selectVocab, type VocabSelection } from '../vocab/select';
 import type { VocabSessionDb } from './db-port';
 
@@ -27,8 +28,39 @@ export type NextVocabInput = {
   conceptId?: string;
 };
 
+/** The `/words` overview: the summary plus today's new-word allowance. */
+export type VocabOverview = VocabSummary & {
+  newToday: number;
+  dailyLimit: number;
+  remainingNew: number;
+};
+
 export function createVocabSessionService(db: VocabSessionDb) {
   return {
+    /**
+     * The learner's vocabulary at a glance — the same reads as nextVocab,
+     * aggregated instead of selected (vocab/overview.ts).
+     */
+    async overview(input: {
+      userId: string;
+      timeZone: unknown;
+      nowMs?: number;
+    }): Promise<VocabOverview> {
+      const nowMs = input.nowMs ?? Date.now();
+      const dayStart = localDayStartMs(nowMs, input.timeZone);
+      const [candidates, newToday, profile] = await Promise.all([
+        db.getVocabCandidates(input.userId),
+        db.countNewVocabSince(input.userId, dayStart),
+        db.getVocabProfile(input.userId),
+      ]);
+      return {
+        ...summarizeVocab(candidates, nowMs),
+        newToday,
+        dailyLimit: profile.dailyLimit,
+        remainingNew: Math.max(0, profile.dailyLimit - newToday),
+      };
+    },
+
     async nextVocab(input: NextVocabInput): Promise<VocabSelection> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);

@@ -1,4 +1,4 @@
-import type { CefrLevelValue } from '../schemas/learner-events';
+import { CefrLevelValue } from '../schemas/learner-events';
 import type { LocalizedString } from '../schemas/localized-string';
 
 /**
@@ -160,4 +160,21 @@ export function vocabConceptId(
   prefix = 'vocab',
 ): string {
   return `${prefix}.${topic}.${level.toLowerCase()}`;
+}
+
+/**
+ * The topic and level of a topic concept id (`vocab.food_drink.a1`), or null
+ * for anything else — another prefix, an unknown topic or level.
+ */
+export function parseVocabConceptId(
+  conceptId: string,
+  prefix = 'vocab',
+): { topic: VocabTopicId; level: CefrLevelValue } | null {
+  const parts = conceptId.split('.');
+  if (parts.length !== 3 || parts[0] !== prefix) return null;
+  const [, topicId = '', levelId = ''] = parts;
+  const topic = byId.get(topicId);
+  const level = CefrLevelValue.safeParse(levelId.toUpperCase());
+  if (!topic || !level.success || levelId !== levelId.toLowerCase()) return null;
+  return { topic: topic.id, level: level.data };
 }

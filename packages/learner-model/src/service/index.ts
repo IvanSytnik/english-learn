@@ -48,5 +48,6 @@ export {
 export {
   createVocabSessionService,
   type NextVocabInput,
+  type VocabOverview,
   type VocabSessionService,
 } from './vocab-session-service';

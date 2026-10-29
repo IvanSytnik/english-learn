@@ -4,6 +4,7 @@ import { SUPPORTED_LOCALES } from '../../schemas/locale';
 import {
   FALLBACK_TOPIC,
   getVocabTopic,
+  parseVocabConceptId,
   resolveVocabTopic,
   VOCAB_TOPIC_IDS,
   VOCAB_TOPICS,
@@ -44,5 +45,32 @@ describe('vocabConceptId', () => {
   it('is vocab.<topic>.<level>', () => {
     expect(vocabConceptId('food_drink', 'A1')).toBe('vocab.food_drink.a1');
     expect(vocabConceptId('general', 'B1', 'test-run')).toBe('test-run.general.b1');
+  });
+});
+
+describe('parseVocabConceptId', () => {
+  it('reads back every topic × level id vocabConceptId builds', () => {
+    for (const topic of VOCAB_TOPIC_IDS) {
+      for (const level of ['A1', 'A2', 'B1'] as const) {
+        expect(parseVocabConceptId(vocabConceptId(topic, level))).toEqual({ topic, level });
+      }
+    }
+    expect(parseVocabConceptId('t-run.food_drink.b2', 't-run')).toEqual({
+      topic: 'food_drink',
+      level: 'B2',
+    });
+  });
+
+  it.each([
+    'grammar.past_simple',
+    'vocab.food_drink',
+    'vocab.food_drink.a1.x',
+    'vocab.cooking.a1',
+    'vocab.food_drink.d1',
+    'vocab.food_drink.A1',
+    'other.food_drink.a1',
+    'test-vsession-x.vocab',
+  ])('is null for %s', (id) => {
+    expect(parseVocabConceptId(id)).toBeNull();
   });
 });

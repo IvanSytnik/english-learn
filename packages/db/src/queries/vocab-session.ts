@@ -1,4 +1,6 @@
 import type { PrismaClient } from '../generated/client/client';
+import { DailyVocabLimitSchema } from '../schemas/daily-vocab-limit';
+import { ensureStudentProfile } from './student-profile';
 
 /**
  * Reads behind the daily new-word limit (B2.5). Learner state is never read
@@ -18,6 +20,22 @@ export async function getDailyVocabLimit(
     select: { dailyVocabLimit: true },
   });
   return profile?.dailyVocabLimit ?? DEFAULT_DAILY_VOCAB_LIMIT;
+}
+
+/**
+ * Store the learner's daily new-word limit. Validated here (an integer in
+ * 1..50, the CHECK's range) before anything is written — anything else
+ * throws and leaves the profile untouched. A missing profile is created
+ * first, so this never fails with "record not found".
+ */
+export async function setDailyVocabLimit(
+  db: Pick<PrismaClient, 'studentProfile'>,
+  userId: string,
+  limit: number,
+): Promise<void> {
+  const dailyVocabLimit = DailyVocabLimitSchema.parse(limit);
+  await ensureStudentProfile(db, userId);
+  await db.studentProfile.update({ where: { userId }, data: { dailyVocabLimit } });
 }
 
 /**

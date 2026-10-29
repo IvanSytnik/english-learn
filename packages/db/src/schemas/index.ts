@@ -1,4 +1,9 @@
 export { ConceptTitleSchema, getConceptTitle } from './concept';
+export {
+  DAILY_VOCAB_LIMIT_MAX,
+  DAILY_VOCAB_LIMIT_MIN,
+  DailyVocabLimitSchema,
+} from './daily-vocab-limit';
 export { type DiagnosticContent, DiagnosticContentSchema } from './diagnostic';
 export {
   type CreateBetaFeedback,

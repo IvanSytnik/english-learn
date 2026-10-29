@@ -216,6 +216,28 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     ).resolves.toMatchObject({ ok: false, reason: 'NOTHING_DUE', nextDueAt: null });
   });
 
+  it('overview: today’s allowance, due words and this concept’s progress', async () => {
+    const [w0, w1] = words as [string, string];
+    await answer(w0, NOW - 30 * MIN);
+    await answer(w1, NOW - 20 * MIN, { proof: true });
+    const out = await session().overview({ userId, timeZone: TZ, nowMs: NOW });
+
+    // w0 counts toward today's limit (2); the proven w1 does not.
+    expect(out).toMatchObject({ newToday: 1, dailyLimit: 2, remainingNew: 1 });
+    const concept = out.concepts.find((c) => c.conceptId === CONCEPT);
+    expect(concept).toEqual({
+      conceptId: CONCEPT,
+      total: 6,
+      started: 2,
+      stages: { new: 4, learning: 1, familiar: 1, known: 0, mastered: 0 },
+    });
+    // w0's learning step is due; w1 is scheduled 8 days out.
+    expect(out.dueNow).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(out, (_, v) => (typeof v === 'bigint' ? v.toString() : v))).not.toMatch(
+      /stability|difficulty/,
+    );
+  });
+
   it('offers only published lexeme-backed items, never grammar', async () => {
     const ids = new Set(
       (await createPrismaVocabSessionDb(prisma).getVocabCandidates(userId)).map((c) => c.itemId),

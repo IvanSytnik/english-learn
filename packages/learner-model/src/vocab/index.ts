@@ -12,6 +12,15 @@ export { DISTRACTOR_COUNT, type Distractor, pickDistractors } from './distractor
 export { gradeVocabAnswer, type VocabAnswer, type VocabGrade } from './grade';
 export { LADDER_THRESHOLDS, PROOF_MODE, vocabModeFor } from './ladder';
 export {
+  type StageCounts,
+  summarizeVocab,
+  type VocabConceptProgress,
+  type VocabSummary,
+  WORD_STAGES,
+  type WordStage,
+  wordStage,
+} from './overview';
+export {
   selectVocab,
   type VocabCandidate,
   type VocabSelectInput,
