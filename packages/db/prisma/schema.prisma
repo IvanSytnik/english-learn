@@ -139,6 +139,9 @@ model StudentProfile {
   assessedLevel     CefrLevel?
   goal              LearningGoal?
   dailyGoalMin      Int           @default(15)
+  /// New words per day; a raw-SQL CHECK (migration
+  /// 20261029180000_add_lexeme_model) keeps it within 1..50.
+  dailyVocabLimit   Int           @default(10)
   streakDays        Int           @default(0)
   lastActiveAt      DateTime?
   createdAt         DateTime      @default(now())
@@ -460,6 +463,10 @@ model Item {
   /// jsonb_typeof(content->'practice') = 'object', so every writer must set it.
   hasPractice Boolean @default(false)
 
+  /// The dictionary entry this item practises (vocabulary items only).
+  lexemeId String?
+  lexeme   Lexeme? @relation(fields: [lexemeId], references: [id], onDelete: SetNull)
+
   generatorMeta Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -470,6 +477,63 @@ model Item {
   @@index([kind, cefrLevel])
   @@index([status])
   @@index([status, hasPractice])
+  @@index([lexemeId])
+}
+
+enum PartOfSpeech {
+  NOUN
+  VERB
+  ADJECTIVE
+  ADVERB
+  PRONOUN
+  PREPOSITION
+  CONJUNCTION
+  PHRASAL_VERB
+  IDIOM
+  INTERJECTION
+  OTHER
+}
+
+/// A dictionary entry: the linguistic data of one word sense. Memory is
+/// tracked on the Items that point at it (Item.lexemeId), never here.
+///
+/// Raw-SQL CHECKs (migration 20261029180000_add_lexeme_model), so every
+/// writer must keep them:
+///   - lemmaKey = lower(btrim(lemma)) — the comparison key ("Run" = "run ");
+///   - cefrJLevel is a CEFR-J level and its prefix matches cefrLevel
+///     (PreA1 → A1);
+///   - examples is a JSON array.
+model Lexeme {
+  id         String       @id @default(cuid())
+  /// Display form, e.g. "English", "look up".
+  lemma      String
+  lemmaKey   String
+  pos        PartOfSpeech
+  /// Homonym discriminator ("finance" / "river" for bank); "" = sole sense.
+  sense      String       @default("")
+  cefrLevel  CefrLevel
+  /// "PreA1", "A1.1" … "B2.2", "C1", "C2".
+  cefrJLevel String
+  ipa        String?
+  audioUrl   String?
+
+  /// JSON payloads validated by packages/db/src/schemas/lexeme.ts.
+  /// definitions: LocalizedString (en required); translations: TranslationMap
+  /// ({ ru?, uk?, de? }); examples: [{ sentence, translation, clozeTarget }].
+  definitions  Json
+  translations Json
+  examples     Json     @default("[]")
+  collocations String[] @default([])
+
+  frequencyRank Int?
+  status        ContentStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items Item[]
+
+  @@unique([lemmaKey, pos, sense])
+  @@index([status, cefrLevel, pos])
 }
 
 /// Per-user FSRS memory state for a single Item.
