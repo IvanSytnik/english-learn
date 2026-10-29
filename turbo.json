@@ -70,10 +70,6 @@
     "db:push": {
       "cache": false
     },
-    "db:seed": {
-      "cache": false,
-      "dependsOn": ["db:generate"]
-    },
     "studio": {
       "cache": false,
       "persistent": true
