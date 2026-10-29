@@ -717,6 +717,7 @@ model LearnerEvent {
 
   @@unique([userId, idempotencyKey])
   @@index([userId, occurredAt])
+  @@index([userId, type, occurredAt])
   @@index([type])
 }
 
