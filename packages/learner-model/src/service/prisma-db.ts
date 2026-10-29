@@ -30,6 +30,45 @@ import {
 
 type PrismaTxClient = Prisma.TransactionClient;
 
+/**
+ * The user-independent selection reads — the practisable item catalog,
+ * PREREQUISITE edges, concept levels — change only when content is seeded,
+ * so they are served from memory for STATIC_GRAPH_TTL_MS, per Prisma client
+ * and per process (a seed shows up within the TTL). Per-user rows (review
+ * state, assessed level) are never cached: a stale due date or level would
+ * change what the learner is served.
+ */
+export const STATIC_GRAPH_TTL_MS = 60_000;
+
+type StaticEntry = { expiresAt: number; value: Promise<unknown> };
+let staticGraphCache = new WeakMap<object, Map<string, StaticEntry>>();
+
+/** Drops every cached static read (tests; after a seed in the same process). */
+export function clearStaticGraphCache(): void {
+  staticGraphCache = new WeakMap();
+}
+
+function cachedStatic<T>(owner: object, key: string, load: () => Promise<T>): Promise<T> {
+  let entries = staticGraphCache.get(owner);
+  if (!entries) {
+    entries = new Map();
+    staticGraphCache.set(owner, entries);
+  }
+  const now = Date.now();
+  const hit = entries.get(key);
+  if (hit && hit.expiresAt > now) return hit.value as Promise<T>;
+
+  const value = load();
+  const entry: StaticEntry = { expiresAt: now + STATIC_GRAPH_TTL_MS, value };
+  const bucket = entries;
+  bucket.set(key, entry);
+  // A failed read is not cached: the next call retries.
+  value.catch(() => {
+    if (bucket.get(key) === entry) bucket.delete(key);
+  });
+  return value;
+}
+
 function isUniqueViolation(e: unknown): boolean {
   return typeof e === 'object' && e !== null && (e as { code?: unknown }).code === 'P2002';
 }
@@ -225,16 +264,18 @@ export function createPrismaLearnerDb(
     },
 
     async getPrereqEdges(): Promise<PrereqEdgeRow[]> {
-      const rows = await prisma.conceptEdge.findMany({
-        where: { kind: 'PREREQUISITE' },
-        select: { fromId: true, toId: true, kind: true },
-      });
+      return cachedStatic(prisma, 'prereqEdges', async () => {
+        const rows = await prisma.conceptEdge.findMany({
+          where: { kind: 'PREREQUISITE' },
+          select: { fromId: true, toId: true, kind: true },
+        });
 
-      return rows.map((r) => ({
-        from: r.fromId,
-        to: r.toId,
-        kind: r.kind,
-      }));
+        return rows.map((r) => ({
+          from: r.fromId,
+          to: r.toId,
+          kind: r.kind,
+        }));
+      });
     },
 
     async getConceptEventCounts(userId): Promise<ConceptCountsRow[]> {
@@ -259,37 +300,47 @@ export function createPrismaLearnerDb(
     },
 
     async getCandidateItems(userId): Promise<CandidateItemRow[]> {
-      return prisma.$queryRaw<
-        {
-          itemId: string;
-          conceptId: string;
-          irtDiscrimination: number;
-          irtDifficulty: number;
-          cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
-          dueAt: bigint | null;
-          lastReviewAt: bigint | null;
-        }[]
-      >`
-    SELECT
-      i."id" AS "itemId",
-      i."conceptId" AS "conceptId",
-      i."irtDiscrimination" AS "irtDiscrimination",
-      i."irtDifficulty" AS "irtDifficulty",
-      i."cefrLevel" AS "cefrLevel",
-      irs."dueAt" AS "dueAt",
-      irs."lastReviewAt" AS "lastReviewAt"
-    FROM "Item" i
-    LEFT JOIN "ItemReviewState" irs
-      ON irs."itemId" = i."id"
-     AND irs."userId" = ${userId}
-    WHERE i."status" = 'PUBLISHED'
-      AND jsonb_typeof(i."content" -> 'practice') = 'object'
-  `;
+      // The catalog filters on the hasPractice column (index on status,
+      // hasPractice) and never reads content; the user's review state is a
+      // separate, always-fresh read merged in memory (LEFT JOIN semantics).
+      const [catalog, reviews] = await Promise.all([
+        cachedStatic(prisma, 'candidateCatalog', () =>
+          prisma.item.findMany({
+            where: { status: 'PUBLISHED', hasPractice: true },
+            select: {
+              id: true,
+              conceptId: true,
+              irtDiscrimination: true,
+              irtDifficulty: true,
+              cefrLevel: true,
+            },
+          }),
+        ),
+        prisma.itemReviewState.findMany({
+          where: { userId },
+          select: { itemId: true, dueAt: true, lastReviewAt: true },
+        }),
+      ]);
+      const reviewByItem = new Map(reviews.map((r) => [r.itemId, r]));
+      return catalog.map((item) => {
+        const review = reviewByItem.get(item.id);
+        return {
+          itemId: item.id,
+          conceptId: item.conceptId,
+          irtDiscrimination: item.irtDiscrimination,
+          irtDifficulty: item.irtDifficulty,
+          cefrLevel: item.cefrLevel,
+          dueAt: review?.dueAt ?? null,
+          lastReviewAt: review?.lastReviewAt ?? null,
+        };
+      });
     },
     async getLevelContext(userId): Promise<LevelContextRow> {
       const [profile, concepts] = await Promise.all([
         prisma.studentProfile.findUnique({ where: { userId }, select: { assessedLevel: true } }),
-        prisma.concept.findMany({ select: { id: true, cefrLevel: true } }),
+        cachedStatic(prisma, 'conceptLevels', () =>
+          prisma.concept.findMany({ select: { id: true, cefrLevel: true } }),
+        ),
       ]);
       return { level: profile?.assessedLevel ?? null, concepts };
     },

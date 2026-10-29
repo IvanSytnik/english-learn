@@ -7,7 +7,7 @@ vi.mock('server-only', () => ({}));
 
 /**
  * getPlacementContext's concept filter against a real, migrated Postgres:
- * the `content -> 'practice'` JSON test is SQL, so a mock could not prove it.
+ * the practisable filter (`hasPractice`) is SQL, so a mock could not prove it.
  * Same gate as the other DB tests (DIAG_DB_TEST_URL; required in CI). Only
  * rows under this run's prefix are asserted on and deleted.
  */

@@ -2,8 +2,8 @@ import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import { getPlacementContext } from '@englishlearn/db/queries/diagnostic-reveal';
 import { getConceptProgress } from '@englishlearn/db/queries/learner-progress';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { createPrismaLearnerDb } from '../service/prisma-db';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearStaticGraphCache, createPrismaLearnerDb } from '../service/prisma-db';
 
 vi.mock('server-only', () => ({}));
 
@@ -59,6 +59,9 @@ describe.skipIf(!url)('placement concepts = selection candidates (real Postgres)
       })),
     });
   });
+
+  // Rows are created per run: never read a catalog cached before them.
+  beforeEach(() => clearStaticGraphCache());
 
   afterAll(async () => {
     if (!db) return;

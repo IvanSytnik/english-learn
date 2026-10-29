@@ -14,6 +14,7 @@
  */
 
 import { createPrismaClient } from '@englishlearn/db/create-client';
+import { hasPracticeQuestion } from '@englishlearn/db/queries/practisable';
 import { safeParseItemContent } from '@englishlearn/db/schemas';
 import { ALL_ITEMS } from './index';
 
@@ -67,6 +68,7 @@ async function main() {
       status: 'PUBLISHED' as const,
       source: 'CURATED' as const,
       content: item.content as object,
+      hasPractice: hasPracticeQuestion(item.content),
       ...(item.irtDiscrimination !== undefined
         ? { irtDiscrimination: item.irtDiscrimination }
         : {}),

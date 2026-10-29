@@ -30,7 +30,7 @@ export {
   type RecordOutcomeResult,
 } from './learner-service';
 export { type Clock, OccurredAtNotMonotonicError, systemClock } from './occurred-at';
-export { createPrismaLearnerDb } from './prisma-db';
+export { clearStaticGraphCache, createPrismaLearnerDb } from './prisma-db';
 export { type ReplayResult, replayUser } from './replay';
 export {
   createSelectionService,

@@ -1,7 +1,7 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createPrismaLearnerDb } from '../service/prisma-db';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { clearStaticGraphCache, createPrismaLearnerDb } from '../service/prisma-db';
 
 /**
  * getLevelContext and getAttemptOutcomes on real Postgres: the assessed level
@@ -34,6 +34,9 @@ describe.skipIf(!url)('getLevelContext / getAttemptOutcomes (real Postgres)', ()
     await db.studentProfile.create({ data: { userId: ids.assessed, assessedLevel: 'B1' } });
     await db.studentProfile.create({ data: { userId: ids.pending } });
   });
+
+  // Rows are created per run: never read concept levels cached before them.
+  beforeEach(() => clearStaticGraphCache());
 
   afterAll(async () => {
     if (!db) return;
