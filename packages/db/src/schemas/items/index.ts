@@ -10,6 +10,7 @@ export {
   GrammarPatternContentSchema,
 } from './grammar-pattern';
 export { type IdiomContent, IdiomContentSchema } from './idiom';
+export { type LexemeItemContent, LexemeItemContentSchema } from './lexeme-item';
 export {
   isClozeAnswerAccepted,
   normalizeClozeAnswer,

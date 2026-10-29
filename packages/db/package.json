@@ -27,7 +27,8 @@
     "clean": "rm -rf src/generated .turbo node_modules",
     "vocab:sample": "tsx --env-file-if-exists=.env scripts/sample-vocab.ts",
     "vocab:export-localization": "tsx --env-file-if-exists=.env scripts/export-vocab-localization.ts",
-    "vocab:sync-localization": "tsx --env-file-if-exists=.env scripts/sync-vocab-localization.ts"
+    "vocab:sync-localization": "tsx --env-file-if-exists=.env scripts/sync-vocab-localization.ts",
+    "vocab:publish": "tsx --env-file-if-exists=.env scripts/publish-vocab.ts"
   },
   "prisma": {
     "seed": "tsx --env-file-if-exists=.env src/seed.ts"
