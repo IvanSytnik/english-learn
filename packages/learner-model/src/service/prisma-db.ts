@@ -283,7 +283,7 @@ export function createPrismaLearnerDb(
       ON irs."itemId" = i."id"
      AND irs."userId" = ${userId}
     WHERE i."status" = 'PUBLISHED'
-      AND i."content" -> 'practice' IS NOT NULL
+      AND jsonb_typeof(i."content" -> 'practice') = 'object'
   `;
     },
     async getLevelContext(userId): Promise<LevelContextRow> {

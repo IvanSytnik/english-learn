@@ -215,7 +215,7 @@ describe('getPlacementContext', () => {
     await getPlacementContext(db, 'u1');
     expect($queryRaw.mock.calls[0]?.slice(1)).toContain(PRACTISABLE_ITEM);
     expect(PRACTISABLE_ITEM.sql).toContain(`i."status" = 'PUBLISHED'`);
-    expect(PRACTISABLE_ITEM.sql).toContain(`i."content" -> 'practice' IS NOT NULL`);
+    expect(PRACTISABLE_ITEM.sql).toContain(`jsonb_typeof(i."content" -> 'practice') = 'object'`);
   });
 
   it('returns plain-number timestamps and from/to edges', async () => {
