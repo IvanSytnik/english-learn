@@ -18,7 +18,12 @@ export async function Footer() {
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
             {LINKS.map(({ href, key }) => (
               <li key={href}>
-                <Link href={href} className="underline-offset-4 hover:text-ink hover:underline">
+                {/* Own colour, not inherited: after a live switch to dark, Chromium left
+                    links (preflight `color: inherit`) at the light value — e2e axe caught it. */}
+                <Link
+                  href={href}
+                  className="text-ink-muted underline-offset-4 hover:text-ink hover:underline"
+                >
                   {t(key)}
                 </Link>
               </li>
