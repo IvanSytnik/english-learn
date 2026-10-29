@@ -351,5 +351,38 @@
       "label": "Legal",
       "copyright": "© 2026 EnglishLearn"
     }
+  },
+  "settings": {
+    "navLink": "Settings",
+    "title": "Account settings",
+    "backToDashboard": "Back to dashboard",
+    "language": {
+      "title": "Native language",
+      "description": "Hints and explanations in exercises are shown in this language.",
+      "other": "Other (English)",
+      "saveButton": "Save",
+      "successMessage": "Saved.",
+      "errorMessage": "Could not save. Please try again."
+    },
+    "export": {
+      "title": "Your data",
+      "description": "Download everything we store about you — profile, diagnostic answers, practice history and feedback — as a JSON file.",
+      "downloadButton": "Download my data",
+      "downloadingButton": "Preparing…",
+      "errorMessage": "Could not prepare the file. Please try again."
+    },
+    "dangerZone": {
+      "title": "Delete account",
+      "warning": "Your account and all your progress will be deleted permanently. This cannot be undone.",
+      "deleteButton": "Delete account",
+      "dialogTitle": "Delete your account?",
+      "dialogDescription": "Everything will be deleted: your profile, diagnostic result, practice history and feedback. Enter your password to confirm.",
+      "passwordLabel": "Password",
+      "confirmDeleteButton": "Delete permanently",
+      "cancelButton": "Cancel",
+      "invalidPasswordError": "Wrong password.",
+      "rateLimitedError": "Too many attempts. Please wait 15 minutes and try again.",
+      "errorMessage": "Could not delete the account. Please try again."
+    }
   }
 }

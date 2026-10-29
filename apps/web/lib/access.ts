@@ -15,7 +15,7 @@ export type AccessDecision = 'allow' | { redirect: string };
 // `localePrefix: 'as-needed'` means paths may or may not start with a locale.
 const LOCALE_PREFIX = new RegExp(`^/(${locales.join('|')})(?=/|$)`);
 
-const SESSION_REQUIRED = ['/dashboard', '/diagnostic', '/exercises', '/tutor'];
+const SESSION_REQUIRED = ['/dashboard', '/diagnostic', '/exercises', '/settings', '/tutor'];
 const GUEST_ONLY = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 function inSection(path: string, sections: string[]): boolean {

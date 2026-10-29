@@ -351,5 +351,38 @@
       "label": "Rechtliches",
       "copyright": "© 2026 EnglishLearn"
     }
+  },
+  "settings": {
+    "navLink": "Einstellungen",
+    "title": "Kontoeinstellungen",
+    "backToDashboard": "Zurück zum Dashboard",
+    "language": {
+      "title": "Muttersprache",
+      "description": "In dieser Sprache werden Hinweise und Erklärungen in den Übungen angezeigt.",
+      "other": "Andere (Englisch)",
+      "saveButton": "Speichern",
+      "successMessage": "Gespeichert.",
+      "errorMessage": "Speichern fehlgeschlagen. Bitte versuche es erneut."
+    },
+    "export": {
+      "title": "Deine Daten",
+      "description": "Lade alles herunter, was wir über dich speichern – Profil, Antworten im Einstufungstest, Übungsverlauf und Feedback – als JSON-Datei.",
+      "downloadButton": "Meine Daten herunterladen",
+      "downloadingButton": "Wird vorbereitet…",
+      "errorMessage": "Die Datei konnte nicht erstellt werden. Bitte versuche es erneut."
+    },
+    "dangerZone": {
+      "title": "Konto löschen",
+      "warning": "Dein Konto und dein gesamter Fortschritt werden dauerhaft gelöscht. Das lässt sich nicht rückgängig machen.",
+      "deleteButton": "Konto löschen",
+      "dialogTitle": "Konto wirklich löschen?",
+      "dialogDescription": "Alles wird gelöscht: Profil, Testergebnis, Übungsverlauf und Feedback. Gib zur Bestätigung dein Passwort ein.",
+      "passwordLabel": "Passwort",
+      "confirmDeleteButton": "Endgültig löschen",
+      "cancelButton": "Abbrechen",
+      "invalidPasswordError": "Falsches Passwort.",
+      "rateLimitedError": "Zu viele Versuche. Bitte warte 15 Minuten und versuche es erneut.",
+      "errorMessage": "Das Konto konnte nicht gelöscht werden. Bitte versuche es erneut."
+    }
   }
 }

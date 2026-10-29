@@ -26,6 +26,7 @@ describe('resolveAccess', () => {
         '/diagnostic',
         '/exercises',
         '/exercises/42',
+        '/settings',
         '/tutor',
         '/tutor/x',
       ];

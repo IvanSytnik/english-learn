@@ -16,6 +16,7 @@ export default async function DashboardPage() {
 
   const t = await getTranslations('student.dashboard');
   const tc = await getTranslations('common');
+  const ts = await getTranslations('settings');
 
   // Progress lives in the learner model, which only students have.
   const student =
@@ -40,6 +41,9 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold">{t('title')}</h1>
           <div className="flex items-center gap-2">
             <FeedbackButton />
+            <Link href="/settings" className={buttonVariants({ variant: 'ghost' })}>
+              {ts('navLink')}
+            </Link>
             <form action={logout}>
               <Button variant="ghost" type="submit">
                 {tc('signOut')}

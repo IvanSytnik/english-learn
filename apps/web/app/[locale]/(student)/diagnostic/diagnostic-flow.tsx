@@ -20,6 +20,7 @@ import type {
   DiagnosticResultView,
 } from '@/lib/diagnostic';
 import { focusKind, resolveShortcut } from '@/lib/exercise/shortcuts';
+import { LANGUAGE_CHOICES } from '../_components/native-language-choices';
 import {
   saveNativeLanguageAction,
   startDiagnosticAction,
@@ -32,18 +33,6 @@ const primaryButton =
   'inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent px-5 text-sm font-medium text-on-accent transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
 const quietButton =
   'inline-flex h-11 items-center justify-center gap-2 rounded-control border border-line px-4 text-sm font-medium text-ink transition-colors duration-(--duration-fast) ease-standard hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
-
-/**
- * The native-language choices, in a fixed order. Endonyms are constants, not
- * `Intl.DisplayNames` (its casing differs between Node and browsers — a
- * hydration mismatch); "Other" is a message in the interface language.
- */
-const LANGUAGE_CHOICES: readonly { code: NativeLanguage; endonym: string | null }[] = [
-  { code: 'ru', endonym: 'Русский' },
-  { code: 'uk', endonym: 'Українська' },
-  { code: 'de', endonym: 'Deutsch' },
-  { code: 'other', endonym: null },
-];
 
 /** Client view of the diagnostic: (language →) intro → questions → done, or unavailable. */
 export type DiagnosticView = DiagnosticPeek | { kind: 'unavailable' };
