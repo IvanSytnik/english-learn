@@ -80,6 +80,11 @@ let clicked: { download: string; href: string }[];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps queued *Once values: one a failed test never used
+  // would answer the next test's call.
+  for (const action of [updateNativeLanguageAction, exportUserDataAction, deleteAccountAction]) {
+    action.mockReset();
+  }
   auth.mockResolvedValue({ user: { id: 'user-1', role: 'STUDENT' } });
   getNativeLanguage.mockResolvedValue('uk');
   updateNativeLanguageAction.mockResolvedValue({ ok: true, value: { success: true } });
@@ -173,6 +178,10 @@ describe('native language', () => {
     fireEvent.click(radio(s.language.other));
     fireEvent.click(screen.getByRole('button', { name: s.language.saveButton }));
     expect(await screen.findByRole('alert')).toHaveTextContent(s.language.errorMessage);
+    // The alert commits before the transition ends; Save is disabled until it does.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: s.language.saveButton })).toBeEnabled(),
+    );
 
     updateNativeLanguageAction.mockRejectedValueOnce(new Error('network'));
     fireEvent.click(screen.getByRole('button', { name: s.language.saveButton }));
@@ -250,6 +259,8 @@ describe('account deletion', () => {
     fireEvent.change(password(), { target: { value: 'pw' } });
     fireEvent.click(confirmDelete());
     expect(await screen.findByRole('alert')).toHaveTextContent(s.dangerZone.rateLimitedError);
+    // The alert commits before the transition ends; the button is disabled until it does.
+    await waitFor(() => expect(confirmDelete()).toBeEnabled());
 
     deleteAccountAction.mockRejectedValueOnce(new Error('network'));
     fireEvent.click(confirmDelete());
