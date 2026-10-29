@@ -312,5 +312,40 @@
       "expiry": "The link works once and expires in 1 hour.",
       "ignore": "If you didn't ask for this, ignore this email — your password stays the same."
     }
+  },
+  "legal": {
+    "impressum": {
+      "title": "Legal notice",
+      "operatorLabel": "Operator",
+      "operatorValue": "Ivan Sytnik / Sytnik Studio",
+      "locationLabel": "Location",
+      "locationValue": "Graz, Austria",
+      "contactLabel": "Contact",
+      "contactEmail": "support@sytnik-studio.com",
+      "disclaimerTitle": "Disclaimer",
+      "disclaimerText": "We prepare the content of this site with care but cannot guarantee that it is complete, correct or up to date. We are not responsible for the content of external sites we link to; their operators are."
+    },
+    "datenschutz": {
+      "title": "Privacy policy",
+      "intro": "We process only the personal data needed to run your account and your learning: your email address, your name if you give one, your answers and your learning progress. We do not sell your data or use it for advertising.",
+      "processorsTitle": "Service providers",
+      "processors": {
+        "vercel": "Vercel — hosting and delivery of the website.",
+        "neon": "Neon — database that stores your account and learning progress.",
+        "resend": "Resend — sending account emails, such as password reset links.",
+        "sentry": "Sentry — error monitoring, so we can find and fix technical problems."
+      },
+      "cookiesTitle": "Cookies",
+      "cookiesText": "We use only strictly necessary technical cookies: one keeps you signed in, one remembers your interface language. We use no marketing, analytics or tracking cookies.",
+      "rightsTitle": "Your rights",
+      "rightsText": "Under the GDPR you have the right to access, correct and delete your data, to restrict or object to its processing, and to data portability. Write to us at the contact address in the legal notice. You may also lodge a complaint with the Austrian Data Protection Authority (Datenschutzbehörde)."
+    },
+    "credits": {
+      "title": "Credits",
+      "cefrjTitle": "CEFR-J",
+      "cefrjText": "Parts of our level descriptions and vocabulary are based on the CEFR-J framework (Tono Laboratory, Tokyo University of Foreign Studies).",
+      "fontsTitle": "Fonts",
+      "fontsText": "Set in Literata, Onest and JetBrains Mono, all released under the SIL Open Font License."
+    }
   }
 }

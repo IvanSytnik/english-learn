@@ -312,5 +312,40 @@
       "expiry": "Der Link funktioniert einmal und läuft nach 1 Stunde ab.",
       "ignore": "Wenn du das nicht angefordert hast, ignoriere diese E-Mail — dein Passwort bleibt unverändert."
     }
+  },
+  "legal": {
+    "impressum": {
+      "title": "Impressum",
+      "operatorLabel": "Betreiber",
+      "operatorValue": "Ivan Sytnik / Sytnik Studio",
+      "locationLabel": "Sitz",
+      "locationValue": "Graz, Österreich",
+      "contactLabel": "Kontakt",
+      "contactEmail": "support@sytnik-studio.com",
+      "disclaimerTitle": "Haftungsausschluss",
+      "disclaimerText": "Wir erstellen die Inhalte dieser Website mit Sorgfalt, übernehmen aber keine Gewähr für Vollständigkeit, Richtigkeit und Aktualität. Für die Inhalte verlinkter externer Seiten sind ausschließlich deren Betreiber verantwortlich."
+    },
+    "datenschutz": {
+      "title": "Datenschutzerklärung",
+      "intro": "Wir verarbeiten nur die personenbezogenen Daten, die für dein Konto und dein Lernen nötig sind: deine E-Mail-Adresse, deinen Namen, falls du ihn angibst, deine Antworten und deinen Lernfortschritt. Wir verkaufen deine Daten nicht und nutzen sie nicht für Werbung.",
+      "processorsTitle": "Dienstleister",
+      "processors": {
+        "vercel": "Vercel — Hosting und Auslieferung der Website.",
+        "neon": "Neon — Datenbank, in der dein Konto und dein Lernfortschritt gespeichert sind.",
+        "resend": "Resend — Versand von Konto-E-Mails, etwa Links zum Zurücksetzen des Passworts.",
+        "sentry": "Sentry — Fehlerüberwachung, damit wir technische Probleme finden und beheben können."
+      },
+      "cookiesTitle": "Cookies",
+      "cookiesText": "Wir verwenden ausschließlich technisch notwendige Cookies: eines hält dich angemeldet, eines merkt sich deine Sprache. Marketing-, Analyse- oder Tracking-Cookies setzen wir nicht ein.",
+      "rightsTitle": "Deine Rechte",
+      "rightsText": "Nach der DSGVO hast du das Recht auf Auskunft, Berichtigung und Löschung deiner Daten, auf Einschränkung der Verarbeitung, auf Widerspruch und auf Datenübertragbarkeit. Schreib uns an die Kontaktadresse im Impressum. Du kannst dich außerdem bei der österreichischen Datenschutzbehörde beschweren."
+    },
+    "credits": {
+      "title": "Danksagungen",
+      "cefrjTitle": "CEFR-J",
+      "cefrjText": "Teile unserer Niveaubeschreibungen und unseres Wortschatzes beruhen auf dem CEFR-J-Rahmen (Tono-Labor, Tokyo University of Foreign Studies).",
+      "fontsTitle": "Schriften",
+      "fontsText": "Gesetzt in Literata, Onest und JetBrains Mono, alle unter der SIL Open Font License veröffentlicht."
+    }
   }
 }

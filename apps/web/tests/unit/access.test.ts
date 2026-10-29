@@ -70,6 +70,13 @@ describe('resolveAccess', () => {
       it.each(EVERYONE)('%s on the landing page → allow', (who) => {
         expect(resolveAccess(prefix || '/', sessionFor(who))).toBe('allow');
       });
+
+      // The footer links here from every page, signed in or not.
+      it.each(
+        EVERYONE.flatMap((who) => ['/impressum', '/datenschutz', '/credits'].map((p) => [who, p])),
+      )('%s on %s → allow', (who, path) => {
+        expect(resolveAccess(`${prefix}${path}`, sessionFor(who as Who))).toBe('allow');
+      });
     });
   });
 
