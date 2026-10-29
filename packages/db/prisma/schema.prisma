@@ -464,6 +464,10 @@ model Item {
   hasPractice Boolean @default(false)
 
   /// The dictionary entry this item practises (vocabulary items only).
+  /// Raw SQL (migration 20261029220000_vocab_item_invariants), not modelled
+  /// by Prisma: a partial unique index — one VOCAB_WORD item per lexeme —
+  /// and CHECK Item_lexeme_not_practisable (lexemeId set => hasPractice
+  /// false), which keeps vocabulary out of grammar selection.
   lexemeId String?
   lexeme   Lexeme? @relation(fields: [lexemeId], references: [id], onDelete: SetNull)
 

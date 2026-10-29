@@ -89,6 +89,37 @@ describe('ItemAttemptedPayloadSchema — mode (V2)', () => {
   });
 });
 
+describe('ItemAttemptedPayloadSchema — proof (B2.5)', () => {
+  const proof = { ...base, correct: true, rating: 'EASY', mode: 'recall', proof: true } as const;
+
+  it('accepts a passed proof: correct recall rated EASY', () => {
+    expect(ItemAttemptedPayloadSchema.parse(proof)).toEqual(proof);
+  });
+
+  it('accepts a payload without proof (every earlier event)', () => {
+    const res = ItemAttemptedPayloadSchema.safeParse({ ...base, mode: 'recall' });
+    expect(res.success).toBe(true);
+    expect(res.data).not.toHaveProperty('proof');
+  });
+
+  it('keeps the payload canonical: proof is either true or absent', () => {
+    expect(ItemAttemptedPayloadSchema.safeParse({ ...proof, proof: false }).success).toBe(false);
+  });
+
+  it.each([
+    ['an incorrect answer', { correct: false, rating: 'AGAIN' }],
+    ['a rating other than EASY', { rating: 'GOOD' }],
+    ['a recognition answer', { mode: 'recognition' }],
+    ['a cloze answer', { mode: 'cloze' }],
+    ['a payload without mode', { mode: undefined }],
+    ['a hinted answer', { hinted: true }],
+  ])('rejects a proof on %s', (_, patch) => {
+    const res = ItemAttemptedPayloadSchema.safeParse({ ...proof, ...patch });
+    expect(res.success).toBe(false);
+    expect(res.error?.issues[0]?.path).toEqual(['proof']);
+  });
+});
+
 describe('LearnerBootstrappedPayloadSchema — ladder axes carry their level', () => {
   const payload = (axes: unknown[], estimator?: 'accuracy' | 'ladder') => ({
     diagnosticAttemptId: 'da1',

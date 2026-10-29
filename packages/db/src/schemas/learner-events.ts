@@ -73,12 +73,24 @@ export const ItemAttemptedPayloadSchema = z
      * field existed has none, and replay must keep accepting it. Not folded.
      */
     mode: PracticeModeSchema.optional(),
+    /**
+     * A passed "Know -> prove" check on a new word (B2.5): one recall answer
+     * that is rated EASY, so FSRS schedules the word as already known. Present
+     * only when true; a failed proof is an ordinary attempt without the flag.
+     * Not folded — the frozen rating carries it. Proven words do not count
+     * toward the daily new-word limit.
+     */
+    proof: z.literal(true).optional(),
   })
   .strict()
   .refine((p) => !(p.dontKnow && p.correct), {
     message: "a don't-know attempt cannot be correct",
     path: ['correct'],
-  });
+  })
+  .refine(
+    (p) => !p.proof || (p.correct && p.rating === 'EASY' && p.mode === 'recall' && !p.hinted),
+    { message: 'a proof is a correct, unhinted recall answer rated EASY', path: ['proof'] },
+  );
 export type ItemAttemptedPayload = z.infer<typeof ItemAttemptedPayloadSchema>;
 
 export function parseItemAttemptedPayload(json: unknown): ItemAttemptedPayload {
