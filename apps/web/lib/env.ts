@@ -25,6 +25,8 @@ export const env = createEnv({
     EMAIL_FROM: z.string().default('EnglishLearn <noreply@sytnik-studio.com>'),
     // Origin for links in emails. Never taken from the request Host (reset-link poisoning).
     APP_URL: z.string().url().default('http://localhost:3000'),
+    // Optional: when set, the DB readiness probe (/api/health?ready=1) requires it.
+    HEALTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   },
   client: {

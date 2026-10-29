@@ -25,7 +25,8 @@
         "SKIP_ENV_VALIDATION",
         "RESEND_API_KEY",
         "EMAIL_FROM",
-        "APP_URL"
+        "APP_URL",
+        "HEALTH_TOKEN"
       ]
     },
     "dev": {
