@@ -168,6 +168,29 @@ describe('validateLocalizedBatch', () => {
       expect(run([run_], verb).accepted).toHaveLength(1);
     });
 
+    it('lets a listed form of address or phrase-bound noun go without an article', () => {
+      const mr = answer('1', {
+        lemma: 'Mr.',
+        definitionEn: 'a title used before a man’s family name',
+        translations: { ru: 'господин', uk: 'пан', de: 'Herr' },
+        examples: [
+          {
+            sentence: 'Mr. Brown is our teacher.',
+            clozeTarget: 'Mr',
+            translation: {
+              ru: 'Господин Браун — наш учитель.',
+              uk: 'Пан Браун — наш учитель.',
+              de: 'Herr Brown ist unser Lehrer.',
+            },
+          },
+        ],
+      });
+      expect(run([mr], [pending('1', 'Mr.')]).accepted).toHaveLength(1);
+      expect(
+        run([{ ...mr, lemma: 'apple' }], [pending('1', 'apple')]).rejected[0]?.reasons,
+      ).toContain('translations.de must start with der/die/das');
+    });
+
     it('catches Russian in the Ukrainian field and Ukrainian in the Russian one', () => {
       expect(withTranslations({ uk: 'яблоко съедобное' })).toEqual([
         'translations.uk is not Ukrainian',

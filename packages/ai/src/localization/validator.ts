@@ -19,6 +19,24 @@ export type ValidatedBatch = { accepted: BatchLocalizationItem[]; rejected: Reje
 export const MAX_GLOSS_WORDS = 3;
 
 const GERMAN_ARTICLE = /^(der|die|das) /;
+
+/**
+ * CEFR-J nouns whose German gloss takes no article: forms of address
+ * (`Herr`, `Frau`) and nouns that live only in a fixed phrase
+ * (`plenty` → `genug`, `for the sake of` → `um … willen`,
+ * `on behalf of` → `im Namen von`). Found by the full B2.4 run: the model
+ * refused the article twice, rightly. An explicit list, not a looser rule.
+ */
+export const ARTICLELESS_GERMAN_NOUNS: ReadonlySet<string> = new Set([
+  'mr.',
+  'mrs.',
+  'ms.',
+  'miss',
+  'sir',
+  'plenty',
+  'sake',
+  'behalf',
+]);
 const RU_ONLY = /[ыэъёЫЭЪЁ]/u;
 const UK_ONLY = /[іїєґІЇЄҐ]/u;
 const CYRILLIC = /\p{Script=Cyrillic}/u;
@@ -50,7 +68,11 @@ function glossProblems(item: BatchLocalizationItem): string[] {
     }
     if (/[.;:()]/u.test(gloss)) problems.push(`translations.${locale} is not a bare gloss`);
   }
-  if (item.pos === 'NOUN' && !GERMAN_ARTICLE.test(item.translations.de)) {
+  if (
+    item.pos === 'NOUN' &&
+    !ARTICLELESS_GERMAN_NOUNS.has(item.lemma.toLowerCase()) &&
+    !GERMAN_ARTICLE.test(item.translations.de)
+  ) {
     problems.push('translations.de must start with der/die/das');
   }
   if (countWholeWord(item.definitions.en, item.lemma) > 0) {
