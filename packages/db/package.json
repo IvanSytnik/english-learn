@@ -11,6 +11,7 @@
     "./create-client": "./src/create-client.ts",
     "./queries/*": "./src/queries/*.ts",
     "./schemas": "./src/schemas/index.ts",
+    "./vocab/*": "./src/vocab/*.ts",
     "./generated/*": "./src/generated/*"
   },
   "scripts": {

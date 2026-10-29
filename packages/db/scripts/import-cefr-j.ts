@@ -11,17 +11,12 @@
 //   pnpm vocab:import --dry-run   # validate + normalize, print counts, no DB
 //   pnpm vocab:import             # write to DATABASE_URL (packages/db/.env)
 
-import { readFileSync } from 'node:fs';
 import { createPrismaClient } from '../src/create-client';
+import { loadCefrJDataset } from '../src/vocab/dataset';
 import { importCefrJ } from '../src/vocab/import';
-import { normalizeDataset } from '../src/vocab/normalize';
-
-const DATASET = new URL('../data/cefr-j-v1.5.json', import.meta.url);
 
 async function main(): Promise<void> {
-  const { source, lexemes, skipped } = normalizeDataset(
-    JSON.parse(readFileSync(DATASET, 'utf8')) as unknown,
-  );
+  const { source, lexemes, skipped } = loadCefrJDataset();
   console.log(
     `${source.name} ${source.version}: ${lexemes.length} lexemes, ${skipped.length} rows left out`,
   );
