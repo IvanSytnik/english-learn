@@ -10,6 +10,26 @@ export {
 export * from './items';
 export * from './learner-events';
 export {
+  CefrJLevelSchema,
+  type CefrJLevelValue,
+  ContentStatusSchema,
+  type ContentStatusValue,
+  type CreateLexemeData,
+  type CreateLexemeInput,
+  CreateLexemeInputSchema,
+  cefrLevelOf,
+  countWholeWord,
+  type LexemeExample,
+  LexemeExampleSchema,
+  type LexemeRecord,
+  LexemeSchema,
+  lexemeKey,
+  PartOfSpeechSchema,
+  type PartOfSpeechValue,
+  type TranslationMap,
+  TranslationMapSchema,
+} from './lexeme';
+export {
   isLocale,
   type Locale,
   LocaleSchema,
