@@ -124,6 +124,19 @@ describe.skipIf(!url)('Lexeme (real Postgres)', () => {
     ).resolves.toBeTruthy();
   });
 
+  // The CEFR-J Wordlist has whole levels only (migration
+  // 20261029200000_accept_whole_cefrj_levels).
+  it.each([
+    ['A1', 'A1'],
+    ['A2', 'A2'],
+    ['B1', 'B1'],
+    ['B2', 'B2'],
+  ] as const)('accepts cefrLevel %s with the whole CEFR-J level %s (CHECK)', async (cefrLevel, cefrJLevel) => {
+    await expect(
+      createRaw(`${RUN}-whole-${cefrJLevel}`, { cefrLevel, cefrJLevel }),
+    ).resolves.toMatchObject({ cefrJLevel });
+  });
+
   it('rejects a lemmaKey that is not the normalized lemma (CHECK)', async () => {
     await expect(createRaw(`${RUN}-Swim`, { lemmaKey: `${RUN}-Swim` })).rejects.toThrow(
       /Lexeme_lemmaKey_normalized/,
@@ -134,8 +147,8 @@ describe.skipIf(!url)('Lexeme (real Postgres)', () => {
   // (Postgres reports one violated CHECK per row).
   it.each([
     ['A1', 'A1.4'],
-    ['A1', 'A1'],
     ['A1', 'A1.1 '],
+    ['A1', 'A1.0'],
     ['B2', 'B2.3'],
     ['C1', 'C1.1'],
   ] as const)('rejects cefrLevel %s with the CEFR-J level %j (CHECK)', async (cefrLevel, cefrJLevel) => {

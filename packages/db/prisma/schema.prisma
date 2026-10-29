@@ -500,8 +500,9 @@ enum PartOfSpeech {
 /// Raw-SQL CHECKs (migration 20261029180000_add_lexeme_model), so every
 /// writer must keep them:
 ///   - lemmaKey = lower(btrim(lemma)) — the comparison key ("Run" = "run ");
-///   - cefrJLevel is a CEFR-J level and its prefix matches cefrLevel
-///     (PreA1 → A1);
+///   - cefrJLevel is a CEFR-J level (migration
+///     20261029200000_accept_whole_cefrj_levels adds the whole levels) and
+///     its prefix matches cefrLevel (PreA1 → A1);
 ///   - examples is a JSON array.
 model Lexeme {
   id         String       @id @default(cuid())
@@ -512,7 +513,8 @@ model Lexeme {
   /// Homonym discriminator ("finance" / "river" for bank); "" = sole sense.
   sense      String       @default("")
   cefrLevel  CefrLevel
-  /// "PreA1", "A1.1" … "B2.2", "C1", "C2".
+  /// "PreA1", "A1.1" … "B2.2", "C1", "C2", or a whole level "A1" … "B2"
+  /// (the CEFR-J Wordlist has no sublevels).
   cefrJLevel String
   ipa        String?
   audioUrl   String?
