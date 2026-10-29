@@ -17,6 +17,7 @@
       "!**/playwright-report",
       "!**/src/generated",
       "!**/messages",
+      "!packages/db/data",
       "!.claude"
     ]
   },

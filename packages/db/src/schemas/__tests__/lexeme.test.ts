@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ContentStatus, PartOfSpeech } from '../../generated/client/enums';
 import {
   ContentStatusSchema,
+  CreateDraftLexemeInputSchema,
   CreateLexemeInputSchema,
   cefrLevelOf,
   countWholeWord,
@@ -77,7 +78,9 @@ describe('LexemeExampleSchema clozeTarget', () => {
 describe('cefrLevelOf', () => {
   it.each([
     ['PreA1', 'A1'],
+    ['A1', 'A1'],
     ['A1.3', 'A1'],
+    ['B1', 'B1'],
     ['B2.1', 'B2'],
     ['C2', 'C2'],
   ] as const)('%s sits in %s', (j, level) => {
@@ -104,6 +107,32 @@ describe('CreateLexemeInputSchema', () => {
 
   it('does not accept a caller-supplied lemmaKey', () => {
     expect(CreateLexemeInputSchema.safeParse({ ...input, lemmaKey: 'x' }).success).toBe(false);
+  });
+});
+
+describe('CreateDraftLexemeInputSchema', () => {
+  const draft = { ...input, cefrJLevel: 'A1', definitions: {}, translations: {} } as const;
+
+  it('accepts a DRAFT without definitions or translations', () => {
+    expect(CreateDraftLexemeInputSchema.parse(draft)).toMatchObject({
+      lemmaKey: 'run',
+      definitions: {},
+      translations: {},
+      status: 'DRAFT',
+    });
+  });
+
+  it('still validates a gloss that is present', () => {
+    expect(
+      CreateDraftLexemeInputSchema.safeParse({ ...draft, definitions: { ru: 'x' } }).success,
+    ).toBe(false);
+    expect(
+      CreateDraftLexemeInputSchema.safeParse({ ...draft, translations: { en: 'x' } }).success,
+    ).toBe(false);
+  });
+
+  it.each(['REVIEW', 'PUBLISHED'])('rejects status %s', (status) => {
+    expect(CreateDraftLexemeInputSchema.safeParse({ ...draft, status }).success).toBe(false);
   });
 });
 

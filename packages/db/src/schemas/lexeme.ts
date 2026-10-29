@@ -28,16 +28,24 @@ export type PartOfSpeechValue = z.infer<typeof PartOfSpeechSchema>;
 export const ContentStatusSchema = z.enum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED', 'REJECTED']);
 export type ContentStatusValue = z.infer<typeof ContentStatusSchema>;
 
-/** CEFR-J levels (CHECK Lexeme_cefrJLevel_valid). */
+/**
+ * CEFR-J levels (CHECK Lexeme_cefrJLevel_valid): the sublevels, plus the whole
+ * levels A1–B2 the CEFR-J Wordlist uses (migration
+ * 20261029200000_accept_whole_cefrj_levels).
+ */
 export const CefrJLevelSchema = z.enum([
   'PreA1',
+  'A1',
   'A1.1',
   'A1.2',
   'A1.3',
+  'A2',
   'A2.1',
   'A2.2',
+  'B1',
   'B1.1',
   'B1.2',
+  'B2',
   'B2.1',
   'B2.2',
   'C1',
@@ -134,3 +142,24 @@ export const CreateLexemeInputSchema = z
   .transform((input) => ({ ...input, lemmaKey: lexemeKey(input.lemma) }));
 export type CreateLexemeInput = z.input<typeof CreateLexemeInputSchema>;
 export type CreateLexemeData = z.output<typeof CreateLexemeInputSchema>;
+
+const empty = z.object({}).strict();
+
+/**
+ * Input for an imported DRAFT lexeme that has no gloss yet: `definitions` and
+ * `translations` may be `{}` (the translation pipeline fills them). Only a
+ * DRAFT may be incomplete — a lexeme goes to REVIEW or PUBLISHED as a full
+ * LexemeSchema row.
+ */
+export const CreateDraftLexemeInputSchema = z
+  .object({
+    ...lexemeFields,
+    definitions: z.union([LocalizedStringSchema, empty]),
+    translations: z.union([TranslationMapSchema, empty]),
+    status: z.literal('DRAFT').default('DRAFT'),
+  })
+  .strict()
+  .refine(levelsAgree, levelsMessage)
+  .transform((input) => ({ ...input, lemmaKey: lexemeKey(input.lemma) }));
+export type CreateDraftLexemeInput = z.input<typeof CreateDraftLexemeInputSchema>;
+export type CreateDraftLexemeData = z.output<typeof CreateDraftLexemeInputSchema>;
