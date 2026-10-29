@@ -10,10 +10,9 @@
 //
 // Deleted:   User and everything hanging off it (auth, profile, attempts,
 //            diagnostics, learner events, BKT/FSRS projections) + VerificationToken.
-// Preserved: Concept, ConceptEdge, Item, DiagnosticItem, SkillTag and all
-//            *Exercise tables.
+// Preserved: Concept, ConceptEdge, Item, DiagnosticItem, SkillTag.
 //
-// Note: exercise/diagnostic-item authorship columns (createdById / reviewedById)
+// Note: diagnostic-item authorship columns (createdById / reviewedById)
 // are nullable with ON DELETE SET NULL, so the content rows survive but lose
 // their author reference. That is the only mutation applied to content.
 //
@@ -34,10 +33,6 @@ const STEPS = [
   { label: 'ConceptMastery', run: () => prisma.conceptMastery.deleteMany() },
   { label: 'DiagnosticAnswer', run: () => prisma.diagnosticAnswer.deleteMany() },
   { label: 'DiagnosticAttempt', run: () => prisma.diagnosticAttempt.deleteMany() },
-  { label: 'VocabAttempt', run: () => prisma.vocabAttempt.deleteMany() },
-  { label: 'GrammarAttempt', run: () => prisma.grammarAttempt.deleteMany() },
-  { label: 'ListeningAttempt', run: () => prisma.listeningAttempt.deleteMany() },
-  { label: 'SkillLevel', run: () => prisma.skillLevel.deleteMany() },
   { label: 'StudentProfile', run: () => prisma.studentProfile.deleteMany() },
   { label: 'Session', run: () => prisma.session.deleteMany() },
   { label: 'Account', run: () => prisma.account.deleteMany() },
@@ -52,10 +47,6 @@ const COUNTS = {
   ConceptMastery: () => prisma.conceptMastery.count(),
   DiagnosticAnswer: () => prisma.diagnosticAnswer.count(),
   DiagnosticAttempt: () => prisma.diagnosticAttempt.count(),
-  VocabAttempt: () => prisma.vocabAttempt.count(),
-  GrammarAttempt: () => prisma.grammarAttempt.count(),
-  ListeningAttempt: () => prisma.listeningAttempt.count(),
-  SkillLevel: () => prisma.skillLevel.count(),
   StudentProfile: () => prisma.studentProfile.count(),
   Session: () => prisma.session.count(),
   Account: () => prisma.account.count(),
@@ -70,9 +61,6 @@ const CONTENT_COUNTS = {
   Item: () => prisma.item.count(),
   DiagnosticItem: () => prisma.diagnosticItem.count(),
   SkillTag: () => prisma.skillTag.count(),
-  VocabExercise: () => prisma.vocabExercise.count(),
-  GrammarExercise: () => prisma.grammarExercise.count(),
-  ListeningExercise: () => prisma.listeningExercise.count(),
 } satisfies Record<string, () => Promise<number>>;
 
 async function snapshot(

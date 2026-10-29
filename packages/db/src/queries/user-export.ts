@@ -101,36 +101,6 @@ const USER_EXPORT_SELECT = {
       createdAt: true,
     },
   },
-  skillLevels: {
-    orderBy: { skillTagId: 'asc' },
-    select: { skillTagId: true, mastery: true, attempts: true, lastSeenAt: true, updatedAt: true },
-  },
-  vocabAttempts: {
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: {
-      exerciseId: true,
-      selectedIndex: true,
-      isCorrect: true,
-      timeMs: true,
-      createdAt: true,
-    },
-  },
-  grammarAttempts: {
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: { exerciseId: true, userAnswer: true, isCorrect: true, timeMs: true, createdAt: true },
-  },
-  listeningAttempts: {
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: {
-      exerciseId: true,
-      userAnswer: true,
-      similarity: true,
-      isCorrect: true,
-      playCount: true,
-      timeMs: true,
-      createdAt: true,
-    },
-  },
 } satisfies Prisma.UserSelect;
 
 type UserExportRow = Prisma.UserGetPayload<{ select: typeof USER_EXPORT_SELECT }>;
@@ -161,10 +131,6 @@ function toPayload(row: UserExportRow) {
     conceptMasteries,
     itemReviewStates,
     betaFeedbacks,
-    skillLevels,
-    vocabAttempts,
-    grammarAttempts,
-    listeningAttempts,
     ...user
   } = row;
   return {
@@ -179,7 +145,6 @@ function toPayload(row: UserExportRow) {
       lastReviewAt: isoOrNull(s.lastReviewAt),
     })),
     betaFeedbacks,
-    legacy: { skillLevels, vocabAttempts, grammarAttempts, listeningAttempts },
   };
 }
 
