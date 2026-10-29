@@ -108,6 +108,11 @@ jobs:
       - run: pnpm --filter @englishlearn/learner-model seed:concepts
       - run: pnpm --filter @englishlearn/learner-model seed:items
       - run: pnpm --filter @englishlearn/learner-model seed:diagnostic
+      # Vocabulary for the /words e2e, the way prod got it: CEFR-J import,
+      # localization from the committed snapshot (no API calls), publish.
+      - run: pnpm --filter @englishlearn/db vocab:import
+      - run: pnpm --filter @englishlearn/db vocab:sync-localization
+      - run: pnpm --filter @englishlearn/db vocab:publish
 
       - name: Install Playwright browsers
         run: pnpm --filter @englishlearn/web exec playwright install --with-deps chromium
