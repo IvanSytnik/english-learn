@@ -5,8 +5,8 @@
  *  - structured output validation
  *  - logging of prompt + response + cost (for evals)
  *
- * Real provider clients will be added in a later phase. This is a stub
- * caller wired to typed prompt schemas.
+ * Real provider clients and their prompt schemas will be added in a later
+ * phase (MVP-2). Nothing is exported yet.
  */
 
-export * from './prompts/index';
+export {};

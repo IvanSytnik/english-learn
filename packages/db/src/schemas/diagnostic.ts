@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LocalizedStringSchema } from '../localized-string';
+import { LocalizedStringSchema } from './localized-string';
 
 /**
  * DiagnosticItem content payload.

@@ -35,10 +35,26 @@ test.describe('admin access', () => {
     await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/admin\/users$/);
   });
 
-  test('admin on /ru/admin/content → /ru/admin/content/vocab', async ({ page }) => {
+  test('admin on /ru/admin/content → /ru/admin/feedback', async ({ page }) => {
     await login(page, ADMIN);
     await page.goto('/ru/admin/content');
-    await expect(page).toHaveURL(/\/ru\/admin\/content\/vocab$/);
+    await expect(page).toHaveURL(/\/ru\/admin\/feedback$/);
+    await expect(page.getByRole('heading', { name: 'Отзывы бета-тестеров' })).toBeVisible();
+  });
+
+  test('admin nav lists only the live sections', async ({ page }) => {
+    await login(page, ADMIN);
+    await page.goto('/admin/users');
+    const nav = page.getByRole('complementary').getByRole('navigation');
+    for (const name of ['Diagnostic', 'Skill Tags', 'Users', 'AI Review', 'Feedback']) {
+      await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+    }
+    for (const name of ['Vocabulary', 'Grammar', 'Listening']) {
+      await expect(nav.getByRole('link', { name, exact: true })).toHaveCount(0);
+    }
+    for (const path of ['vocab', 'grammar', 'listening']) {
+      expect((await page.goto(`/admin/content/${path}`))?.status()).toBe(404);
+    }
   });
 
   test('guest on /ru/admin gets a 404, no redirect', async ({ page }) => {

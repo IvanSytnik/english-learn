@@ -1,5 +1,5 @@
 export { ConceptTitleSchema, getConceptTitle } from './concept';
-export * from './exercises';
+export { type DiagnosticContent, DiagnosticContentSchema } from './diagnostic';
 export {
   type CreateBetaFeedback,
   type CreateBetaFeedbackInput,

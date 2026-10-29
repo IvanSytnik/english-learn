@@ -15,24 +15,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <nav className="flex flex-col gap-2 text-sm">
           <div className="mt-2 text-xs font-semibold uppercase text-ink-muted">{t('content')}</div>
           <Link
-            href="/admin/content/vocab"
-            className="text-ink-muted hover:text-ink hover:underline"
-          >
-            {t('vocab')}
-          </Link>
-          <Link
-            href="/admin/content/grammar"
-            className="text-ink-muted hover:text-ink hover:underline"
-          >
-            {t('grammar')}
-          </Link>
-          <Link
-            href="/admin/content/listening"
-            className="text-ink-muted hover:text-ink hover:underline"
-          >
-            {t('listening')}
-          </Link>
-          <Link
             href="/admin/content/diagnostic"
             className="text-ink-muted hover:text-ink hover:underline"
           >
