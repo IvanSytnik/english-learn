@@ -1,5 +1,6 @@
 import type { ConceptMasteryRow, ConceptMasteryWrite } from '../adapters/concept-mastery';
 import type { ItemReviewStateRow, ItemReviewStateWrite } from '../adapters/item-review-state';
+import type { FsrsCardStatus } from '../core/fsrs/types';
 
 /**
  * Persistence port for the learner-model service layer.
@@ -206,4 +207,31 @@ export type CandidateItemRow = {
   dueAt: bigint | null;
   /** Last review Unix ms, or null if never reviewed (or no ItemReviewState row). */
   lastReviewAt: bigint | null;
+};
+
+/** One published vocabulary item and the learner's review state for it. */
+export type VocabCandidateRow = {
+  itemId: string;
+  cefrLevel: CefrLevelRow;
+  review: {
+    dueAt: bigint;
+    cardStatus: FsrsCardStatus;
+    stability: number;
+    lastReviewAt: bigint | null;
+  } | null;
+};
+
+/**
+ * Read port of the vocabulary session (B2.5) — separate from LearnerModelDb:
+ * grammar selection never reads vocabulary, and vocabulary writes go through
+ * LearnerModelDb's recordVocabOutcome path.
+ */
+export type VocabSessionDb = {
+  /** PUBLISHED lexeme-backed VOCAB_WORD items with this learner's review state. */
+  getVocabCandidates(userId: string): Promise<VocabCandidateRow[]>;
+  /** Words first met at or after `sinceMs`, passed proofs excluded (countNewVocabWordsSince). */
+  countNewVocabSince(userId: string, sinceMs: number): Promise<number>;
+  getVocabProfile(
+    userId: string,
+  ): Promise<{ dailyLimit: number; assessedLevel: CefrLevelRow | null }>;
 };

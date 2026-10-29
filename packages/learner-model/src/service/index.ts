@@ -13,6 +13,9 @@ export {
   type LearnerEventRow,
   type LearnerModelDb,
   type LearnerModelTx,
+  type OutcomePool,
+  type VocabCandidateRow,
+  type VocabSessionDb,
 } from './db-port';
 export {
   buildItemAttemptedEvent,
@@ -28,12 +31,22 @@ export {
   outcomeToRating,
   type RecordOutcomeInput,
   type RecordOutcomeResult,
+  type RecordVocabOutcomeInput,
 } from './learner-service';
 export { type Clock, OccurredAtNotMonotonicError, systemClock } from './occurred-at';
-export { clearStaticGraphCache, createPrismaLearnerDb } from './prisma-db';
+export {
+  clearStaticGraphCache,
+  createPrismaLearnerDb,
+  createPrismaVocabSessionDb,
+} from './prisma-db';
 export { type ReplayResult, replayUser } from './replay';
 export {
   createSelectionService,
   type SelectionService,
   type SelectNextInput,
 } from './selection-service';
+export {
+  createVocabSessionService,
+  type NextVocabInput,
+  type VocabSessionService,
+} from './vocab-session-service';

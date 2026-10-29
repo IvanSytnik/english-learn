@@ -58,7 +58,8 @@ export function weekQueryWindow(nowMs: number): { fromMs: number; toMs: number }
   return { fromMs: nowMs - WINDOW_MS, toMs: nowMs };
 }
 
-function localDate(ms: number, timeZone: string): string {
+/** The local calendar date (YYYY-MM-DD) of `ms` in `timeZone`. */
+export function localDate(ms: number, timeZone: string): string {
   // en-CA formats as YYYY-MM-DD.
   return new Intl.DateTimeFormat('en-CA', {
     timeZone,

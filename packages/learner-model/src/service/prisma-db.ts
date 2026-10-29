@@ -1,5 +1,9 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import {
+  countNewVocabWordsSince,
+  getDailyVocabLimit,
+} from '@englishlearn/db/queries/vocab-session';
+import {
   type AttemptOutcomeRow,
   type CandidateItemRow,
   type ConceptCountsRow,
@@ -11,6 +15,7 @@ import {
   type LevelContextRow,
   type MasterySnapshotRow,
   type PrereqEdgeRow,
+  type VocabSessionDb,
 } from './db-port';
 
 /**
@@ -388,6 +393,58 @@ export function createPrismaLearnerDb(
         (tx) => fn(txOps(tx)),
         options.txTimeoutMs === undefined ? undefined : { timeout: options.txTimeoutMs },
       );
+    },
+  };
+}
+
+/**
+ * The Prisma-backed VocabSessionDb. The published vocabulary is static data
+ * (cached like the grammar catalogue); the learner's review states are a
+ * fresh read merged in memory.
+ */
+export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb {
+  return {
+    async getVocabCandidates(userId) {
+      const [catalogue, reviews] = await Promise.all([
+        cachedStatic(prisma, 'vocabCatalogue', () =>
+          prisma.item.findMany({
+            where: {
+              kind: 'VOCAB_WORD',
+              status: 'PUBLISHED',
+              hasPractice: false,
+              lexemeId: { not: null },
+              lexeme: { status: 'PUBLISHED' },
+            },
+            select: { id: true, cefrLevel: true },
+          }),
+        ),
+        prisma.itemReviewState.findMany({
+          where: { userId, item: { lexemeId: { not: null } } },
+          select: {
+            itemId: true,
+            dueAt: true,
+            cardStatus: true,
+            stability: true,
+            lastReviewAt: true,
+          },
+        }),
+      ]);
+      const reviewByItem = new Map(reviews.map(({ itemId, ...review }) => [itemId, review]));
+      return catalogue.map((item) => ({
+        itemId: item.id,
+        cefrLevel: item.cefrLevel,
+        review: reviewByItem.get(item.id) ?? null,
+      }));
+    },
+    countNewVocabSince(userId, sinceMs) {
+      return countNewVocabWordsSince(prisma, { userId, sinceMs });
+    },
+    async getVocabProfile(userId) {
+      const [dailyLimit, profile] = await Promise.all([
+        getDailyVocabLimit(prisma, userId),
+        prisma.studentProfile.findUnique({ where: { userId }, select: { assessedLevel: true } }),
+      ]);
+      return { dailyLimit, assessedLevel: profile?.assessedLevel ?? null };
     },
   };
 }
