@@ -2,11 +2,12 @@
 
 import { Prisma, prisma } from '@englishlearn/db';
 import { hash } from 'bcryptjs';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
 import { z } from 'zod';
 import { signIn } from '@/lib/auth';
 import { clientIp, withinAuthLimits } from '@/lib/auth/rate-limit';
+import { SIGNUP_REF_COOKIE, sanitizeSignupSource } from '@/lib/auth/signup-source';
 import { redirectAfterAuth } from '@/lib/auth-redirect';
 import type { Result } from '@/lib/result';
 import { HONEYPOT_FIELD } from './honeypot';
@@ -69,6 +70,9 @@ export async function registerUser(
     }
 
     const passwordHash = await hash(password, 10);
+    const cookieStore = await cookies();
+    // A missing or tampered ref is just an unattributed sign-up, never an error.
+    const signupSource = sanitizeSignupSource(cookieStore.get(SIGNUP_REF_COOKIE)?.value);
     await prisma.user.create({
       data: {
         name,
@@ -76,9 +80,11 @@ export async function registerUser(
         passwordHash,
         // Explicit so a future tutor sign-up cannot inherit a student profile by default.
         role: 'STUDENT',
+        signupSource,
         profile: { create: {} },
       },
     });
+    cookieStore.delete(SIGNUP_REF_COOKIE);
 
     await signIn('credentials', { email, password, redirect: false });
   } catch (err) {

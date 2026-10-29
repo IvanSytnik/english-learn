@@ -4,6 +4,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { collapseSlashes, resolveAccess } from './lib/access';
 import { jwtWithRevocation } from './lib/auth/session-revocation';
+import { rememberSignupRef } from './lib/auth/signup-source';
 import { authConfig } from './lib/auth.config';
 
 const intl = createIntlMiddleware(routing);
@@ -20,6 +21,7 @@ const { auth } = NextAuth({
  * Session gate first (guests → localized login, signed-in users off
  * /login and /register), then next-intl for everything that is allowed.
  * Role checks are not done here — see lib/authz.ts.
+ * A valid `?ref=` is remembered on whatever response goes out, redirects included.
  */
 export default auth((req) => {
   // `/ru//admin` must not slip past prefix checks; resolveAccess only sees collapsed paths.
@@ -32,10 +34,12 @@ export default auth((req) => {
   }
 
   const decision = resolveAccess(req.nextUrl.pathname, req.auth, req.nextUrl.search);
-  if (decision !== 'allow') {
-    return NextResponse.redirect(new URL(decision.redirect, req.nextUrl), 307);
-  }
-  return intl(req);
+  const res =
+    decision === 'allow'
+      ? intl(req)
+      : NextResponse.redirect(new URL(decision.redirect, req.nextUrl), 307);
+  rememberSignupRef(req.nextUrl.searchParams, res);
+  return res;
 });
 
 export const config = {
