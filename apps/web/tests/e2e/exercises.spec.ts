@@ -182,7 +182,8 @@ test.describe('session summary (Europe/Vienna)', () => {
 
     // Text contrast on the summary, in both colour schemes.
     for (const colorScheme of ['light', 'dark'] as const) {
-      await page.emulateMedia({ colorScheme });
+      // Reduced motion: switched live, colour transitions would be measured mid-way.
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
       expect(violations, colorScheme).toEqual([]);
     }

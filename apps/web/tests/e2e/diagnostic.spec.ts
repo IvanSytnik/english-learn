@@ -231,7 +231,7 @@ test('/ru/diagnostic/review: every answer next to the key, with why, and no tota
 
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`/ru/diagnostic: text contrast on a question (${colorScheme})`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme });
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
     await registerFreshLearner(page, 'diag');
     await start(page);
     await page.keyboard.press('1'); // a selected option too

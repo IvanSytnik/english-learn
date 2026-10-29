@@ -18,10 +18,7 @@ export async function Footer() {
           <ul className="flex flex-wrap gap-x-6 gap-y-2">
             {LINKS.map(({ href, key }) => (
               <li key={href}>
-                <Link
-                  href={href}
-                  className="underline-offset-4 transition-colors hover:text-ink hover:underline"
-                >
+                <Link href={href} className="underline-offset-4 hover:text-ink hover:underline">
                   {t(key)}
                 </Link>
               </li>
