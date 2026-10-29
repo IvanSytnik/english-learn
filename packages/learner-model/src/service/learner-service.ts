@@ -71,6 +71,15 @@ export type RecordVocabOutcomeInput = RecordOutcomeInput & {
    * Only a recall answer can prove (the payload schema enforces it).
    */
   proof?: boolean;
+  /**
+   * The word's ItemReviewState.lastReviewAt when the card was served (null =
+   * never answered). Checked under the user lock, after the idempotency key:
+   * if the word was answered since (another tab, a concurrent submit), the
+   * result is STALE and nothing is written — the card was built for a state
+   * that no longer exists. A retry of an already recorded key still returns
+   * its original outcome. Absent = no check.
+   */
+  expectedLastReviewAt?: bigint | null;
 };
 
 /**
@@ -90,8 +99,10 @@ export type RecordOutcomeResult =
   /**
    * ITEM_NOT_FOUND: no such item, or one that is not practisable (not
    * PUBLISHED, or no practice question — V3). Nothing is written.
+   * STALE: recordVocabOutcome's expectedLastReviewAt no longer matches the
+   * word's review state. Nothing is written.
    */
-  | { ok: false; error: 'ITEM_NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' };
+  | { ok: false; error: 'ITEM_NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' | 'STALE' };
 
 export type OriginalAnswer = { correct: boolean; dontKnow: boolean; hinted: boolean };
 
@@ -200,7 +211,11 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
   async function record(
     pool: OutcomePool,
     input: RecordOutcomeInput,
-    vocab?: { mode: PracticeModeValue; proof: boolean },
+    vocab?: {
+      mode: PracticeModeValue;
+      proof: boolean;
+      expectedLastReviewAt?: bigint | null;
+    },
   ): Promise<RecordOutcomeResult> {
     const item = await db.getItemForOutcome(input.itemId, pool);
     if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
@@ -221,6 +236,13 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
         if (idempotencyKey !== null) {
           const recorded = await recordedOutcome(tx, input, idempotencyKey);
           if (recorded) return recorded;
+        }
+        // The card was served for one review state; answered since, it is
+        // stale. After the key lookup, so a retry still gets its outcome.
+        const expected = vocab?.expectedLastReviewAt;
+        if (expected !== undefined) {
+          const current = await tx.getItemReviewState(input.userId, input.itemId);
+          if ((current?.lastReviewAt ?? null) !== expected) return { ok: false, error: 'STALE' };
         }
         const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
 
@@ -306,8 +328,12 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
     },
     /** A vocabulary answer: published lexeme-backed items only (B2.5). */
     recordVocabOutcome(input: RecordVocabOutcomeInput): Promise<RecordOutcomeResult> {
-      const { mode, proof, ...outcome } = input;
-      return record('vocab', outcome as RecordOutcomeInput, { mode, proof: proof === true });
+      const { mode, proof, expectedLastReviewAt, ...outcome } = input;
+      return record('vocab', outcome as RecordOutcomeInput, {
+        mode,
+        proof: proof === true,
+        expectedLastReviewAt,
+      });
     },
   };
 }

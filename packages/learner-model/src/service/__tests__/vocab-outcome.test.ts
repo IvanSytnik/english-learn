@@ -164,3 +164,106 @@ describe('recordVocabOutcome', () => {
     expect(new Map(reviews)).toEqual(liveR);
   });
 });
+
+/**
+ * expectedLastReviewAt: the card was served for one review state. Checked
+ * under the user lock after the idempotency key — a retry of a recorded key
+ * gets its outcome, a different answer to a card whose word was answered
+ * since is STALE and writes nothing.
+ */
+describe('recordVocabOutcome staleness precondition', () => {
+  const answer = (over: { correct?: boolean; mode?: 'recognition' | 'recall' } = {}) => ({
+    userId: USER,
+    itemId: VOCAB,
+    correct: over.correct ?? true,
+    mode: over.mode ?? ('recognition' as const),
+  });
+
+  it('records a never-answered word served as new (null)', async () => {
+    const { service, events } = setup();
+    const result = await service.recordVocabOutcome({
+      ...answer(),
+      expectedLastReviewAt: null,
+      occurredAtMs: T0,
+    });
+    expect(result).toMatchObject({ ok: true, duplicate: false });
+    expect(events).toHaveLength(1);
+  });
+
+  it('records when the review state is the one served', async () => {
+    const { service, events, reviews } = setup();
+    await service.recordVocabOutcome({ ...answer(), occurredAtMs: T0 });
+    const seen = reviews.get(`${USER}:${VOCAB}`)?.lastReviewAt ?? null;
+    expect(seen).toBe(T0);
+
+    const result = await service.recordVocabOutcome({
+      ...answer(),
+      expectedLastReviewAt: seen,
+      occurredAtMs: T0 + DAY_MS,
+    });
+    expect(result).toMatchObject({ ok: true, duplicate: false });
+    expect(events).toHaveLength(2);
+  });
+
+  it.each([
+    ['served as new, answered since', null],
+    ['served at an older review', T0 - DAY_MS],
+  ])('a card %s is STALE: no event, projections untouched', async (_, expected) => {
+    const { service, events, reviews, masteries, transactions } = setup();
+    await service.recordVocabOutcome({ ...answer(), occurredAtMs: T0, idempotencyKey: 'k1' });
+    const before = { reviews: new Map(reviews), masteries: new Map(masteries) };
+
+    const result = await service.recordVocabOutcome({
+      ...answer({ correct: false }),
+      expectedLastReviewAt: expected,
+      idempotencyKey: 'k2',
+    });
+
+    expect(result).toEqual({ ok: false, error: 'STALE' });
+    expect(events).toHaveLength(1);
+    expect(new Map(reviews)).toEqual(before.reviews);
+    expect(new Map(masteries)).toEqual(before.masteries);
+    // Decided under the lock, after the key lookup, before anything is written.
+    expect(transactions.at(-1)).toEqual([
+      'lockUser',
+      'findEventByIdempotencyKey',
+      'getItemReviewState',
+    ]);
+  });
+
+  it('a proof of a word that has a review state is STALE', async () => {
+    const { service, events } = setup();
+    await service.recordVocabOutcome({ ...answer(), occurredAtMs: T0 });
+    const result = await service.recordVocabOutcome({
+      ...answer({ mode: 'recall' }),
+      proof: true,
+      expectedLastReviewAt: null,
+    });
+    expect(result).toEqual({ ok: false, error: 'STALE' });
+    expect(events).toHaveLength(1);
+  });
+
+  it('a retry of a recorded key returns its outcome, never STALE', async () => {
+    const { service, events } = setup();
+    const first = { ...answer(), expectedLastReviewAt: null, idempotencyKey: 'k1' };
+    await service.recordVocabOutcome({ ...first, occurredAtMs: T0 });
+
+    // The first write moved lastReviewAt; the resend still carries null.
+    await expect(service.recordVocabOutcome(first)).resolves.toMatchObject({
+      ok: true,
+      duplicate: true,
+      original: { correct: true },
+    });
+    expect(events).toHaveLength(1);
+  });
+
+  it('without expectedLastReviewAt there is no check', async () => {
+    const { service, events, transactions } = setup();
+    await service.recordVocabOutcome({ ...answer(), occurredAtMs: T0 });
+    await service.recordVocabOutcome({ ...answer(), occurredAtMs: T0 + DAY_MS });
+    expect(events).toHaveLength(2);
+    // The only review-state read is the fold's, after the event.
+    const calls = transactions.at(-1) ?? [];
+    expect(calls.indexOf('getItemReviewState')).toBeGreaterThan(calls.indexOf('appendEvent'));
+  });
+});
