@@ -12,6 +12,8 @@ export const AUTH_LIMITS = {
   'register:ip': { limit: 5, windowMs: HOUR },
   'forgot:ip': { limit: 10, windowMs: HOUR },
   'forgot:email': { limit: 3, windowMs: HOUR },
+  // Per user: a hijacked session must not turn account deletion into a password oracle.
+  'delete:user': { limit: 5, windowMs: 15 * MINUTE },
 } as const;
 
 export type AuthLimitName = keyof typeof AUTH_LIMITS;

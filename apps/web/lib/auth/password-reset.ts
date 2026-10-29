@@ -24,6 +24,11 @@ export function passwordResetUrl(locale: string, email: string, token: string): 
   return url.toString();
 }
 
+/** Drop every reset token for `email` — when the account goes, its links must die with it. */
+export function deletePasswordResetTokens(db: TokenDb, email: string) {
+  return db.verificationToken.deleteMany({ where: { identifier: identifierFor(email) } });
+}
+
 /**
  * Issue a fresh reset token for `email` (the address as stored on the user).
  * Only its SHA-256 is stored, so a leaked table cannot be replayed; any earlier

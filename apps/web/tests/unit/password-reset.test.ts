@@ -16,6 +16,7 @@ vi.mock('@/lib/env', () => ({ env: { APP_URL: 'https://app.example' } }));
 
 const {
   createPasswordResetToken,
+  deletePasswordResetTokens,
   passwordResetUrl,
   PASSWORD_RESET_TTL_MS,
   verifyAndConsumePasswordResetToken,
@@ -133,6 +134,21 @@ describe('password reset tokens', () => {
     await expect(
       verifyAndConsumePasswordResetToken(store.db, { email: EMAIL, token }, NOW),
     ).rejects.toThrow('P1001');
+  });
+});
+
+describe('deletePasswordResetTokens', () => {
+  it("drops the address's reset links and leaves other addresses' alone", async () => {
+    const store = fakeDb();
+    const token = await createPasswordResetToken(store.db, EMAIL, NOW);
+    await createPasswordResetToken(store.db, 'bob@example.com', NOW);
+
+    await deletePasswordResetTokens(store.db, EMAIL);
+
+    expect(store.rows.map((r) => r.identifier)).toEqual(['reset:bob@example.com']);
+    expect(await verifyAndConsumePasswordResetToken(store.db, { email: EMAIL, token }, NOW)).toBe(
+      false,
+    );
   });
 });
 
