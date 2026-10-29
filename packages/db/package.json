@@ -20,6 +20,7 @@
     "push": "prisma db push",
     "studio": "prisma studio",
     "seed": "tsx --env-file-if-exists=.env src/seed.ts",
+    "vocab:import": "tsx --env-file-if-exists=.env scripts/import-cefr-j.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf src/generated .turbo node_modules"

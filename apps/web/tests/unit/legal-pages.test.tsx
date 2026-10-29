@@ -67,5 +67,7 @@ describe.each(Object.keys(MESSAGES) as Locale[])('legal pages (%s)', (locale) =>
     expect(heading(1, credits.title)).toBeInTheDocument();
     expect(heading(2, credits.cefrjTitle)).toBeInTheDocument();
     expect(heading(2, credits.fontsTitle)).toBeInTheDocument();
+    // The CEFR-J Wordlist terms: free use, provided the dataset is cited.
+    expect(screen.getByText(credits.cefrjCitation).tagName).toBe('CITE');
   });
 });

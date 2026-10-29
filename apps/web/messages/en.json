@@ -340,7 +340,8 @@
     "credits": {
       "title": "Credits",
       "cefrjTitle": "CEFR-J",
-      "cefrjText": "Parts of our level descriptions and vocabulary are based on the CEFR-J framework (Tono Laboratory, Tokyo University of Foreign Studies).",
+      "cefrjText": "Our vocabulary lists and parts of our level descriptions are based on the CEFR-J Wordlist (Tono Laboratory, Tokyo University of Foreign Studies). It may be used free of charge for research and commercial purposes, provided it is cited:",
+      "cefrjCitation": "The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of Foreign Studies.",
       "fontsTitle": "Fonts",
       "fontsText": "Set in Literata, Onest and JetBrains Mono, all released under the SIL Open Font License."
     },

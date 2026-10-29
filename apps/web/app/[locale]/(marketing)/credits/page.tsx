@@ -11,6 +11,9 @@ export default async function CreditsPage() {
           {t('cefrjTitle')}
         </h2>
         <p className="mt-3 leading-relaxed text-ink-muted">{t('cefrjText')}</p>
+        <p className="mt-3 leading-relaxed text-ink">
+          <cite>{t('cefrjCitation')}</cite>
+        </p>
       </section>
       <section aria-labelledby="fonts" className="mt-12">
         <h2 id="fonts" className="font-content text-2xl text-ink">

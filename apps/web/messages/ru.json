@@ -340,7 +340,8 @@
     "credits": {
       "title": "Благодарности",
       "cefrjTitle": "CEFR-J",
-      "cefrjText": "Часть описаний уровней и словаря основана на системе CEFR-J (лаборатория Тоно, Токийский университет иностранных языков).",
+      "cefrjText": "Наши словарные списки и часть описаний уровней основаны на CEFR-J Wordlist (лаборатория Тоно, Токийский университет иностранных языков). Список можно бесплатно использовать в исследовательских и коммерческих целях при условии ссылки на источник:",
+      "cefrjCitation": "The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of Foreign Studies.",
       "fontsTitle": "Шрифты",
       "fontsText": "Набрано шрифтами Literata, Onest и JetBrains Mono, распространяемыми по лицензии SIL Open Font License."
     },

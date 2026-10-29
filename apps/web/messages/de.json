@@ -340,7 +340,8 @@
     "credits": {
       "title": "Danksagungen",
       "cefrjTitle": "CEFR-J",
-      "cefrjText": "Teile unserer Niveaubeschreibungen und unseres Wortschatzes beruhen auf dem CEFR-J-Rahmen (Tono-Labor, Tokyo University of Foreign Studies).",
+      "cefrjText": "Unsere Wortlisten und Teile unserer Niveaubeschreibungen beruhen auf der CEFR-J Wordlist (Tono-Labor, Tokyo University of Foreign Studies). Sie darf für Forschung und kommerzielle Zwecke kostenlos genutzt werden, sofern sie zitiert wird:",
+      "cefrjCitation": "The CEFR-J Wordlist Version 1.5. Compiled by Yukio Tono, Tokyo University of Foreign Studies.",
       "fontsTitle": "Schriften",
       "fontsText": "Gesetzt in Literata, Onest und JetBrains Mono, alle unter der SIL Open Font License veröffentlicht."
     },
