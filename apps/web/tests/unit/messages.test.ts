@@ -1,3 +1,4 @@
+import { PartOfSpeechSchema } from '@englishlearn/db/schemas';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it } from 'vitest';
 import de from '../../messages/de.json';
@@ -174,6 +175,64 @@ describe('vocabulary (student.words)', () => {
       .words;
     for (const key of keys(words)) {
       expect(String(lookup(words, key)), key).not.toMatch(informal);
+    }
+  });
+});
+
+describe('vocabulary player (student.words.player)', () => {
+  const MODES = ['en_to_l1', 'l1_to_en', 'cloze', 'cued_recall', 'full_recall'] as const;
+
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: ICU messages format, every part of speech named', (locale) => {
+    const t = createTranslator({
+      locale,
+      messages: MESSAGES[locale],
+      namespace: 'student.words.player',
+    });
+    for (const count of [1, 2, 5, 11, 21]) {
+      expect(t('done.answered', { count })).toContain(String(count));
+      expect(t('done.answered', { count })).not.toMatch(/[{}]/);
+    }
+    const names = PartOfSpeechSchema.options.map((pos) => t('pos', { pos }));
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) expect(name).not.toMatch(/[{}_]|^[A-Z_]+$/);
+  });
+
+  it('uses the right Slavic plural forms', () => {
+    const ru = createTranslator({
+      locale: 'ru',
+      messages: MESSAGES.ru,
+      namespace: 'student.words.player',
+    });
+    expect(ru('done.answered', { count: 1 })).toBe('Вы ответили на 1 слово.');
+    expect(ru('done.answered', { count: 3 })).toBe('Вы ответили на 3 слова.');
+    expect(ru('done.answered', { count: 15 })).toBe('Вы ответили на 15 слов.');
+    const uk = createTranslator({
+      locale: 'uk',
+      messages: MESSAGES.uk,
+      namespace: 'student.words.player',
+    });
+    expect(uk('done.answered', { count: 21 })).toBe('Ви відповіли на 21 слово.');
+    expect(uk('done.answered', { count: 12 })).toBe('Ви відповіли на 12 слів.');
+  });
+
+  // Instructions are imperatives: formal plural in ru/uk ("Выберите" /
+  // "Виберіть", not "Выбери" / "Вибери"), "du" in de ("Wähle", not "Wählen Sie").
+  it.each([
+    ['ru', /те$/],
+    ['uk', /(іть|те)$/],
+  ] as const)('%s: instructions use the formal imperative', (locale, formal) => {
+    const player = MESSAGES[locale].student.words.player;
+    for (const text of [...MODES.map((m) => player.instruction[m]), player.proofInstruction]) {
+      expect(text.split(/[\s:,.]/)[0], text).toMatch(formal);
+    }
+  });
+
+  it('de: addresses the learner with "du"', () => {
+    const player = MESSAGES.de.student.words.player;
+    for (const key of keys(player)) {
+      expect(String(lookup(player, key)), key).not.toMatch(/\b(Sie|Ihre?n?)\b/);
     }
   });
 });

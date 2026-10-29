@@ -204,6 +204,39 @@
         "progress": "{started} of {total, plural, one {# word} other {# words}} started",
         "practiceLevel": "{topic}, level {level}: practise",
         "levelProgress": "{started} / {total}"
+      },
+      "player": {
+        "instruction": {
+          "en_to_l1": "Choose the translation.",
+          "l1_to_en": "Choose the English word.",
+          "cloze": "Choose the word that fits the gap.",
+          "cued_recall": "Type the English word. The first letter is shown.",
+          "full_recall": "Type the English word."
+        },
+        "proofInstruction": "Prove it: type the English word. The first letter is shown.",
+        "proofBadge": "Proving a known word",
+        "pos": "{pos, select, NOUN {noun} VERB {verb} ADJECTIVE {adjective} ADVERB {adverb} PRONOUN {pronoun} PREPOSITION {preposition} CONJUNCTION {conjunction} PHRASAL_VERB {phrasal verb} IDIOM {idiom} INTERJECTION {interjection} OTHER {other} other {other}}",
+        "answerLabel": "Your answer",
+        "know": "I know this word",
+        "synonym": "That word means the same, but we are looking for another one. Try again.",
+        "stale": "This word was already answered in another tab. Here is the next one.",
+        "proven": "Proven: this word is marked as known",
+        "proofFailed": "Couldn't start the check. Check your connection and try again.",
+        "nextFailed": "Couldn't load the next word. Check your connection and try again.",
+        "loading": "Loading the next word…",
+        "done": {
+          "title": "Session complete",
+          "emptyTitle": "No words right now",
+          "answered": "{count, plural, one {You answered # word.} other {You answered # words.}}",
+          "nothingDue": "Nothing is due for review and today’s new words are used up. Come back later.",
+          "tally": {
+            "correct": "Correct",
+            "again": "Back soon",
+            "proven": "Proven"
+          },
+          "again": "Another session",
+          "overview": "Back to vocabulary"
+        }
       }
     }
   },

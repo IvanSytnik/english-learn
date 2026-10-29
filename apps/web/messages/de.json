@@ -204,6 +204,39 @@
         "progress": "{started} von {total, plural, one {# Wort} other {# Wörtern}} begonnen",
         "practiceLevel": "{topic}, Niveau {level}: üben",
         "levelProgress": "{started} / {total}"
+      },
+      "player": {
+        "instruction": {
+          "en_to_l1": "Wähle die Übersetzung.",
+          "l1_to_en": "Wähle das englische Wort.",
+          "cloze": "Wähle das Wort, das in die Lücke passt.",
+          "cued_recall": "Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
+          "full_recall": "Schreib das englische Wort."
+        },
+        "proofInstruction": "Beweis es: Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
+        "proofBadge": "Bekanntes Wort prüfen",
+        "pos": "{pos, select, NOUN {Nomen} VERB {Verb} ADJECTIVE {Adjektiv} ADVERB {Adverb} PRONOUN {Pronomen} PREPOSITION {Präposition} CONJUNCTION {Konjunktion} PHRASAL_VERB {Phrasal Verb} IDIOM {Redewendung} INTERJECTION {Interjektion} OTHER {Sonstiges} other {Sonstiges}}",
+        "answerLabel": "Deine Antwort",
+        "know": "Ich kenne dieses Wort",
+        "synonym": "Dieses Wort bedeutet dasselbe, aber wir suchen ein anderes. Versuch es noch einmal.",
+        "stale": "Dieses Wort wurde schon in einem anderen Tab beantwortet. Hier ist das nächste.",
+        "proven": "Bewiesen: Das Wort gilt als bekannt",
+        "proofFailed": "Die Prüfung konnte nicht starten. Prüfe deine Verbindung und versuch es noch einmal.",
+        "nextFailed": "Das nächste Wort konnte nicht geladen werden. Prüfe deine Verbindung und versuch es noch einmal.",
+        "loading": "Das nächste Wort wird geladen…",
+        "done": {
+          "title": "Sitzung abgeschlossen",
+          "emptyTitle": "Gerade keine Wörter",
+          "answered": "{count, plural, one {Du hast # Wort beantwortet.} other {Du hast # Wörter beantwortet.}}",
+          "nothingDue": "Gerade ist nichts zu wiederholen, und die neuen Wörter für heute sind aufgebraucht. Komm später wieder.",
+          "tally": {
+            "correct": "Richtig",
+            "again": "Bald wieder",
+            "proven": "Bewiesen"
+          },
+          "again": "Noch eine Sitzung",
+          "overview": "Zurück zum Wortschatz"
+        }
       }
     }
   },
