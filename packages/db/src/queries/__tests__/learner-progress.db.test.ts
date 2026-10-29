@@ -68,6 +68,7 @@ describe.skipIf(!url)('getConceptProgress (real Postgres)', () => {
             cefrLevel: 'B1',
             status,
             content: withPractice ? { source: {}, practice } : { source: {} },
+            hasPractice: withPractice,
           },
         })
       ).id;

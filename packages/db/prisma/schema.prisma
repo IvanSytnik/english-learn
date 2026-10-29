@@ -627,6 +627,12 @@ model Item {
   irtDiscrimination Float @default(1.0) // a
   irtDifficulty     Float @default(0.0) // b
 
+  /// content.practice is a JSON object (a question to serve). Lets selection
+  /// filter without reading content; a raw-SQL CHECK (migration
+  /// 20261029140000_add_item_has_practice) keeps it equal to
+  /// jsonb_typeof(content->'practice') = 'object', so every writer must set it.
+  hasPractice Boolean @default(false)
+
   generatorMeta Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -636,6 +642,7 @@ model Item {
   @@index([conceptId])
   @@index([kind, cefrLevel])
   @@index([status])
+  @@index([status, hasPractice])
 }
 
 /// Per-user FSRS memory state for a single Item.

@@ -47,6 +47,7 @@ describe.skipIf(!url)('getPlacementContext (real Postgres)', () => {
       cefrLevel: 'B1' as const,
       status,
       content: withPractice ? { source: {}, practice } : { source: {} },
+      hasPractice: withPractice,
     });
     await db.item.createMany({
       data: [

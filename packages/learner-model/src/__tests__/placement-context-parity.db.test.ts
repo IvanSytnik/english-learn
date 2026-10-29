@@ -33,11 +33,11 @@ describe.skipIf(!url)('placement concepts = selection candidates (real Postgres)
   beforeAll(async () => {
     db = createPrismaClient(url);
     const cases = [
-      ['published-practice', 'PUBLISHED', { source: {}, practice }],
-      ['published-no-practice', 'PUBLISHED', { source: {} }],
-      ['published-practice-null', 'PUBLISHED', { source: {}, practice: null }],
-      ['draft-practice', 'DRAFT', { source: {}, practice }],
-      ['archived-practice', 'ARCHIVED', { source: {}, practice }],
+      ['published-practice', 'PUBLISHED', { source: {}, practice }, true],
+      ['published-no-practice', 'PUBLISHED', { source: {} }, false],
+      ['published-practice-null', 'PUBLISHED', { source: {}, practice: null }, false],
+      ['draft-practice', 'DRAFT', { source: {}, practice }, true],
+      ['archived-practice', 'ARCHIVED', { source: {}, practice }, true],
     ] as const;
     await db.concept.createMany({
       data: [...cases.map(([slug]) => slug), 'no-items'].map((slug) => ({
@@ -48,13 +48,14 @@ describe.skipIf(!url)('placement concepts = selection candidates (real Postgres)
       })),
     });
     await db.item.createMany({
-      data: cases.map(([slug, status, content]) => ({
+      data: cases.map(([slug, status, content, hasPractice]) => ({
         conceptId: `${RUN}.${slug}`,
         kind: 'VOCAB_WORD' as const,
         cefrLevel: 'A2' as const,
         irtDifficulty: 0.4,
         status,
         content,
+        hasPractice,
       })),
     });
   });
