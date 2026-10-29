@@ -188,11 +188,43 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     expect(later).toMatchObject({ ok: true, reason: 'REVIEW_DUE' });
   });
 
+  it('a topic session serves only its concept; the choice carries lastReviewAt', async () => {
+    const [w0] = words as [string];
+    await answer(w0, NOW - 30 * MIN);
+    const recorded = await prisma.itemReviewState.findUniqueOrThrow({
+      where: { userId_itemId: { userId, itemId: w0 } },
+      select: { lastReviewAt: true },
+    });
+    const out = await session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, conceptId: CONCEPT });
+    expect(out).toMatchObject({ ok: true, reason: 'LEARNING', itemId: w0 });
+    if (!out.ok) throw new Error('expected a word');
+    expect(out.lastReviewAt).toBe(recorded.lastReviewAt);
+
+    const fresh = await session().nextVocab({
+      userId,
+      timeZone: TZ,
+      nowMs: NOW,
+      conceptId: CONCEPT,
+      excludeItemIds: [w0],
+    });
+    expect(fresh).toMatchObject({ ok: true, reason: 'NEW', lastReviewAt: null });
+    if (!fresh.ok) throw new Error('expected a word');
+    expect(words).toContain(fresh.itemId);
+
+    await expect(
+      session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, conceptId: GRAMMAR }),
+    ).resolves.toMatchObject({ ok: false, reason: 'NOTHING_DUE', nextDueAt: null });
+  });
+
   it('offers only published lexeme-backed items, never grammar', async () => {
     const ids = new Set(
       (await createPrismaVocabSessionDb(prisma).getVocabCandidates(userId)).map((c) => c.itemId),
     );
     for (const w of words) expect(ids.has(w)).toBe(true);
+    const rows = await createPrismaVocabSessionDb(prisma).getVocabCandidates(userId);
+    for (const r of rows.filter((c) => words.includes(c.itemId))) {
+      expect(r.conceptId).toBe(CONCEPT);
+    }
     expect(ids.has(unpublishedItem)).toBe(false);
     expect(ids.has(grammarItem)).toBe(false);
   });

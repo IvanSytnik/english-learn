@@ -48,6 +48,7 @@ describe('selectVocab', () => {
       itemId: 'due-early',
       reason: 'REVIEW_DUE',
       mode: 'cued_recall',
+      lastReviewAt: at(-100n * MIN),
     });
   });
 
@@ -59,6 +60,7 @@ describe('selectVocab', () => {
       itemId: 'new1',
       reason: 'NEW',
       mode: 'en_to_l1',
+      lastReviewAt: null,
     });
   });
 

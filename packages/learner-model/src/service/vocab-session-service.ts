@@ -20,6 +20,11 @@ export type NextVocabInput = {
   nowMs?: number;
   /** Words just shown, so a just-failed word is not served straight back. */
   excludeItemIds?: readonly string[];
+  /**
+   * A topic session: only this concept's words are served. The daily
+   * new-word limit stays the learner's, across topics.
+   */
+  conceptId?: string;
 };
 
 export function createVocabSessionService(db: VocabSessionDb) {
@@ -27,11 +32,13 @@ export function createVocabSessionService(db: VocabSessionDb) {
     async nextVocab(input: NextVocabInput): Promise<VocabSelection> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [candidates, newToday, profile] = await Promise.all([
+      const [all, newToday, profile] = await Promise.all([
         db.getVocabCandidates(input.userId),
         db.countNewVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
       ]);
+      const candidates =
+        input.conceptId === undefined ? all : all.filter((c) => c.conceptId === input.conceptId);
       return selectVocab({
         candidates,
         nowMs,

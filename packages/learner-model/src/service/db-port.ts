@@ -212,6 +212,8 @@ export type CandidateItemRow = {
 /** One published vocabulary item and the learner's review state for it. */
 export type VocabCandidateRow = {
   itemId: string;
+  /** Topic concept of the word (`vocab.<topic>.<level>`). */
+  conceptId: string;
   cefrLevel: CefrLevelRow;
   review: {
     dueAt: bigint;

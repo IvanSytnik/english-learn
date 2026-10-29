@@ -415,7 +415,7 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
               lexemeId: { not: null },
               lexeme: { status: 'PUBLISHED' },
             },
-            select: { id: true, cefrLevel: true },
+            select: { id: true, conceptId: true, cefrLevel: true },
           }),
         ),
         prisma.itemReviewState.findMany({
@@ -432,6 +432,7 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
       const reviewByItem = new Map(reviews.map(({ itemId, ...review }) => [itemId, review]));
       return catalogue.map((item) => ({
         itemId: item.id,
+        conceptId: item.conceptId,
         cefrLevel: item.cefrLevel,
         review: reviewByItem.get(item.id) ?? null,
       }));

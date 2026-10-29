@@ -18,7 +18,7 @@ export {
   type VocabSelection,
   type VocabSelectionReason,
 } from './select';
-export { normalizeAnswer, recallCue } from './text';
+export { glossOf, normalizeAnswer, recallCue } from './text';
 export {
   PAYLOAD_MODE,
   VOCAB_MODES,

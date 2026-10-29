@@ -41,6 +41,11 @@ export type VocabSelection =
       reason: VocabSelectionReason;
       /** Ladder mode for the word's state (the card may fall back — see buildVocabCard). */
       mode: VocabMode;
+      /**
+       * The review state's lastReviewAt the choice was made on (null = never
+       * answered): the card seed, and recordVocabOutcome's staleness check.
+       */
+      lastReviewAt: bigint | null;
       remainingNew: number;
     }
   | { ok: false; reason: 'NOTHING_DUE'; nextDueAt: bigint | null; remainingNew: number };
@@ -89,6 +94,7 @@ function pick(
     itemId: c.itemId,
     reason,
     mode: vocabModeFor(c.review),
+    lastReviewAt: c.review?.lastReviewAt ?? null,
     remainingNew,
   });
 

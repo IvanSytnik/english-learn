@@ -53,3 +53,19 @@ export async function countNewVocabWordsSince(
       )`;
   return row?.n ?? 0;
 }
+
+/**
+ * Whether the learner has answered this word before (an ItemReviewState row
+ * exists). A "Know -> prove" check is offered only for a word that has none;
+ * the write path re-checks it under the user lock.
+ */
+export async function hasItemReviewState(
+  db: Pick<PrismaClient, 'itemReviewState'>,
+  args: { userId: string; itemId: string },
+): Promise<boolean> {
+  const row = await db.itemReviewState.findUnique({
+    where: { userId_itemId: { userId: args.userId, itemId: args.itemId } },
+    select: { id: true },
+  });
+  return row !== null;
+}
