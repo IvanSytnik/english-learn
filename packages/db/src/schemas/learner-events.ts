@@ -29,6 +29,14 @@ export const FsrsRatingValue = z.enum(['AGAIN', 'HARD', 'GOOD', 'EASY']);
 export type FsrsRatingValue = z.infer<typeof FsrsRatingValue>;
 
 /**
+ * How the item was practised (V2, §5.3): pick the answer (recognition),
+ * produce it (recall) or fill the gap (cloze). Accepted before anything
+ * writes it (expand-first).
+ */
+export const PracticeModeSchema = z.enum(['recognition', 'recall', 'cloze']);
+export type PracticeModeValue = z.infer<typeof PracticeModeSchema>;
+
+/**
  * Payload for LearnerEventType.ITEM_ATTEMPTED.
  *
  * conceptId is denormalized from Item so replay never joins; if an Item is
@@ -60,6 +68,11 @@ export const ItemAttemptedPayloadSchema = z
      * any other miss.
      */
     hinted: z.literal(true).optional(),
+    /**
+     * Practice mode of the attempt. Optional: every event written before the
+     * field existed has none, and replay must keep accepting it. Not folded.
+     */
+    mode: PracticeModeSchema.optional(),
   })
   .strict()
   .refine((p) => !(p.dontKnow && p.correct), {

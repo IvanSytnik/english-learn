@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { ItemAttemptedPayloadSchema, LearnerBootstrappedPayloadSchema } from '../learner-events';
+import {
+  ItemAttemptedPayloadSchema,
+  LearnerBootstrappedPayloadSchema,
+  PracticeModeSchema,
+} from '../learner-events';
 
 const base = {
   itemId: 'item.past_simple.regular_ed',
@@ -53,6 +57,35 @@ describe('ItemAttemptedPayloadSchema — hinted', () => {
 
   it('keeps the payload canonical: hinted is either true or absent', () => {
     expect(ItemAttemptedPayloadSchema.safeParse({ ...base, hinted: false }).success).toBe(false);
+  });
+});
+
+describe('ItemAttemptedPayloadSchema — mode (V2)', () => {
+  it('accepts a payload without mode (events written before the field)', () => {
+    const res = ItemAttemptedPayloadSchema.safeParse(base);
+    expect(res.success).toBe(true);
+    expect(res.data).not.toHaveProperty('mode');
+  });
+
+  it.each(PracticeModeSchema.options)('accepts mode %s', (mode) => {
+    const payload = { ...base, mode };
+    expect(ItemAttemptedPayloadSchema.parse(payload)).toEqual(payload);
+  });
+
+  it('covers exactly recognition, recall and cloze', () => {
+    expect(PracticeModeSchema.options).toEqual(['recognition', 'recall', 'cloze']);
+  });
+
+  it('rejects an unknown mode', () => {
+    const res = ItemAttemptedPayloadSchema.safeParse({ ...base, mode: 'listening' });
+    expect(res.success).toBe(false);
+    expect(res.error?.issues[0]?.path).toEqual(['mode']);
+  });
+
+  it('is still strict about unknown keys next to mode', () => {
+    const res = ItemAttemptedPayloadSchema.safeParse({ ...base, mode: 'recall', channel: 'web' });
+    expect(res.success).toBe(false);
+    expect(res.error?.issues[0]?.code).toBe('unrecognized_keys');
   });
 });
 
