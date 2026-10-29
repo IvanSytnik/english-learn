@@ -1,9 +1,15 @@
 {
   "extends": "@englishlearn/config/tsconfig/library.json",
   "compilerOptions": {
-    "rootDir": ".",
-    "noEmit": true
+    // Never emitted; the root spans the workspace sources reached through @englishlearn/db.
+    "rootDir": "../..",
+    "noEmit": true,
+    // Consumed as TS source, never emitted. Declaration checks would fail on the
+    // generated prisma-client sources reached through @englishlearn/db (TS4094).
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["src/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

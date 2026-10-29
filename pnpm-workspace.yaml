@@ -49,6 +49,9 @@ catalog:
   "@hookform/resolvers": "5.4.0"
   zod: "4.4.3"
 
+  # AI (offline scripts only; never imported by apps/web)
+  "@anthropic-ai/sdk": "0.135.0"
+
   # UI primitives
   tailwindcss: "4.3.1"
   "@tailwindcss/postcss": "4.3.1"

@@ -6,19 +6,24 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./localization": "./src/localization/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "vocab:localize": "tsx --env-file-if-exists=../db/.env scripts/localize-cefr-j.ts",
     "clean": "rm -rf dist .turbo node_modules"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "catalog:",
+    "@englishlearn/db": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@englishlearn/config": "workspace:*",
     "@types/node": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
