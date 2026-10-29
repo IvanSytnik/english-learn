@@ -77,12 +77,35 @@ export const TranslationMapSchema = z
   .refine((map) => Object.values(map).some(Boolean), 'At least one translation is required');
 export type TranslationMap = z.infer<typeof TranslationMapSchema>;
 
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const WORD_CHAR = /[\p{L}\p{N}]/u;
 
-/** Occurrences of `target` in `sentence` as a whole word, case-insensitive. */
+/** The code point that ends just before `index`, or '' at the start. */
+const charBefore = (text: string, index: number) =>
+  index <= 0 ? '' : (Array.from(text.slice(Math.max(0, index - 2), index)).at(-1) ?? '');
+const charAt = (text: string, index: number) => {
+  const code = text.codePointAt(index);
+  return code === undefined ? '' : String.fromCodePoint(code);
+};
+
+/**
+ * Occurrences of `target` in `sentence` as a whole word, case-insensitive,
+ * non-overlapping. A scan rather than a regex built from the target: a fresh
+ * Unicode regex per call cost ~0.3 ms, seconds over the whole vocabulary.
+ */
 export function countWholeWord(sentence: string, target: string): number {
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(target)}(?![\\p{L}\\p{N}])`, 'giu');
-  return sentence.match(pattern)?.length ?? 0;
+  const haystack = sentence.toLowerCase();
+  const needle = target.toLowerCase();
+  if (needle.length === 0) return 0;
+  let count = 0;
+  let i = haystack.indexOf(needle);
+  while (i !== -1) {
+    const bounded =
+      !WORD_CHAR.test(charBefore(haystack, i)) &&
+      !WORD_CHAR.test(charAt(haystack, i + needle.length));
+    if (bounded) count += 1;
+    i = haystack.indexOf(needle, bounded ? i + needle.length : i + 1);
+  }
+  return count;
 }
 
 /**

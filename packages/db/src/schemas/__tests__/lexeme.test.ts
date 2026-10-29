@@ -1,3 +1,4 @@
+import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { ContentStatus, PartOfSpeech } from '../../generated/client/enums';
 import {
@@ -73,6 +74,44 @@ describe('LexemeExampleSchema clozeTarget', () => {
   it('treats regex characters in the target literally', () => {
     expect(countWholeWord('a.b and axb', 'a.b')).toBe(1);
   });
+
+  it('counts non-overlapping matches, across astral letters', () => {
+    expect(countWholeWord('aa aa', 'aa')).toBe(2);
+    expect(countWholeWord('aaa', 'aa')).toBe(0);
+    expect(countWholeWord('a a a', 'a a')).toBe(1);
+    expect(countWholeWord('𝐀ran ran', 'ran')).toBe(1);
+  });
+
+  it('agrees with the whole-word regex it replaced', () => {
+    const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const viaRegex = (sentence: string, target: string) =>
+      sentence.match(
+        new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(target)}(?![\\p{L}\\p{N}])`, 'giu'),
+      )?.length ?? 0;
+    const alphabet = fc.constantFrom(
+      'a',
+      'A',
+      'b',
+      ' ',
+      '.',
+      ',',
+      "'",
+      '-',
+      'é',
+      'Ж',
+      'ж',
+      '1',
+      '𝐀',
+    );
+    const text = (max: number) => fc.array(alphabet, { maxLength: max }).map((c) => c.join(''));
+    fc.assert(
+      fc.property(text(30), text(4).filter(Boolean), (sentence, target) => {
+        expect(countWholeWord(sentence, target)).toBe(viaRegex(sentence, target));
+      }),
+      { numRuns: 500 },
+    );
+    // The reference compiles a Unicode regex per run: slow under a full turbo run.
+  }, 30_000);
 });
 
 describe('cefrLevelOf', () => {
