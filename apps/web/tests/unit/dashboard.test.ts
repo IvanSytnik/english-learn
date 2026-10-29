@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, isDiagnosticDone, getConceptProgress } = vi.hoisted(() => ({
+const { findUnique, isDiagnosticDone, getConceptProgress, loadVocabOverview } = vi.hoisted(() => ({
   findUnique: vi.fn(),
   isDiagnosticDone: vi.fn(),
   getConceptProgress: vi.fn(),
+  loadVocabOverview: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { studentProfile: { findUnique } } }));
 vi.mock('@englishlearn/db/queries/learner-progress', () => ({ getConceptProgress }));
 vi.mock('@/lib/diagnostic', () => ({ isDiagnosticDone }));
+vi.mock('@/lib/vocab-overview', () => ({ loadVocabOverview }));
 
 const { dashboardCta, loadStudentDashboard } = await import('@/lib/dashboard');
 
@@ -56,6 +58,19 @@ const review = (conceptId: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const stages = { new: 4, learning: 2, familiar: 1, known: 0, mastered: 3 };
+/** The full `/words` overview, with what the card must not carry. */
+const VOCAB_OVERVIEW = {
+  dueNow: 2,
+  newToday: 3,
+  dailyLimit: 10,
+  remainingNew: 7,
+  totalWords: 10,
+  startedWords: 6,
+  stages,
+  topics: [{ topicId: 'travel', title: 'Travel', total: 10, started: 6, stages, levels: [] }],
+};
+
 const load = () => loadStudentDashboard({ userId: 'u1', locale: 'ru', nowMs: NOW });
 
 beforeEach(() => {
@@ -63,6 +78,7 @@ beforeEach(() => {
   findUnique.mockResolvedValue({ assessedLevel: 'B1' });
   isDiagnosticDone.mockResolvedValue(true);
   getConceptProgress.mockResolvedValue(progress());
+  loadVocabOverview.mockResolvedValue(VOCAB_OVERVIEW);
 });
 
 describe('dashboardCta', () => {
@@ -179,6 +195,47 @@ describe('loadStudentDashboard', () => {
     expect(d.cta).toEqual({ kind: 'practice' });
     expect(d.sections).toEqual([]);
     expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('reads the vocabulary overview in UTC, in the request locale', async () => {
+    await load();
+    expect(loadVocabOverview).toHaveBeenCalledExactlyOnceWith({
+      userId: 'u1',
+      uiLocale: 'ru',
+      timeZone: 'UTC',
+    });
+  });
+
+  it('hands the card the aggregates only: no topics, no FSRS number', async () => {
+    loadVocabOverview.mockResolvedValue({
+      ...VOCAB_OVERVIEW,
+      stages: { ...stages, stability: 12.345 },
+      pKnown: 0.4321,
+    });
+    const d = await load();
+    expect(d.vocab).toEqual({
+      totalWords: 10,
+      dueNow: 2,
+      newToday: 3,
+      dailyLimit: 10,
+      remainingNew: 7,
+      stages,
+    });
+    const json = JSON.stringify(d.vocab);
+    for (const leak of ['topics', 'Travel', 'startedWords', 'stability', '12.345', 'pKnown']) {
+      expect(json).not.toContain(leak);
+    }
+  });
+
+  it('a failing vocabulary read leaves the card out, the rest intact', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    loadVocabOverview.mockRejectedValue(new Error('db down'));
+    const d = await load();
+    expect(d.vocab).toBeNull();
+    expect(d.cta).toEqual({ kind: 'practice' });
+    expect(d.sections).toHaveLength(2);
+    expect(error).toHaveBeenCalledWith('[dashboard] vocabulary overview failed', expect.any(Error));
     error.mockRestore();
   });
 });

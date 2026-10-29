@@ -6,6 +6,7 @@ import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
 import { type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
 import { FeedbackButton } from '../_components/feedback-button';
+import { VocabDashboardCard } from '../_components/vocab-dashboard-card';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
 import { ConceptList } from './concept-list';
 
@@ -84,6 +85,12 @@ export default async function DashboardPage() {
         {student?.showWeekRhythm ? (
           <div className="mb-10">
             <WeekRhythmPanel />
+          </div>
+        ) : null}
+
+        {student?.vocab ? (
+          <div className="mb-10">
+            <VocabDashboardCard initial={student.vocab} />
           </div>
         ) : null}
 

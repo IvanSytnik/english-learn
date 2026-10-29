@@ -11,10 +11,12 @@ import {
   type EffectiveStage,
 } from '@englishlearn/learner-model';
 import { isDiagnosticDone } from './diagnostic';
+import { type DashboardVocab, toDashboardVocab } from './vocab-card';
+import { loadVocabOverview } from './vocab-overview';
 
 /**
  * The student dashboard (HANDOFF §9 п. 2): level, the primary CTA by state,
- * whether to show the week, and the concept list. Read-only — GET /dashboard
+ * whether to show the week, the vocabulary card and the concept list. Read-only — GET /dashboard
  * never writes.
  *
  * Built field by field (a whitelist, like the diagnostic result): nothing
@@ -52,6 +54,8 @@ export type StudentDashboard = {
   cta: DashboardCta;
   showWeekRhythm: boolean;
   sections: { category: ConceptCategory; concepts: DashboardConcept[] }[];
+  /** Null if the vocabulary read failed: the card is left out. */
+  vocab: DashboardVocab | null;
 };
 
 /**
@@ -89,7 +93,7 @@ export async function loadStudentDashboard(args: {
   nowMs?: number;
 }): Promise<StudentDashboard> {
   const nowMs = args.nowMs ?? Date.now();
-  const [profile, diagnosticDone, progress] = await Promise.all([
+  const [profile, diagnosticDone, progress, vocab] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: args.userId },
       select: { assessedLevel: true },
@@ -100,6 +104,15 @@ export async function loadStudentDashboard(args: {
       console.error('[dashboard] concept progress failed', e);
       return null;
     }),
+    // In UTC: the server does not know the browser's zone; the card refreshes
+    // the day-dependent counts in it after mounting.
+    loadVocabOverview({ userId: args.userId, uiLocale: args.locale, timeZone: 'UTC' })
+      .then(toDashboardVocab)
+      .catch((e: unknown) => {
+        // Secondary as well: the dashboard renders without the card.
+        console.error('[dashboard] vocabulary overview failed', e);
+        return null;
+      }),
   ]);
 
   // A level without a finished diagnostic cannot happen; null either way
@@ -128,5 +141,6 @@ export async function loadStudentDashboard(args: {
     cta: dashboardCta(diagnosticDone, board.fadingCount),
     showWeekRhythm: diagnosticDone || practised,
     sections,
+    vocab,
   };
 }

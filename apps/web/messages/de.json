@@ -113,6 +113,16 @@
         "notPracticed": "Noch nicht geübt",
         "requires": "Setzt voraus: {topics}",
         "unlocks": "Schaltet frei: {topics}"
+      },
+      "vocab": {
+        "title": "Wortschatz",
+        "due": "{count, plural, =0 {Gerade nichts zu wiederholen} one {# Wort zum Wiederholen} other {# Wörter zum Wiederholen}}",
+        "newToday": "Neue Wörter heute: {done} von {limit}",
+        "stages": "Deine Wörter nach Stufe",
+        "review": "Wörter wiederholen ({count})",
+        "learn": "Wörter lernen",
+        "open": "Zum Wortschatz",
+        "allTopics": "Alle Wortschatz-Themen"
       }
     },
     "diagnostic": {
