@@ -1,14 +1,36 @@
+import { hasPracticeQuestion } from '@englishlearn/db/queries/practisable';
 import { PRACTICE_GAP, type Practice, safeParseItemContent } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
 import { ALL_ITEMS } from '../../seed/items';
 import { ITEM_PRACTICE } from '../../seed/items/practice';
 
 describe('seed item practice (U2)', () => {
-  it('every seed item has a practice question that validates with its kind schema', () => {
+  it('every seed item validates with its kind schema', () => {
     expect(ALL_ITEMS).toHaveLength(92);
     for (const item of ALL_ITEMS) {
+      expect(safeParseItemContent(item.kind, item.content).success, item.id).toBe(true);
+    }
+  });
+
+  it('every grammar item is practisable (hasPractice, as seed:items writes it)', () => {
+    const grammar = ALL_ITEMS.filter((i) => i.kind === 'GRAMMAR_PATTERN');
+    expect(grammar.length).toBeGreaterThan(0);
+    for (const item of grammar) expect(hasPracticeQuestion(item.content), item.id).toBe(true);
+  });
+
+  it('a vocab item may ship without a question: it seeds with hasPractice = false', () => {
+    // VOCAB_WORD / COLLOCATION / IDIOM can be added before their practice;
+    // such an item is valid content but stays out of the selection pool.
+    const vocab = ALL_ITEMS.find((i) => i.kind !== 'GRAMMAR_PATTERN');
+    if (!vocab) throw new Error('no vocab seed item');
+    const { practice: _, ...content } = vocab.content as { practice?: unknown };
+    expect(safeParseItemContent(vocab.kind, content).success).toBe(true);
+    expect(hasPracticeQuestion(content)).toBe(false);
+  });
+
+  it('every practice question validates with its item kind schema', () => {
+    for (const item of ALL_ITEMS.filter((i) => hasPracticeQuestion(i.content))) {
       const parsed = safeParseItemContent(item.kind, item.content);
-      expect(parsed.success, item.id).toBe(true);
       expect(parsed.success && parsed.data.practice, item.id).toBeTruthy();
     }
   });
@@ -32,8 +54,9 @@ describe('seed item practice (U2)', () => {
     for (const item of ALL_ITEMS) {
       const { localized = {}, practice } = item.content as {
         localized?: Record<string, Record<string, string> | undefined>;
-        practice: Practice;
+        practice?: Practice;
       };
+      if (!practice) continue;
       const answers = (
         practice.type === 'choice'
           ? [practice.options[practice.correctIndex]]
