@@ -53,5 +53,7 @@ describe.skipIf(!url)('seedUsers (real Postgres)', () => {
 
     await seedUsers(db);
     expect(await snapshot()).toEqual(first);
-  });
+    // Four bcryptjs hashes (pure JS, cost 10): past the 5 s default when
+    // turbo runs every package's tests at once.
+  }, 30_000);
 });
