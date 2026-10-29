@@ -27,7 +27,10 @@ vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({
   prisma: { user: { findUnique }, $transaction: transaction },
 }));
-vi.mock('@englishlearn/db/queries/rate-limit', () => ({ consumeRateLimit }));
+vi.mock('@englishlearn/db/queries/rate-limit', () => ({
+  consumeRateLimit,
+  rateLimitDisabled: () => false,
+}));
 vi.mock('next/server', () => ({ after }));
 vi.mock('next/headers', () => ({ headers }));
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'de' }));

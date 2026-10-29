@@ -28,6 +28,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 240_000,
     // `next start` runs with NODE_ENV=production, where Auth.js rejects localhost as an untrusted host.
-    env: { AUTH_TRUST_HOST: 'true' },
+    // Every test signs up from the same localhost IP: the auth rate limits would block it by test #6.
+    env: { AUTH_TRUST_HOST: 'true', DISABLE_RATE_LIMIT: 'true' },
   },
 });

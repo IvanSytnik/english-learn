@@ -1,6 +1,6 @@
 import 'server-only';
 import { prisma } from '@englishlearn/db';
-import { consumeRateLimit } from '@englishlearn/db/queries/rate-limit';
+import { consumeRateLimit, rateLimitDisabled } from '@englishlearn/db/queries/rate-limit';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -40,6 +40,8 @@ export const emailSubject = (email: string) => email.trim().toLowerCase();
 export async function withinAuthLimits(
   checks: ReadonlyArray<readonly [AuthLimitName, string]>,
 ): Promise<boolean> {
+  // e2e: skip the DB round trip too (see rateLimitDisabled).
+  if (rateLimitDisabled()) return true;
   const results = await Promise.all(
     checks.map(([name, subject]) =>
       consumeRateLimit(prisma, { key: `${name}:${subject}`, ...AUTH_LIMITS[name] }),

@@ -18,7 +18,10 @@ vi.mock('@englishlearn/db', () => ({
 }));
 vi.mock('@/lib/auth', () => ({ signIn }));
 vi.mock('@/lib/auth-redirect', () => ({ redirectAfterAuth }));
-vi.mock('@englishlearn/db/queries/rate-limit', () => ({ consumeRateLimit }));
+vi.mock('@englishlearn/db/queries/rate-limit', () => ({
+  consumeRateLimit,
+  rateLimitDisabled: () => false,
+}));
 vi.mock('next/headers', () => ({
   headers: async () => new Headers({ 'x-forwarded-for': '198.51.100.4' }),
 }));

@@ -13,6 +13,15 @@ export type RateLimitInput = {
 export type RateLimitResult = { allowed: boolean; remaining: number; resetAt: Date };
 
 /**
+ * `DISABLE_RATE_LIMIT=true` turns throttling off for e2e, where every request
+ * comes from one localhost IP. Ignored on Vercel (`VERCEL=1`), so a stray
+ * variable can never switch it off in a deployment.
+ */
+export function rateLimitDisabled(): boolean {
+  return process.env.DISABLE_RATE_LIMIT === 'true' && process.env.VERCEL !== '1';
+}
+
+/**
  * Count one hit against `key` in a fixed window. A single INSERT … ON CONFLICT
  * so concurrent hits never lose an increment; an expired row restarts at 1
  * with a fresh window. Refused hits still count, so hammering a blocked key
@@ -22,6 +31,7 @@ export async function consumeRateLimit(
   db: Pick<PrismaClient, '$queryRaw'>,
   { key, limit, windowMs, now = new Date() }: RateLimitInput,
 ): Promise<RateLimitResult> {
+  if (rateLimitDisabled()) return { allowed: true, remaining: 999, resetAt: now };
   const freshExpiry = new Date(now.getTime() + windowMs);
   const [row] = await db.$queryRaw<{ count: number; expiresAt: Date }[]>`
     INSERT INTO "AuthRateLimit" ("key", "count", "expiresAt", "createdAt")

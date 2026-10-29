@@ -12,7 +12,10 @@ const { findUnique, compare, consumeRateLimit, captured } = vi.hoisted(() => ({
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { user: { findUnique } } }));
-vi.mock('@englishlearn/db/queries/rate-limit', () => ({ consumeRateLimit }));
+vi.mock('@englishlearn/db/queries/rate-limit', () => ({
+  consumeRateLimit,
+  rateLimitDisabled: () => false,
+}));
 vi.mock('@auth/prisma-adapter', () => ({ PrismaAdapter: () => ({}) }));
 vi.mock('next-auth/providers/credentials', () => ({ default: (options: unknown) => options }));
 vi.mock('next-auth', () => ({
