@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page, test } from '@playwright/test';
-import { registerFreshLearner } from './helpers/auth';
+import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { chooseNativeLanguage } from './helpers/diagnostic';
 
 // Text contrast (WCAG AA) on the shell screens, in both colour schemes.
@@ -36,8 +36,12 @@ for (const colorScheme of ['dark', 'light'] as const) {
     ]) {
       test(`${path} (signed in)`, async ({ page }) => {
         await registerFreshLearner(page, 'contrast');
+        // Islands refresh after mounting (the dashboard's vocabulary card, the
+        // week): axe must not measure transition-colors mid-way.
+        await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
         await page.goto(path);
         await expect(page.locator('main')).toBeVisible();
+        if (path === '/ru/dashboard') await expect(page.locator('[data-vocab-card]')).toBeVisible();
         await expectNoContrastViolations(page);
       });
     }
@@ -49,6 +53,29 @@ for (const colorScheme of ['dark', 'light'] as const) {
       // A click starts transition-colors; axe must not measure mid-way.
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await chooseNativeLanguage(page);
+      await expectNoContrastViolations(page);
+    });
+
+    // Vocabulary: the overview, a new word's first card, and its proof step
+    // (accent badge, cue). Reduced motion from the start: the overview
+    // refreshes and the player swaps cards with transition-colors running.
+    test('/ru/words (signed in)', async ({ page }) => {
+      await registerFreshLearner(page, 'contrast');
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/ru/words');
+      await expect(page.locator('[data-topic]').first()).toBeVisible();
+      await expectNoContrastViolations(page);
+    });
+
+    test('/ru/words/practice, first card and proof (signed in)', async ({ page }) => {
+      await registerFreshLearner(page, 'contrast');
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/ru/words/practice');
+      await expect(page.locator('[data-mode]')).toBeVisible(AFTER_SUBMIT);
+      await expectNoContrastViolations(page);
+
+      await page.keyboard.press('k');
+      await expect(page.locator('[data-proof]')).toBeVisible(AFTER_SUBMIT);
       await expectNoContrastViolations(page);
     });
 
