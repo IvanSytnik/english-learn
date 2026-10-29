@@ -82,7 +82,11 @@ export function createSelectionService(db: LearnerModelDb) {
       const allowedRows = candidateRows.filter((r) => !excluded.has(r.itemId));
       const pool = allowedRows.length > 0 ? allowedRows : candidateRows;
       // The guard's content bounds come from the pool select() sees, so both cap alike.
-      const learnerLevel = await learnerLevelFor(db, input.userId, levelContext, pool, config);
+      const learnerLevel = await learnerLevelFor(db, input.userId, levelContext, {
+        pool,
+        catalogue: candidateRows,
+        config,
+      });
 
       const selectionInput: SelectionInput = {
         userId: input.userId,
@@ -145,9 +149,12 @@ function startConceptFor(
     config: PolicyConfig;
   },
 ): string | null {
-  if (reads.candidates.length === 0 || reads.masteries.some((m) => isStarted(m))) return null;
-  if (context.level === null) return null;
   const practisable = new Set(reads.candidates.map((c) => c.conceptId));
+  // Only practisable concepts count as started: an answered vocabulary word
+  // (its own pool, Axiom 6) must not end the diagnostic's start concept.
+  const started = reads.masteries.some((m) => practisable.has(m.conceptId) && isStarted(m));
+  if (reads.candidates.length === 0 || started) return null;
+  if (context.level === null) return null;
   return pickStartConcept({
     concepts: context.concepts.filter((c) => practisable.has(c.id)),
     masteries: reads.masteries,
@@ -167,31 +174,39 @@ async function learnerLevelFor(
   db: LearnerModelDb,
   userId: string,
   context: LevelContextRow,
-  candidates: readonly CandidateItemRow[],
-  config: PolicyConfig,
+  reads: {
+    /** What select() sees this call — the guard's content bounds. */
+    pool: readonly CandidateItemRow[];
+    /** Every practisable item, before excludeItemIds — whose concepts' answers count. */
+    catalogue: readonly CandidateItemRow[];
+    config: PolicyConfig;
+  },
 ): Promise<{ theta: number; conceptLevels: Record<string, CEFRLevel> } | null> {
-  if (!config.levelAware || context.level === null || candidates.length === 0) return null;
+  const { pool, catalogue, config } = reads;
+  if (!config.levelAware || context.level === null || pool.length === 0) return null;
 
   const conceptLevels: Record<string, CEFRLevel> = {};
   for (const c of context.concepts) conceptLevels[c.id] = c.cefrLevel;
   // A concept's rank: Concept.cefrLevel, else its candidate item's level (as select does).
-  const rankOf = new Map<string, number>();
-  for (const c of candidates) {
-    if (!rankOf.has(c.conceptId)) {
-      rankOf.set(c.conceptId, CEFR_RANK[conceptLevels[c.conceptId] ?? c.cefrLevel]);
+  const rankOf = (rows: readonly CandidateItemRow[]) => {
+    const ranks = new Map<string, number>();
+    for (const c of rows) {
+      if (!ranks.has(c.conceptId)) {
+        ranks.set(c.conceptId, CEFR_RANK[conceptLevels[c.conceptId] ?? c.cefrLevel]);
+      }
     }
-  }
-  const practisable = [...rankOf.values()];
-  for (const [id, level] of Object.entries(conceptLevels)) {
-    if (!rankOf.has(id)) rankOf.set(id, CEFR_RANK[level]);
-  }
+    return ranks;
+  };
+  const practisable = [...rankOf(pool).values()];
+  const answered = rankOf(catalogue);
 
   const outcomes = await db.getAttemptOutcomes(userId);
   const { theta } = levelGuard({
     placedRank: CEFR_RANK[context.level],
-    // An outcome on a concept with no known level says nothing about the level.
+    // Only answers on practisable concepts say something about the level: a
+    // vocabulary word is its own pool (Axiom 6), never grammar evidence.
     outcomes: outcomes.flatMap((o) => {
-      const rank = rankOf.get(o.conceptId);
+      const rank = answered.get(o.conceptId);
       return rank === undefined ? [] : [{ rank, correct: o.correct, hinted: o.hinted }];
     }),
     minRank: Math.min(...practisable),

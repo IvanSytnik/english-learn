@@ -3,6 +3,7 @@ import {
   ItemAttemptedPayloadSchema,
   type LearnerBootstrappedPayload,
   LearnerBootstrappedPayloadSchema,
+  type PracticeModeValue,
 } from '@englishlearn/db/schemas';
 import type { IrtParams } from '../core/bkt/types';
 import type { FsrsRating } from '../core/fsrs/types';
@@ -25,6 +26,10 @@ export type ItemOutcomeFact = {
   dontKnow?: boolean;
   /** Hint opened before answering — written to the payload only when true. */
   hinted?: boolean;
+  /** Practice mode of the attempt (vocabulary); absent for grammar. */
+  mode?: PracticeModeValue;
+  /** A passed "Know -> prove" check — written to the payload only when true. */
+  proof?: boolean;
   timeMs: number | null;
   rating: FsrsRating;
   irt: IrtParams;
@@ -44,6 +49,8 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
     irt: { a: fact.irt.a, b: fact.irt.b },
     ...(fact.dontKnow ? { dontKnow: true } : {}),
     ...(fact.hinted ? { hinted: true } : {}),
+    ...(fact.mode ? { mode: fact.mode } : {}),
+    ...(fact.proof ? { proof: true } : {}),
   });
   return {
     userId: fact.userId,

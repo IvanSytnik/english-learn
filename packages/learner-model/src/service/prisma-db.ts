@@ -240,7 +240,7 @@ export function createPrismaLearnerDb(
   options: { txTimeoutMs?: number } = {},
 ): LearnerModelDb {
   return {
-    async getItemForOutcome(itemId) {
+    async getItemForOutcome(itemId, pool) {
       const item = await prisma.item.findUnique({
         where: { id: itemId },
         select: {
@@ -249,11 +249,23 @@ export function createPrismaLearnerDb(
           irtDifficulty: true,
           status: true,
           hasPractice: true,
+          kind: true,
+          lexemeId: true,
+          lexeme: { select: { status: true } },
         },
       });
-      // Only an item selection could have served is recorded (V3): a draft,
-      // archived or question-less item never reaches the event log.
-      if (!item || item.status !== 'PUBLISHED' || !item.hasPractice) return null;
+      // Only an item the pool's selection could have served is recorded: a
+      // draft or archived item never reaches the event log, and neither does
+      // an item of the other pool (V3 for grammar; Axiom 6 both ways).
+      if (!item || item.status !== 'PUBLISHED') return null;
+      const recordable =
+        pool === 'grammar'
+          ? item.hasPractice
+          : item.kind === 'VOCAB_WORD' &&
+            item.lexemeId !== null &&
+            !item.hasPractice &&
+            item.lexeme?.status === 'PUBLISHED';
+      if (!recordable) return null;
       return {
         conceptId: item.conceptId,
         irtDiscrimination: item.irtDiscrimination,

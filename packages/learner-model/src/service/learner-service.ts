@@ -1,9 +1,15 @@
+import type { PracticeModeValue } from '@englishlearn/db/schemas';
 import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
 import type { FsrsCardStatus, FsrsRating } from '../core/fsrs/types';
 import type { MasteryStage } from '../mastery/stage';
 import { applyItemAttempted } from './apply';
-import { IdempotencyKeyTakenError, type LearnerModelDb, type LearnerModelTx } from './db-port';
+import {
+  IdempotencyKeyTakenError,
+  type LearnerModelDb,
+  type LearnerModelTx,
+  type OutcomePool,
+} from './db-port';
 import { buildItemAttemptedEvent, parseEventRow } from './event-store';
 import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
 
@@ -48,6 +54,24 @@ export type RecordOutcomeInput = {
    */
   | { dontKnow: true; correct?: false }
 );
+
+/**
+ * A vocabulary answer (B2.5). Recorded through the vocab pool only: a grammar
+ * item is ITEM_NOT_FOUND here, a vocabulary item is ITEM_NOT_FOUND in
+ * recordOutcome.
+ */
+export type RecordVocabOutcomeInput = RecordOutcomeInput & {
+  /** Payload mode of the ladder step that was served (vocab/ladder.ts). */
+  mode: PracticeModeValue;
+  /**
+   * The answer is a "Know -> prove" check on a new word. A correct, unhinted
+   * proof is rated EASY and frozen with `proof: true` — FSRS then schedules
+   * the word as known (S ≈ 8.3, +8 d) and it does not count toward the daily
+   * new-word limit. A failed proof is an ordinary attempt without the flag.
+   * Only a recall answer can prove (the payload schema enforces it).
+   */
+  proof?: boolean;
+};
 
 /**
  * What the post-answer UI needs, taken from the same fold that was persisted:
@@ -168,100 +192,122 @@ async function recordedOutcome(
 export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDeps = {}) {
   const clock = deps.clock ?? systemClock;
 
+  /**
+   * The one write flow behind both pools: gate, then one transaction under
+   * the user lock — idempotency, monotonic occurredAt, event, shared fold,
+   * projections.
+   */
+  async function record(
+    pool: OutcomePool,
+    input: RecordOutcomeInput,
+    vocab?: { mode: PracticeModeValue; proof: boolean },
+  ): Promise<RecordOutcomeResult> {
+    const item = await db.getItemForOutcome(input.itemId, pool);
+    if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
+
+    const correct = input.dontKnow ? false : input.correct;
+    const hinted = input.hinted === true;
+    const proof = vocab?.proof === true && correct && !hinted;
+    const rating = proof ? 'EASY' : outcomeToRating(correct, hinted);
+    const idempotencyKey = input.idempotencyKey ?? null;
+
+    try {
+      return await db.runInTx(async (tx): Promise<RecordOutcomeResult> => {
+        // 0. Serialize with every other write for this user. A retried
+        //    submission stops here, before anything is written; then take
+        //    the single "now" for this outcome — event, BKT and FSRS all
+        //    use it.
+        await tx.lockUser(input.userId);
+        if (idempotencyKey !== null) {
+          const recorded = await recordedOutcome(tx, input, idempotencyKey);
+          if (recorded) return recorded;
+        }
+        const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
+
+        const event = buildItemAttemptedEvent({
+          userId: input.userId,
+          itemId: input.itemId,
+          conceptId: item.conceptId,
+          correct,
+          dontKnow: input.dontKnow === true,
+          hinted,
+          ...(vocab ? { mode: vocab.mode } : {}),
+          proof,
+          timeMs: input.timeMs ?? null,
+          rating,
+          irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
+          occurredAt,
+          idempotencyKey,
+        });
+
+        // 1. The fact, first — projections are derived from it.
+        await tx.appendEvent(event);
+
+        // 2. Read current snapshots INSIDE the tx, under the user lock (no
+        //    concurrent write can change them before step 4).
+        const [masteryRow, reviewRow] = await Promise.all([
+          tx.getConceptMastery(input.userId, item.conceptId),
+          tx.getItemReviewState(input.userId, input.itemId),
+        ]);
+
+        // 3. One shared pure fold — identical to what replay runs.
+        const folded = applyItemAttempted(
+          {
+            bkt: masteryRow ? rowToBktState(masteryRow) : null,
+            fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
+            stage: masteryRow?.displayStage ?? null,
+          },
+          // buildItemAttemptedEvent returned a schema-parsed payload.
+          event.payload as Parameters<typeof applyItemAttempted>[1],
+          occurredAt,
+        );
+
+        // 4. Persist projections.
+        await tx.upsertConceptMastery(
+          input.userId,
+          item.conceptId,
+          bktStateToRow(folded.bkt, folded.stage),
+        );
+        await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
+
+        return {
+          ok: true,
+          duplicate: false,
+          occurredAt,
+          rating,
+          conceptId: item.conceptId,
+          pKnownBefore: folded.pKnownBefore,
+          pKnownAfter: folded.bkt.pKnown,
+          nextDueAt: folded.fsrs.dueAt,
+          scheduledDays: folded.scheduledDays,
+          cardStatus: folded.fsrs.cardStatus,
+          stageBefore: masteryRow?.displayStage ?? 'NOT_STARTED',
+          stageAfter: folded.stage,
+        };
+      });
+    } catch (e) {
+      // The unique index caught a second write of this key that the user
+      // lock did not serialize (a writer outside it). The aborted tx is
+      // gone and the winner is committed — answer from it in a fresh one.
+      if (!(e instanceof IdempotencyKeyTakenError) || idempotencyKey === null) throw e;
+      const recorded = await db.runInTx(async (tx) => {
+        await tx.lockUser(input.userId);
+        return recordedOutcome(tx, input, idempotencyKey);
+      });
+      if (!recorded) throw e;
+      return recorded;
+    }
+  }
+
   return {
-    async recordOutcome(input: RecordOutcomeInput): Promise<RecordOutcomeResult> {
-      const item = await db.getItemForOutcome(input.itemId);
-      if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
-
-      const correct = input.dontKnow ? false : input.correct;
-      const hinted = input.hinted === true;
-      const rating = outcomeToRating(correct, hinted);
-      const idempotencyKey = input.idempotencyKey ?? null;
-
-      try {
-        return await db.runInTx(async (tx): Promise<RecordOutcomeResult> => {
-          // 0. Serialize with every other write for this user. A retried
-          //    submission stops here, before anything is written; then take
-          //    the single "now" for this outcome — event, BKT and FSRS all
-          //    use it.
-          await tx.lockUser(input.userId);
-          if (idempotencyKey !== null) {
-            const recorded = await recordedOutcome(tx, input, idempotencyKey);
-            if (recorded) return recorded;
-          }
-          const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
-
-          const event = buildItemAttemptedEvent({
-            userId: input.userId,
-            itemId: input.itemId,
-            conceptId: item.conceptId,
-            correct,
-            dontKnow: input.dontKnow === true,
-            hinted,
-            timeMs: input.timeMs ?? null,
-            rating,
-            irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
-            occurredAt,
-            idempotencyKey,
-          });
-
-          // 1. The fact, first — projections are derived from it.
-          await tx.appendEvent(event);
-
-          // 2. Read current snapshots INSIDE the tx, under the user lock (no
-          //    concurrent write can change them before step 4).
-          const [masteryRow, reviewRow] = await Promise.all([
-            tx.getConceptMastery(input.userId, item.conceptId),
-            tx.getItemReviewState(input.userId, input.itemId),
-          ]);
-
-          // 3. One shared pure fold — identical to what replay runs.
-          const folded = applyItemAttempted(
-            {
-              bkt: masteryRow ? rowToBktState(masteryRow) : null,
-              fsrs: reviewRow ? rowToFsrsState(reviewRow) : null,
-              stage: masteryRow?.displayStage ?? null,
-            },
-            // buildItemAttemptedEvent returned a schema-parsed payload.
-            event.payload as Parameters<typeof applyItemAttempted>[1],
-            occurredAt,
-          );
-
-          // 4. Persist projections.
-          await tx.upsertConceptMastery(
-            input.userId,
-            item.conceptId,
-            bktStateToRow(folded.bkt, folded.stage),
-          );
-          await tx.upsertItemReviewState(input.userId, input.itemId, fsrsStateToRow(folded.fsrs));
-
-          return {
-            ok: true,
-            duplicate: false,
-            occurredAt,
-            rating,
-            conceptId: item.conceptId,
-            pKnownBefore: folded.pKnownBefore,
-            pKnownAfter: folded.bkt.pKnown,
-            nextDueAt: folded.fsrs.dueAt,
-            scheduledDays: folded.scheduledDays,
-            cardStatus: folded.fsrs.cardStatus,
-            stageBefore: masteryRow?.displayStage ?? 'NOT_STARTED',
-            stageAfter: folded.stage,
-          };
-        });
-      } catch (e) {
-        // The unique index caught a second write of this key that the user
-        // lock did not serialize (a writer outside it). The aborted tx is
-        // gone and the winner is committed — answer from it in a fresh one.
-        if (!(e instanceof IdempotencyKeyTakenError) || idempotencyKey === null) throw e;
-        const recorded = await db.runInTx(async (tx) => {
-          await tx.lockUser(input.userId);
-          return recordedOutcome(tx, input, idempotencyKey);
-        });
-        if (!recorded) throw e;
-        return recorded;
-      }
+    /** A grammar answer: practisable items only (V3). */
+    recordOutcome(input: RecordOutcomeInput): Promise<RecordOutcomeResult> {
+      return record('grammar', input);
+    },
+    /** A vocabulary answer: published lexeme-backed items only (B2.5). */
+    recordVocabOutcome(input: RecordVocabOutcomeInput): Promise<RecordOutcomeResult> {
+      const { mode, proof, ...outcome } = input;
+      return record('vocab', outcome as RecordOutcomeInput, { mode, proof: proof === true });
     },
   };
 }

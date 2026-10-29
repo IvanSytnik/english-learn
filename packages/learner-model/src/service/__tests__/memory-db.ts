@@ -7,6 +7,7 @@ import {
   type LearnerModelDb,
   type LearnerModelTx,
   type LevelContextRow,
+  type OutcomePool,
   type PrereqEdgeRow,
 } from '../db-port';
 
@@ -24,8 +25,11 @@ import {
  * (`transactions`), so tests can assert the lock comes first.
  */
 
+/** An item and the pool it belongs to (default grammar). Vocab items are never candidates. */
+export type MemoryItem = ItemForOutcome & { pool?: OutcomePool };
+
 export type MemoryDbOptions = {
-  items?: Record<string, ItemForOutcome>;
+  items?: Record<string, MemoryItem>;
   edges?: PrereqEdgeRow[];
   /** getLevelContext: assessed level per user (absent = null) and concept levels. */
   assessedLevels?: Record<string, LevelContextRow['level']>;
@@ -135,8 +139,11 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
   }
 
   const db: LearnerModelDb = {
-    async getItemForOutcome(itemId) {
-      return items[itemId] ?? null;
+    async getItemForOutcome(itemId, pool) {
+      const item = items[itemId];
+      if (!item || (item.pool ?? 'grammar') !== pool) return null;
+      const { pool: _, ...forOutcome } = item;
+      return forOutcome;
     },
     async runInTx(fn) {
       const log: string[] = [];
@@ -196,7 +203,8 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
         });
     },
     async getCandidateItems(userId) {
-      return Object.entries(items).map(([itemId, item]) => ({
+      const grammar = Object.entries(items).filter(([, item]) => item.pool !== 'vocab');
+      return grammar.map(([itemId, item]) => ({
         itemId,
         conceptId: item.conceptId,
         irtDiscrimination: item.irtDiscrimination,

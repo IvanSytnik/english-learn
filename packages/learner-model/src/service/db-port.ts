@@ -13,6 +13,16 @@ import type { ItemReviewStateRow, ItemReviewStateWrite } from '../adapters/item-
  * The ONE Prisma-backed implementation lives in prisma-db.ts.
  */
 
+/**
+ * Which selection pool an outcome belongs to. The pools are disjoint by
+ * construction (hasPractice true / false), so an item is recordable through
+ * exactly one of them.
+ *   grammar — PUBLISHED with a practice question (V3, PRACTISABLE_ITEM);
+ *   vocab   — PUBLISHED, question-less VOCAB_WORD on a PUBLISHED Lexeme
+ *             (B2.5; the question is built from the Lexeme at serve time).
+ */
+export type OutcomePool = 'grammar' | 'vocab';
+
 export type ItemForOutcome = {
   conceptId: string;
   irtDiscrimination: number;
@@ -121,10 +131,10 @@ export type LearnerModelTx = {
 export type LearnerModelDb = {
   /**
    * Read outside any transaction (item metadata is effectively static).
-   * Null unless the item is practisable — PUBLISHED with hasPractice (V3):
-   * an item selection could not have served is never recorded.
+   * Null unless the item belongs to `pool` (see OutcomePool): an item that
+   * pool's selection could not have served is never recorded.
    */
-  getItemForOutcome(itemId: string): Promise<ItemForOutcome | null>;
+  getItemForOutcome(itemId: string, pool: OutcomePool): Promise<ItemForOutcome | null>;
 
   /**
    * Run `fn` atomically. Everything recordOutcome writes (event + both
