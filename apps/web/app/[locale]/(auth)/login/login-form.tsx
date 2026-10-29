@@ -51,17 +51,9 @@ export function LoginForm({
         <Input id="email" name="email" type="email" required autoComplete="email" />
       </div>
       <div>
-        <div className="mb-1 flex items-baseline justify-between gap-2">
-          <label htmlFor="password" className="block text-sm font-medium">
-            {t('password')}
-          </label>
-          <Link
-            href="/forgot-password"
-            className="text-sm text-accent underline underline-offset-4"
-          >
-            {t('forgotPassword')}
-          </Link>
-        </div>
+        <label htmlFor="password" className="mb-1 block text-sm font-medium">
+          {t('password')}
+        </label>
         <Input
           id="password"
           name="password"
@@ -69,6 +61,15 @@ export function LoginForm({
           required
           autoComplete="current-password"
         />
+        {/* After the field, so Tab runs email → password → forgot → submit. */}
+        <p className="mt-2 text-right text-xs">
+          <Link
+            href="/forgot-password"
+            className="text-ink-muted underline underline-offset-4 transition-colors hover:text-ink"
+          >
+            {t('forgotPassword')}
+          </Link>
+        </p>
       </div>
       <Button type="submit" className="w-full" disabled={pending}>
         {t('submit')}

@@ -195,4 +195,19 @@ describe('LoginForm', () => {
     withIntl(<LoginForm />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  it('tabs email → password → forgot link → submit', () => {
+    const { container } = withIntl(<LoginForm />);
+    // No positive tabIndex anywhere, so DOM order is the tab order.
+    const focusable = [
+      ...container.querySelectorAll<HTMLElement>('input:not([type=hidden]), a, button'),
+    ];
+    expect(focusable.every((el) => el.tabIndex <= 0)).toBe(true);
+    expect(focusable.slice(0, 4)).toEqual([
+      screen.getByLabelText(en.auth.login.email),
+      screen.getByLabelText(en.auth.login.password),
+      screen.getByRole('link', { name: en.auth.login.forgotPassword }),
+      screen.getByRole('button', { name: en.auth.login.submit }),
+    ]);
+  });
 });
