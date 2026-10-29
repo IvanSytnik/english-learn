@@ -85,7 +85,8 @@ describe.skipIf(!url)('recordOutcome idempotency (real Postgres)', () => {
           kind: 'GRAMMAR_PATTERN',
           cefrLevel: 'B1',
           status: 'PUBLISHED',
-          content: { source: {} },
+          content: { source: {}, practice: { type: 'choice' } },
+          hasPractice: true,
         },
       });
     itemA = (await item()).id;

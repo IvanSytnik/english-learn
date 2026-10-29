@@ -63,6 +63,10 @@ export type RecordOutcomeResult =
    * which the retry's own answer must not override.
    */
   | ({ ok: true; duplicate: true; original: OriginalAnswer } & RecordedOutcome)
+  /**
+   * ITEM_NOT_FOUND: no such item, or one that is not practisable (not
+   * PUBLISHED, or no practice question — V3). Nothing is written.
+   */
   | { ok: false; error: 'ITEM_NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' };
 
 export type OriginalAnswer = { correct: boolean; dontKnow: boolean; hinted: boolean };

@@ -241,14 +241,24 @@ export function createPrismaLearnerDb(
 ): LearnerModelDb {
   return {
     async getItemForOutcome(itemId) {
-      return prisma.item.findUnique({
+      const item = await prisma.item.findUnique({
         where: { id: itemId },
         select: {
           conceptId: true,
           irtDiscrimination: true,
           irtDifficulty: true,
+          status: true,
+          hasPractice: true,
         },
       });
+      // Only an item selection could have served is recorded (V3): a draft,
+      // archived or question-less item never reaches the event log.
+      if (!item || item.status !== 'PUBLISHED' || !item.hasPractice) return null;
+      return {
+        conceptId: item.conceptId,
+        irtDiscrimination: item.irtDiscrimination,
+        irtDifficulty: item.irtDifficulty,
+      };
     },
     async getMasterySnapshots(userId): Promise<MasterySnapshotRow[]> {
       return prisma.conceptMastery.findMany({

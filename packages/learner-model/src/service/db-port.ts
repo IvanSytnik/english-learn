@@ -119,7 +119,11 @@ export type LearnerModelTx = {
 };
 
 export type LearnerModelDb = {
-  /** Read outside any transaction (item metadata is effectively static). */
+  /**
+   * Read outside any transaction (item metadata is effectively static).
+   * Null unless the item is practisable — PUBLISHED with hasPractice (V3):
+   * an item selection could not have served is never recorded.
+   */
   getItemForOutcome(itemId: string): Promise<ItemForOutcome | null>;
 
   /**
