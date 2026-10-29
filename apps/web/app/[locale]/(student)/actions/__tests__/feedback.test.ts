@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { auth, createBetaFeedback, getPublishedPracticeItem } = vi.hoisted(() => ({
+const { auth, createBetaFeedback, getPublishedPracticeItem, getVocabPool } = vi.hoisted(() => ({
   auth: vi.fn(),
   createBetaFeedback: vi.fn(),
   getPublishedPracticeItem: vi.fn(),
+  getVocabPool: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
@@ -11,10 +12,12 @@ vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
 vi.mock('@englishlearn/db/queries/feedback', () => ({ createBetaFeedback }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({ getPublishedPracticeItem }));
 vi.mock('@/lib/auth', () => ({ auth }));
+vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
 const { submitBetaFeedbackAction } = await import('@/app/[locale]/(student)/actions/feedback');
 const { encryptItemRef, ITEM_REF_TTL_MS } = await import('@/lib/crypto/item-ref');
+const { encryptVocabRef, VOCAB_REF_TTL_MS } = await import('@/lib/crypto/vocab-ref');
 
 const valid = { text: 'The answer key is wrong', url: '/en/exercises', itemId: 'item-1' };
 
@@ -146,5 +149,109 @@ describe('submitBetaFeedbackAction: a report from the player (itemRef)', () => {
     expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' });
     expect(createBetaFeedback).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+});
+
+describe('submitBetaFeedbackAction: a report from the vocabulary player (vocabRef)', () => {
+  const report = { text: 'The translation is wrong', url: '/en/words', kind: 'CONTENT_ERROR' };
+  const ITEM = 'cm-item-luggage';
+  const word = {
+    itemId: ITEM,
+    id: 'cm-lex-luggage',
+    lemma: 'luggage',
+    conceptId: 'vocab.travel.a2',
+  };
+  const vocabRef = (
+    over: { userId?: string; mode?: 'cloze' | 'full_recall' } = {},
+    nowMs?: number,
+  ) =>
+    encryptVocabRef(
+      {
+        userId: over.userId ?? 'user-1',
+        itemId: ITEM,
+        mode: over.mode ?? 'cloze',
+        isProof: false,
+        lastReviewAt: 5n,
+        locale: 'ru',
+        correctIndex: over.mode === 'full_recall' ? null : 2,
+      },
+      nowMs,
+    );
+
+  beforeEach(() => {
+    getVocabPool.mockResolvedValue({ lexemes: [word], byItemId: new Map([[ITEM, word]]) });
+  });
+
+  it('stores the word, its concept and the server-built word context', async () => {
+    const result = await submitBetaFeedbackAction({ ...report, vocabRef: await vocabRef() });
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      {
+        ...report,
+        itemId: ITEM,
+        conceptId: 'vocab.travel.a2',
+        metadata: { lexemeId: 'cm-lex-luggage', lemma: 'luggage', vocabMode: 'cloze' },
+        userId: 'user-1',
+      },
+    );
+  });
+
+  it('records the payload mode of the served card', async () => {
+    await submitBetaFeedbackAction({
+      ...report,
+      vocabRef: await vocabRef({ mode: 'full_recall' }),
+    });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      expect.objectContaining({ metadata: expect.objectContaining({ vocabMode: 'recall' }) }),
+    );
+  });
+
+  it('client ids and metadata never override the reference', async () => {
+    await submitBetaFeedbackAction({
+      ...report,
+      vocabRef: await vocabRef(),
+      itemId: 'other',
+      conceptId: 'other',
+      metadata: { lexemeId: 'forged', lemma: 'x', vocabMode: 'recall', extra: 1 },
+    });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      expect.objectContaining({
+        itemId: ITEM,
+        conceptId: 'vocab.travel.a2',
+        metadata: { lexemeId: 'cm-lex-luggage', lemma: 'luggage', vocabMode: 'cloze' },
+      }),
+    );
+  });
+
+  it('a word unpublished since it was shown is reported without its context', async () => {
+    getVocabPool.mockResolvedValue({ lexemes: [], byItemId: new Map() });
+    await submitBetaFeedbackAction({ ...report, vocabRef: await vocabRef() });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      expect.objectContaining({ itemId: ITEM, conceptId: null, metadata: null }),
+    );
+  });
+
+  it('refuses a forged, foreign, expired or item-domain reference, and both refs at once', async () => {
+    const itemRef = await encryptItemRef({ itemId: ITEM, userId: 'user-1' });
+    for (const bad of [
+      'not-a-token',
+      itemRef,
+      await vocabRef({ userId: 'user-2' }),
+      await vocabRef({}, Date.now() - VOCAB_REF_TTL_MS - 1),
+      '',
+    ]) {
+      expect(await submitBetaFeedbackAction({ ...report, vocabRef: bad })).toEqual({
+        ok: false,
+        error: 'VALIDATION_ERROR',
+      });
+    }
+    expect(
+      await submitBetaFeedbackAction({ ...report, itemRef, vocabRef: await vocabRef() }),
+    ).toEqual({ ok: false, error: 'VALIDATION_ERROR' });
+    expect(createBetaFeedback).not.toHaveBeenCalled();
   });
 });

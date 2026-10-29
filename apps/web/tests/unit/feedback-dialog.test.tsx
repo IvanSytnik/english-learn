@@ -80,6 +80,23 @@ describe('FeedbackDialog', () => {
     });
   });
 
+  it('a report opened on a word card sends its vocabRef, nothing else about the word', async () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <FeedbackDialog open onClose={() => {}} vocabRef="opaque-vocab-ref" />
+      </NextIntlClientProvider>,
+    );
+    type('The translation is wrong');
+    fireEvent.click(send());
+    await screen.findByRole('status');
+    expect(submitBetaFeedbackAction).toHaveBeenCalledWith({
+      kind: 'CONTENT_ERROR',
+      text: 'The translation is wrong',
+      url: '/en/dashboard?tab=grammar',
+      vocabRef: 'opaque-vocab-ref',
+    });
+  });
+
   it('thanks the learner on success; Close closes the dialog', async () => {
     renderButton();
     openDialog();

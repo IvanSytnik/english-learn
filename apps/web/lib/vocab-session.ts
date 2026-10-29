@@ -2,7 +2,7 @@ import 'server-only';
 import { prisma } from '@englishlearn/db';
 import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import { hasItemReviewState } from '@englishlearn/db/queries/vocab-session';
-import type { Locale } from '@englishlearn/db/schemas';
+import type { Locale, PartOfSpeechValue } from '@englishlearn/db/schemas';
 import {
   buildVocabCard,
   cardSeed,
@@ -10,6 +10,7 @@ import {
   gradeVocabAnswer,
   PAYLOAD_MODE,
   PROOF_MODE,
+  recallCue,
   type VocabAnswer,
   type VocabAnswerKey,
   type VocabCardView,
@@ -44,6 +45,14 @@ export type VocabCardPayload = {
   /** Opaque reference the client echoes back with its answer. */
   vocabRef: string;
   card: VocabCardView;
+  /** Part of speech of the word (shown with the English word in mode 1). */
+  pos: PartOfSpeechValue;
+  /**
+   * What `H` reveals: the first-letter mask, in full recall only. Null for a
+   * proof (proving knowledge takes no hint) and for every other mode — cued
+   * recall shows the mask already. A hinted answer is rated HARD.
+   */
+  hint: string | null;
   /** A never-answered word in its first mode: "I know it" opens a proof. */
   canProve: boolean;
   /** This card is the proof itself (one cued recall answer). */
@@ -79,6 +88,8 @@ export type VocabFeedback = {
     lemma: string;
     ipa: string | null;
     gloss: string;
+    /** The English definition. */
+    definition: string;
     example: { sentence: string; translation: string | null } | null;
   };
   /** A passed proof: the word is scheduled as known. */
@@ -112,6 +123,9 @@ function rebuild(pool: VocabPool, userId: string, ref: VocabRef) {
   });
   return { target, card };
 }
+
+const hintFor = (lemma: string, ref: VocabRef): string | null =>
+  ref.mode === 'full_recall' && !ref.isProof ? recallCue(lemma) : null;
 
 /** The next word for the learner, as a client-safe card. */
 export async function loadNextVocabCard(args: {
@@ -168,6 +182,8 @@ export async function loadNextVocabCard(args: {
       status: 'card',
       vocabRef: await encryptVocabRef({ ...served, userId }),
       card: view,
+      pos: built.target.pos,
+      hint: hintFor(built.target.lemma, served),
       canProve: selection.lastReviewAt === null && view.mode === 'en_to_l1',
       isProof: false,
       remainingNew: selection.remainingNew,
@@ -206,6 +222,8 @@ export async function startVocabProof(args: {
     value: {
       vocabRef: await encryptVocabRef({ ...proof, userId }),
       card: built.card.view,
+      pos: built.target.pos,
+      hint: null,
       canProve: false,
       isProof: true,
     },
@@ -301,6 +319,7 @@ export async function submitVocabAttempt(
         lemma: target.lemma,
         ipa: target.ipa,
         gloss: glossOf(target, ref.locale),
+        definition: target.definitions.en,
         example: example
           ? {
               sentence: example.sentence,

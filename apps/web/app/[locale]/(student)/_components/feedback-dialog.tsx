@@ -30,9 +30,9 @@ type Status = 'idle' | 'sending' | 'sent' | 'failed';
  * Beta feedback form in a native modal <dialog>: focus trap, Esc and focus
  * return come from the browser. Every open starts from a blank form with
  * `initialKind` preselected. The page it was opened on (path + query, no
- * origin) is sent along, and `itemRef` when opened on a question (the server
- * resolves it to the item and its concept); the author is the session's user,
- * set on the server.
+ * origin) is sent along, and `itemRef` / `vocabRef` when opened on a question
+ * or a word card (the server resolves it to the item and its concept); the
+ * author is the session's user, set on the server.
  *
  * Keys typed here never reach the page underneath: the player and the
  * diagnostic listen on `window` (Esc would leave the session, digits would
@@ -43,12 +43,15 @@ export function FeedbackDialog({
   onClose,
   initialKind = 'CONTENT_ERROR',
   itemRef,
+  vocabRef,
 }: {
   open: boolean;
   onClose: () => void;
   initialKind?: FeedbackKindValue;
   /** The opaque reference of the question the report is about. */
   itemRef?: string;
+  /** The opaque reference of the vocabulary card the report is about. */
+  vocabRef?: string;
 }) {
   const t = useTranslations('feedback');
   const ref = useRef<HTMLDialogElement>(null);
@@ -86,6 +89,7 @@ export function FeedbackDialog({
       text,
       url: `${window.location.pathname}${window.location.search}`,
       ...(itemRef ? { itemRef } : {}),
+      ...(vocabRef ? { vocabRef } : {}),
     };
     startTransition(async () => {
       try {

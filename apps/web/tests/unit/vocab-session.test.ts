@@ -163,6 +163,17 @@ describe('loadNextVocabCard', () => {
     expect(out).toMatchObject({ ok: true, value: { card: { mode: 'l1_to_en', gloss } } });
   });
 
+  it('carries the part of speech; H reveals a mask in full recall only', async () => {
+    expect(await served()).toMatchObject({ pos: 'NOUN', hint: null });
+    expect(await served({ mode: 'full_recall', lastReviewAt: 1n })).toMatchObject({
+      card: { mode: 'full_recall' },
+      hint: 'a____',
+    });
+    // Cued recall shows the mask already.
+    expect(await served({ mode: 'cued_recall', lastReviewAt: 1n })).toMatchObject({ hint: null });
+    expect(await served({ mode: 'cloze', lastReviewAt: 1n })).toMatchObject({ hint: null });
+  });
+
   it('nothing due: done with the next due moment', async () => {
     nextVocab.mockResolvedValueOnce({
       ok: false,
@@ -229,6 +240,7 @@ describe('submitVocabAttempt', () => {
           lemma: 'apple',
           ipa: '/apple/',
           gloss: 'яблоко',
+          definition: 'a kind of apple',
           example: { sentence: 'I like the apple a lot.', translation: 'пример яблоко' },
         },
         proven: false,
@@ -445,7 +457,8 @@ describe('"Know -> prove"', () => {
     const card = await served();
     const out = await startVocabProof({ userId: USER, vocabRef: card.vocabRef });
     if (!out.ok || 'status' in out.value) throw new Error('expected a proof card');
-    expect(out.value).toMatchObject({ isProof: true, canProve: false });
+    // Proving knowledge takes no hint.
+    expect(out.value).toMatchObject({ isProof: true, canProve: false, hint: null, pos: 'NOUN' });
     expect(out.value.card).toEqual({ mode: 'cued_recall', gloss: 'яблоко', cue: 'a____' });
     expectNoAnswerKey(out.value, 'apple');
     expect(await decryptVocabRef(out.value.vocabRef, USER)).toMatchObject({
