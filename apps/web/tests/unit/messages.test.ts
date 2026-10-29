@@ -126,3 +126,54 @@ describe('message catalogues', () => {
     expect(uk('review', { count: 11 })).toBe('Повторити (11 тем)');
   });
 });
+
+describe('vocabulary (student.words)', () => {
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: ICU messages format', (locale) => {
+    const t = createTranslator({ locale, messages: MESSAGES[locale], namespace: 'student.words' });
+    for (const count of [0, 1, 2, 5, 11, 21, 22]) {
+      expect(t('today.due', { count })).not.toMatch(/[{}]/);
+      expect(t('today.remaining', { count })).not.toMatch(/[{}]/);
+    }
+    for (const count of [1, 2, 5, 21]) {
+      expect(t('today.due', { count })).toContain(String(count));
+      expect(t('topics.progress', { started: 3, total: count })).toContain(String(count));
+    }
+    expect(t('today.newWords', { done: 2, limit: 10 })).toMatch(/2\D+10/);
+    expect(t('limit.invalid', { min: 1, max: 50 })).toMatch(/1\D+50/);
+    expect(t('topics.practiceLevel', { topic: 'Travel', level: 'A2' })).toMatch(/Travel.*A2/);
+  });
+
+  it('uses the right Slavic plural forms', () => {
+    const ru = createTranslator({
+      locale: 'ru',
+      messages: MESSAGES.ru,
+      namespace: 'student.words',
+    });
+    expect(ru('today.due', { count: 1 })).toBe('1 слово пора повторить');
+    expect(ru('today.due', { count: 3 })).toBe('3 слова пора повторить');
+    expect(ru('today.due', { count: 5 })).toBe('5 слов пора повторить');
+    expect(ru('today.remaining', { count: 21 })).toBe('На сегодня осталось 21 новое слово');
+    expect(ru('topics.progress', { started: 2, total: 21 })).toBe('Начато 2 из 21 слова');
+    const uk = createTranslator({
+      locale: 'uk',
+      messages: MESSAGES.uk,
+      namespace: 'student.words',
+    });
+    expect(uk('today.due', { count: 2 })).toBe('2 слова час повторити');
+    expect(uk('today.remaining', { count: 11 })).toBe('На сьогодні залишилося 11 нових слів');
+  });
+
+  // The product addresses learners formally in ru and uk ("вы" / "ви").
+  it.each([
+    ['ru', /(^|[^\p{L}])(ты|тебя|тебе|тобой|твой|твоя|твоё|твое|твои|твоих|твоего)(?![\p{L}])/iu],
+    ['uk', /(^|[^\p{L}])(ти|тебе|тобі|тобою|твій|твоя|твоє|твої|твоїх|твого)(?![\p{L}])/iu],
+  ] as const)('%s: student.words never says "ты"', (locale, informal) => {
+    const words = (MESSAGES[locale] as { student: { words: Record<string, unknown> } }).student
+      .words;
+    for (const key of keys(words)) {
+      expect(String(lookup(words, key)), key).not.toMatch(informal);
+    }
+  });
+});

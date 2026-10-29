@@ -10,6 +10,7 @@ import { authorizeAction } from '@/lib/authz';
 import { decryptVocabRef } from '@/lib/crypto/vocab-ref';
 import { RECENT_EXCLUDE } from '@/lib/exercise/view';
 import type { Result } from '@/lib/result';
+import { loadVocabOverview, type VocabOverviewView } from '@/lib/vocab-overview';
 import {
   loadNextVocabCard,
   type NextVocabCard,
@@ -70,6 +71,8 @@ const SubmitSchema = z.object({
 });
 
 const LimitSchema = z.object({ dailyVocabLimit: DailyVocabLimitSchema });
+
+const OverviewSchema = z.object({ timeZone: TimeZoneSchema });
 
 async function currentLocale() {
   const locale = await getLocale();
@@ -155,4 +158,26 @@ export async function updateDailyVocabLimitAction(
     await setDailyVocabLimit(prisma, user.value.id, dailyVocabLimit);
     return { ok: true, value: { dailyVocabLimit } };
   });
+}
+
+/**
+ * The `/words` overview in the browser's time zone. The page renders it in
+ * UTC (the server does not know the zone); the client refreshes it with this
+ * after mounting and after changing the daily limit.
+ */
+export async function vocabOverviewAction(
+  input: z.input<typeof OverviewSchema>,
+): Promise<Result<VocabOverviewView, VocabActionError>> {
+  const user = await authorizeAction('STUDENT');
+  if (!user.ok) return user;
+  const parsed = OverviewSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' };
+  return guarded('vocabOverview', async () => ({
+    ok: true,
+    value: await loadVocabOverview({
+      userId: user.value.id,
+      uiLocale: await currentLocale(),
+      timeZone: parsed.data.timeZone,
+    }),
+  }));
 }

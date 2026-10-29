@@ -27,6 +27,8 @@ describe('resolveAccess', () => {
         '/exercises',
         '/exercises/42',
         '/settings',
+        '/words',
+        '/words/practice',
         '/tutor',
         '/tutor/x',
       ];
@@ -81,6 +83,12 @@ describe('resolveAccess', () => {
     });
   });
 
+  it('a guest on a topic session comes back to it after login', () => {
+    expect(resolveAccess('/words/practice', null, '?concept=vocab.travel.a1')).toEqual({
+      redirect: `/login?callbackUrl=${encodeURIComponent('/words/practice?concept=vocab.travel.a1')}`,
+    });
+  });
+
   it('keeps the query string in callbackUrl', () => {
     expect(resolveAccess('/ru/exercises', null, '?topic=past&n=2')).toEqual({
       redirect: `/ru/login?callbackUrl=${encodeURIComponent('/ru/exercises?topic=past&n=2')}`,
@@ -96,6 +104,7 @@ describe('resolveAccess', () => {
   it('does not treat look-alike prefixes as protected or guest-only', () => {
     expect(resolveAccess('/dashboards', null)).toBe('allow');
     expect(resolveAccess('/tutoring', null)).toBe('allow');
+    expect(resolveAccess('/wordsmith', null)).toBe('allow');
     expect(resolveAccess('/login-history', sessionFor('STUDENT'))).toBe('allow');
     expect(resolveAccess('/russia/dashboard', null)).toBe('allow');
   });

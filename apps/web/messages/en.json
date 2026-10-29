@@ -170,6 +170,41 @@
       "startDiagnostic": "Take the diagnostic test",
       "noExercisesYet": "There are no new exercises for you right now. Check back later.",
       "toDashboard": "Back to the dashboard"
+    },
+    "words": {
+      "title": "Vocabulary",
+      "navLink": "Words",
+      "backToDashboard": "Back to dashboard",
+      "start": "Learn words",
+      "today": {
+        "title": "Today",
+        "due": "{count, plural, =0 {Nothing to review right now} one {# word to review} other {# words to review}}",
+        "newWords": "New words today: {done} of {limit}",
+        "remaining": "{count, plural, =0 {No new words left for today} one {# new word left for today} other {# new words left for today}}"
+      },
+      "limit": {
+        "label": "New words per day",
+        "description": "From {min} to {max}",
+        "save": "Save",
+        "saved": "Saved",
+        "failed": "Couldn't save. Check your connection and try again.",
+        "retry": "Retry",
+        "invalid": "Enter a whole number from {min} to {max}."
+      },
+      "stages": {
+        "title": "Your words",
+        "new": "New",
+        "learning": "Learning",
+        "familiar": "Familiar",
+        "known": "Known",
+        "mastered": "Mastered"
+      },
+      "topics": {
+        "title": "Topics",
+        "progress": "{started} of {total, plural, one {# word} other {# words}} started",
+        "practiceLevel": "{topic}, level {level}: practise",
+        "levelProgress": "{started} / {total}"
+      }
     }
   },
   "admin": {

@@ -170,6 +170,41 @@
       "startDiagnostic": "Einstufungstest machen",
       "noExercisesYet": "Gerade gibt es keine neuen Übungen für dich. Schau später wieder vorbei.",
       "toDashboard": "Zum Dashboard"
+    },
+    "words": {
+      "title": "Wortschatz",
+      "navLink": "Wörter",
+      "backToDashboard": "Zurück zum Dashboard",
+      "start": "Wörter lernen",
+      "today": {
+        "title": "Heute",
+        "due": "{count, plural, =0 {Gerade nichts zu wiederholen} one {# Wort zum Wiederholen} other {# Wörter zum Wiederholen}}",
+        "newWords": "Neue Wörter heute: {done} von {limit}",
+        "remaining": "{count, plural, =0 {Für heute keine neuen Wörter mehr} one {Noch # neues Wort für heute} other {Noch # neue Wörter für heute}}"
+      },
+      "limit": {
+        "label": "Neue Wörter pro Tag",
+        "description": "Von {min} bis {max}",
+        "save": "Speichern",
+        "saved": "Gespeichert",
+        "failed": "Speichern hat nicht geklappt. Prüf deine Verbindung und versuch es noch einmal.",
+        "retry": "Erneut versuchen",
+        "invalid": "Gib eine ganze Zahl von {min} bis {max} ein."
+      },
+      "stages": {
+        "title": "Deine Wörter",
+        "new": "Neu",
+        "learning": "Im Lernen",
+        "familiar": "Vertraut",
+        "known": "Bekannt",
+        "mastered": "Sicher"
+      },
+      "topics": {
+        "title": "Themen",
+        "progress": "{started} von {total, plural, one {# Wort} other {# Wörtern}} begonnen",
+        "practiceLevel": "{topic}, Niveau {level}: üben",
+        "levelProgress": "{started} / {total}"
+      }
     }
   },
   "admin": {

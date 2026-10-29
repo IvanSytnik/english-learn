@@ -9,6 +9,7 @@ const {
   getNativeLanguage,
   hasItemReviewState,
   setDailyVocabLimit,
+  overview,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   getLocale: vi.fn(),
@@ -18,6 +19,7 @@ const {
   getNativeLanguage: vi.fn(),
   hasItemReviewState: vi.fn(),
   setDailyVocabLimit: vi.fn(),
+  overview: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
@@ -30,7 +32,7 @@ vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('next-intl/server', () => ({ getLocale }));
 vi.mock('@/lib/learner', () => ({
   learnerService: { recordVocabOutcome },
-  vocabSessionService: { nextVocab },
+  vocabSessionService: { nextVocab, overview },
 }));
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
@@ -40,6 +42,7 @@ const {
   startVocabProofAction,
   submitVocabAttemptAction,
   updateDailyVocabLimitAction,
+  vocabOverviewAction,
 } = await import('@/app/[locale]/(student)/actions/vocab');
 const { decryptVocabRef, encryptVocabRef } = await import('@/lib/crypto/vocab-ref');
 
@@ -140,6 +143,7 @@ describe('only learners (S5)', () => {
     () => startVocabProofAction({ vocabRef }),
     () => submitVocabAttemptAction({ vocabRef, answer: { type: 'dontKnow' } }),
     () => updateDailyVocabLimitAction({ dailyVocabLimit: 20 }),
+    () => vocabOverviewAction({ timeZone: 'UTC' }),
   ];
 
   it.each([
@@ -160,6 +164,7 @@ describe('only learners (S5)', () => {
     expect(hasItemReviewState).not.toHaveBeenCalled();
     expect(recordVocabOutcome).not.toHaveBeenCalled();
     expect(setDailyVocabLimit).not.toHaveBeenCalled();
+    expect(overview).not.toHaveBeenCalled();
   });
 });
 
@@ -318,6 +323,49 @@ describe('updateDailyVocabLimitAction', () => {
       ok: false,
       error: 'UNAVAILABLE',
     });
+    error.mockRestore();
+  });
+});
+
+describe('vocabOverviewAction', () => {
+  const EMPTY = { new: 0, learning: 0, familiar: 0, known: 0, mastered: 0 };
+
+  it('loads the overview in the browser’s time zone, titled in the UI locale', async () => {
+    overview.mockResolvedValue({
+      dueNow: 2,
+      newToday: 1,
+      dailyLimit: 10,
+      remainingNew: 9,
+      stages: EMPTY,
+      concepts: [
+        {
+          conceptId: 'vocab.travel.a1',
+          total: 3,
+          started: 1,
+          stages: { ...EMPTY, new: 2, learning: 1 },
+        },
+      ],
+    });
+    const out = await vocabOverviewAction({ timeZone: 'Europe/Kyiv' });
+    expect(overview).toHaveBeenCalledWith({ userId: USER, timeZone: 'Europe/Kyiv' });
+    expect(out).toMatchObject({
+      ok: true,
+      value: { dueNow: 2, remainingNew: 9, topics: [{ topicId: 'travel', title: 'Путешествия' }] },
+    });
+  });
+
+  it('refuses a malformed time zone', async () => {
+    expect(await vocabOverviewAction({ timeZone: 'x'.repeat(65) })).toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+    expect(overview).not.toHaveBeenCalled();
+  });
+
+  it('a failed read is UNAVAILABLE', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    overview.mockRejectedValueOnce(new Error('db down'));
+    expect(await vocabOverviewAction({})).toEqual({ ok: false, error: 'UNAVAILABLE' });
     error.mockRestore();
   });
 });
