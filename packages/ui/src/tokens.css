@@ -40,6 +40,15 @@
   --color-mastery-4: #467f6b;
   --color-mastery-5: #2f5d50;
 
+  /*
+   * Landing "Coach's chart" (docs/DESIGN.md, B4.1): the weak-spot flag (also the
+   * landing CTA fill) and the on-track tick. Flag as text only on surface — on
+   * surface-2 it is 4.45:1 in light mode; there use a filled badge (on-flag).
+   */
+  --color-flag: #b8432a;
+  --color-on-flag: #ffffff;
+  --color-on-track: #2e6b66;
+
   /* Shape */
   --radius-card: 12px;
   --radius-control: 8px;
@@ -80,6 +89,9 @@
       --color-mastery-3: #4f8a75;
       --color-mastery-4: #68a08c;
       --color-mastery-5: #8cc2af;
+      --color-flag: #f08a6c;
+      --color-on-flag: #1d1a16;
+      --color-on-track: #6fb5ad;
       --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
       color-scheme: dark;
     }
@@ -100,6 +112,9 @@
     --color-mastery-3: #4f8a75;
     --color-mastery-4: #68a08c;
     --color-mastery-5: #8cc2af;
+    --color-flag: #f08a6c;
+    --color-on-flag: #1d1a16;
+    --color-on-track: #6fb5ad;
     --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }

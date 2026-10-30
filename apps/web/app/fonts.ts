@@ -7,9 +7,10 @@ import { JetBrains_Mono, Literata, Onest } from 'next/font/google';
  * (incl. ґ ї є, U+0490–0491 / U+0454 / U+0457); `latin` covers German umlauts.
  */
 
-/** English learning content (`lang="en"`) and editorial headings. */
+/** English learning content (`lang="en"`) and editorial headings; italic for the landing's coach notes. */
 export const literata = Literata({
   subsets: ['latin', 'cyrillic'],
+  style: ['normal', 'italic'],
   axes: ['opsz'],
   display: 'swap',
   variable: '--font-literata',
