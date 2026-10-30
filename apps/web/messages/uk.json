@@ -6,7 +6,17 @@
     "signUp": "Реєстрація",
     "loading": "Завантаження...",
     "submit": "Надіслати",
-    "cancel": "Скасувати"
+    "cancel": "Скасувати",
+    "theme": {
+      "dark": "Темна тема"
+    },
+    "locale": {
+      "label": "Мова",
+      "en": "English",
+      "ru": "Русский",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
   },
   "marketing": {
     "meta": {

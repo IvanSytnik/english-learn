@@ -6,7 +6,17 @@
     "signUp": "Sign up",
     "loading": "Loading...",
     "submit": "Submit",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "theme": {
+      "dark": "Dark theme"
+    },
+    "locale": {
+      "label": "Language",
+      "en": "English",
+      "ru": "Русский",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
   },
   "marketing": {
     "meta": {

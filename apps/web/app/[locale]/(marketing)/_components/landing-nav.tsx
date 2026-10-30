@@ -1,6 +1,6 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { locales } from '@/i18n/config';
-import { Link } from '@/i18n/navigation';
+import { getPathname, Link } from '@/i18n/navigation';
 
 /**
  * The landing's own footer row, above the shared legal footer: only real
@@ -14,7 +14,7 @@ export async function LandingNav() {
 
   return (
     <div className="border-t border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 sm:px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="font-content text-base text-ink">{t('tagline')}</p>
         <nav
           aria-label={t('label')}
@@ -44,16 +44,16 @@ export async function LandingNav() {
                     {locale.toUpperCase()}
                   </span>
                 ) : (
-                  <Link
-                    href="/"
-                    locale={locale}
+                  // A document load, like the top-bar switcher (locale-switcher.tsx).
+                  <a
+                    href={getPathname({ href: '/', locale, forcePrefix: true })}
                     hrefLang={locale}
                     lang={locale}
                     aria-label={t(`languages.${locale}`)}
                     className="rounded-control px-2 py-1 text-ink-muted underline-offset-4 hover:text-ink hover:underline"
                   >
                     {locale.toUpperCase()}
-                  </Link>
+                  </a>
                 )}
               </li>
             ))}

@@ -9,14 +9,14 @@ export async function LandingHero() {
 
   return (
     <section aria-labelledby="hero-title" className="border-b border-line bg-surface-2">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-12 sm:py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-14 lg:py-20">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 sm:px-6 py-12 sm:py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-14 lg:py-20">
         <div className="flex flex-col">
           <p className="font-mono text-xs uppercase tracking-wider text-ink-muted">
             {t('eyebrow')}
           </p>
           <h1
             id="hero-title"
-            className="mt-4 text-balance font-content text-[clamp(2.25rem,5vw,3.75rem)] font-semibold leading-[1.08] tracking-tight text-ink"
+            className="mt-4 text-balance font-content text-[clamp(2rem,5vw,3.75rem)] font-semibold leading-[1.08] tracking-tight text-ink"
           >
             {t('title')}
           </h1>

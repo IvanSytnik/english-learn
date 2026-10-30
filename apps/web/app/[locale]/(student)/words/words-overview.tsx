@@ -4,6 +4,7 @@ import type { WordStage } from '@englishlearn/learner-model';
 import { buttonVariants, Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+import { TopBarControls } from '@/app/_components/top-bar-controls';
 import { Link } from '@/i18n/navigation';
 import type { VocabOverviewView, VocabTopicProgress } from '@/lib/vocab-overview';
 import { browserTimeZone } from '../_components/browser-time-zone';
@@ -54,11 +55,14 @@ export function WordsOverview({ initial }: { initial: VocabOverviewView }) {
 
   return (
     <main className="mx-auto flex max-w-4xl flex-col gap-8 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h1 className="text-3xl font-bold text-ink">{t('title')}</h1>
-        <Link href="/dashboard" className="text-sm text-ink-muted underline">
-          {t('backToDashboard')}
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <TopBarControls />
+          <Link href="/dashboard" className="text-sm text-ink-muted underline">
+            {t('backToDashboard')}
+          </Link>
+        </div>
       </header>
 
       <Card>

@@ -29,7 +29,10 @@ test('/ru: "See how it works" scrolls to the three steps', async ({ page }) => {
 
 test('/ru: the language switch opens the same landing in German', async ({ page }) => {
   await page.goto('/ru');
-  await page.getByRole('link', { name: 'Deutsch' }).click();
+  await page
+    .getByRole('navigation', { name: 'Навигация по сайту' })
+    .getByRole('link', { name: 'Deutsch' })
+    .click();
   await expect(page).toHaveURL(/\/de$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     'Englisch, das deine Schwachstellen trainiert – nicht die von allen.',

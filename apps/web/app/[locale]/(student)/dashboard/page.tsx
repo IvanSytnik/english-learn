@@ -2,6 +2,7 @@ import { isLocale } from '@englishlearn/db/schemas';
 import { Button, buttonVariants } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Footer } from '@/app/_components/footer';
+import { TopBarControls } from '@/app/_components/top-bar-controls';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth, signOut } from '@/lib/auth';
 import { type DashboardCta, loadStudentDashboard } from '@/lib/dashboard';
@@ -39,20 +40,22 @@ export default async function DashboardPage() {
   return (
     <>
       <main className="mx-auto max-w-4xl p-6">
-        <header className="mb-8 flex items-center justify-between">
+        {/* Wraps under the title on narrow screens instead of overflowing (320 px). */}
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <h1 className="text-3xl font-bold">{t('title')}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1">
+            <TopBarControls />
             <FeedbackButton />
             {student ? (
-              <Link href="/words" className={buttonVariants({ variant: 'ghost' })}>
+              <Link href="/words" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
                 {tw('navLink')}
               </Link>
             ) : null}
-            <Link href="/settings" className={buttonVariants({ variant: 'ghost' })}>
+            <Link href="/settings" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
               {ts('navLink')}
             </Link>
             <form action={logout}>
-              <Button variant="ghost" type="submit">
+              <Button variant="ghost" size="sm" type="submit">
                 {tc('signOut')}
               </Button>
             </form>

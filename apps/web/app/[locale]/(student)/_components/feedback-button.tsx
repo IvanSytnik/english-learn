@@ -14,7 +14,7 @@ export function FeedbackButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={buttonVariants({ variant: 'ghost' })}
+        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
         data-feedback-trigger=""
       >
         {t('trigger')}

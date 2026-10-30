@@ -9,7 +9,7 @@ export async function FinalCta() {
 
   return (
     <section aria-labelledby="final-title" className="border-t border-line bg-surface">
-      <div className="mx-auto flex max-w-3xl flex-col items-center px-6 py-16 text-center sm:py-24">
+      <div className="mx-auto flex max-w-3xl flex-col items-center px-4 sm:px-6 py-16 text-center sm:py-24">
         <ChartMark kind="flag" className="size-8" />
         <h2
           id="final-title"

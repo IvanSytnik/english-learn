@@ -6,7 +6,17 @@
     "signUp": "Регистрация",
     "loading": "Загрузка...",
     "submit": "Отправить",
-    "cancel": "Отмена"
+    "cancel": "Отмена",
+    "theme": {
+      "dark": "Тёмная тема"
+    },
+    "locale": {
+      "label": "Язык",
+      "en": "English",
+      "ru": "Русский",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
   },
   "marketing": {
     "meta": {

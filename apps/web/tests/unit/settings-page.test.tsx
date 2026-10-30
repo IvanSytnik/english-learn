@@ -39,6 +39,7 @@ vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
 vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@/app/_components/footer', () => ({ Footer: () => null }));
+vi.mock('@/app/_components/top-bar-controls', () => ({ TopBarControls: () => null }));
 vi.mock('@/i18n/navigation', () => ({
   redirect,
   useRouter: () => ({ replace, refresh }),

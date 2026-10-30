@@ -6,7 +6,17 @@
     "signUp": "Registrieren",
     "loading": "Laden...",
     "submit": "Absenden",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "theme": {
+      "dark": "Dunkles Design"
+    },
+    "locale": {
+      "label": "Sprache",
+      "en": "English",
+      "ru": "Русский",
+      "uk": "Українська",
+      "de": "Deutsch"
+    }
   },
   "marketing": {
     "meta": {

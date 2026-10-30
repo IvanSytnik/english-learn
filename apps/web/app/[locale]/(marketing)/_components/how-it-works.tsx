@@ -19,7 +19,7 @@ export async function HowItWorks() {
       aria-labelledby="how-title"
       className="scroll-mt-6 border-t border-line bg-surface-2"
     >
-      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-20">
         <h2
           id="how-title"
           className="max-w-3xl text-balance font-content text-3xl font-semibold tracking-tight text-ink sm:text-4xl"

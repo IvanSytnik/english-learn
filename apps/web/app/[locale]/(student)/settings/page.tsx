@@ -4,6 +4,7 @@ import { isNativeLanguage } from '@englishlearn/db/schemas';
 import { Card, CardContent, CardHeader, CardTitle } from '@englishlearn/ui';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Footer } from '@/app/_components/footer';
+import { TopBarControls } from '@/app/_components/top-bar-controls';
 import { Link, redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
 import { DeleteAccount } from './delete-account';
@@ -23,11 +24,14 @@ export default async function SettingsPage() {
   return (
     <>
       <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-        <header className="flex flex-wrap items-center justify-between gap-2">
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <h1 className="text-3xl font-bold text-ink">{t('title')}</h1>
-          <Link href="/dashboard" className="text-sm text-ink-muted underline">
-            {t('backToDashboard')}
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <TopBarControls />
+            <Link href="/dashboard" className="text-sm text-ink-muted underline">
+              {t('backToDashboard')}
+            </Link>
+          </div>
         </header>
 
         {isStudent ? (

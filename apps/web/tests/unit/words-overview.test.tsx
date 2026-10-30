@@ -25,6 +25,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@/lib/vocab-overview', () => ({ loadVocabOverview }));
 vi.mock('@/app/_components/footer', () => ({ Footer: () => null }));
+vi.mock('@/app/_components/top-bar-controls', () => ({ TopBarControls: () => null }));
 vi.mock('@/i18n/navigation', () => ({
   redirect,
   Link: ({ href, children, ...rest }: { href: Href; children: ReactNode }) => (

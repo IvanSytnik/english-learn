@@ -20,7 +20,11 @@ vi.mock('next-intl/server', () => ({
       namespace: namespace as never,
     }),
 }));
+// Client islands with their own tests (locale-switcher, theme); this suite renders server output.
+vi.mock('@/app/_components/top-bar-controls', () => ({ TopBarControls: () => null }));
 vi.mock('@/i18n/navigation', () => ({
+  getPathname: ({ href, locale }: { href: string; locale: string }) =>
+    `/${locale}${href === '/' ? '' : href}`,
   // next-intl's Link serialises an object href the same way (locale prefix aside).
   Link: ({
     href,
@@ -187,12 +191,12 @@ describe.each(Object.keys(MESSAGES) as Locale[])('landing (%s)', (locale) => {
     const nav = screen.getByRole('navigation', { name: m.nav.label });
     const links = within(nav)
       .getAllByRole('link')
-      .map((a) => [a.getAttribute('href'), a.getAttribute('locale')]);
+      .map((a) => [a.getAttribute('href'), a.getAttribute('hrefLang')]);
     const others = (Object.keys(MESSAGES) as Locale[]).filter((l) => l !== locale);
     expect(links).toEqual([
       ['#how-it-works', null],
       ['/login', null],
-      ...others.map((l) => ['/', l]),
+      ...others.map((l) => [`/${l}`, l]),
     ]);
     const languages = within(nav).getByRole('list', { name: m.nav.language });
     expect(within(languages).getByText(locale.toUpperCase())).toHaveAttribute(

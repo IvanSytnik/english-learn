@@ -17,6 +17,7 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth, signOut: vi.fn() }));
 vi.mock('@/lib/dashboard', () => ({ loadStudentDashboard }));
 vi.mock('@/app/_components/footer', () => ({ Footer: () => null }));
+vi.mock('@/app/_components/top-bar-controls', () => ({ TopBarControls: () => null }));
 vi.mock('@/app/[locale]/(student)/_components/feedback-button', () => ({
   FeedbackButton: () => null,
 }));
