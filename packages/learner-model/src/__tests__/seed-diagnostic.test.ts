@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { DIAGNOSTIC_BANK } from '../../seed/diagnostic/bank';
 import { bankProblems } from '../../seed/diagnostic/seed';
-import { ITEM_PRACTICE } from '../../seed/items/practice';
+import { ITEM_PRACTICE } from '../../seed/items';
 import { type LadderAnswer, nextLadderStep, TOTAL_QUESTIONS } from '../diagnostic/ladder';
 
 const CELLS = { A2: 6, B1: 8, B2: 6, C1: 6 } as const;

@@ -1,8 +1,7 @@
 import { hasPracticeQuestion } from '@englishlearn/db/queries/practisable';
 import { PRACTICE_GAP, type Practice, safeParseItemContent } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
-import { ALL_ITEMS } from '../../seed/items';
-import { ITEM_PRACTICE } from '../../seed/items/practice';
+import { ALL_ITEMS, ITEM_PRACTICE } from '../../seed/items';
 
 describe('seed item practice (U2)', () => {
   it('every seed item validates with its kind schema', () => {
