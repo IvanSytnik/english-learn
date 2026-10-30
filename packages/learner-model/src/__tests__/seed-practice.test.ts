@@ -5,7 +5,7 @@ import { ALL_ITEMS, ITEM_PRACTICE } from '../../seed/items';
 
 describe('seed item practice (U2)', () => {
   it('every seed item validates with its kind schema', () => {
-    expect(ALL_ITEMS).toHaveLength(146);
+    expect(ALL_ITEMS).toHaveLength(176);
     for (const item of ALL_ITEMS) {
       expect(safeParseItemContent(item.kind, item.content).success, item.id).toBe(true);
     }

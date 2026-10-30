@@ -1,4 +1,4 @@
-import { choice } from '../practice';
+import { choice, cloze } from '../practice';
 import { grammarItems } from './gp';
 
 export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic', [
@@ -54,5 +54,96 @@ export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic
       ru: 'Незавершённые состояния: for + длительность, since + точка отсчёта.',
     },
     practice: choice("I've lived here ___ five years.", ['since', 'for', 'from', 'during'], 1),
+  },
+  {
+    slug: 'already_positive',
+    level: 'B1',
+    pattern: 'have / has + already + V3',
+    example: "I've already seen this film.",
+    explanation: {
+      en: 'In positive sentences already goes between have and V3: I have already eaten.',
+      ru: 'В утвердительных предложениях already стоит между have и V3: I have already eaten.',
+      uk: 'У стверджувальних реченнях already стоїть між have і V3: I have already eaten.',
+      de: 'In bejahten Sätzen steht already zwischen have und V3: I have already eaten.',
+    },
+    practice: choice(
+      "I've ___ seen this film — let's watch something else.",
+      ['already', 'yet', 'ever', 'ago'],
+      0,
+    ),
+  },
+  {
+    slug: 'how_long_question',
+    level: 'B1',
+    pattern: 'How long + have / has + subject + V3?',
+    example: 'How long have you lived here?',
+    explanation: {
+      en: 'How long + Present Perfect asks about a period that is still going on.',
+      ru: 'How long + Present Perfect спрашивает о периоде, который ещё продолжается.',
+      uk: 'How long + Present Perfect питає про період, який досі триває.',
+      de: 'How long + Present Perfect fragt nach einem Zeitraum, der noch andauert.',
+    },
+    practice: choice('___ have you lived in Berlin?', ['When', 'How long', 'How many ago'], 1),
+  },
+  {
+    slug: 'negative_havent_v3',
+    level: 'B1',
+    pattern: "haven't / hasn't + V3",
+    example: "I haven't seen him since Monday.",
+    explanation: {
+      en: "The negative is haven't/hasn't + V3; the verb is not in the Past Simple.",
+      ru: "Отрицание: haven't/hasn't + V3; глагол не ставится в Past Simple.",
+      uk: "Заперечення: haven't/hasn't + V3; дієслово не ставиться в Past Simple.",
+      de: "Die Verneinung ist haven't/hasn't + V3; das Verb steht nicht im Past Simple.",
+    },
+    practice: cloze('I ___ him since Monday. (not / see)', "haven't seen", 'have not seen'),
+  },
+  {
+    slug: 'has_third_person',
+    level: 'B1',
+    pattern: 'he / she / it + has + V3',
+    example: 'My brother has never been abroad.',
+    contrast: 'My brother have never been abroad. (wrong)',
+    explanation: {
+      en: 'With he, she, it the auxiliary is has, not have.',
+      ru: 'С he, she, it вспомогательный глагол — has, а не have.',
+      uk: 'З he, she, it допоміжне дієслово — has, а не have.',
+      de: 'Bei he, she, it heißt das Hilfsverb has, nicht have.',
+    },
+    practice: choice('My brother ___ never been abroad.', ['have', 'is', 'has', 'was'], 2),
+  },
+  {
+    slug: 'superlative_ever',
+    level: 'B1',
+    pattern: 'superlative + I have ever + V3',
+    example: "It's the best film I've ever seen.",
+    explanation: {
+      en: 'After a superlative, use have ever + V3 for all your experience up to now.',
+      ru: 'После превосходной степени используется have ever + V3 — весь опыт до сих пор.',
+      uk: 'Після найвищого ступеня вживається have ever + V3 — увесь досвід дотепер.',
+      de: 'Nach einem Superlativ steht have ever + V3 für alle Erfahrungen bis jetzt.',
+    },
+    practice: choice(
+      "It's the best film I ___ seen.",
+      ['ever', 'did ever', 'have never', 'have ever'],
+      3,
+    ),
+  },
+  {
+    slug: 'been_to_gone_to',
+    level: 'B1',
+    pattern: 'have been to (and back) · have gone to (still there)',
+    example: "I've been to Paris three times. She's gone to Paris — she's there now.",
+    explanation: {
+      en: 'been to = went and came back; gone to = went and is still there.',
+      ru: 'been to = съездил и вернулся; gone to = уехал и всё ещё там.',
+      uk: 'been to = з’їздив і повернувся; gone to = поїхав і досі там.',
+      de: 'been to = hingefahren und zurückgekommen; gone to = hingefahren und noch dort.',
+    },
+    practice: choice(
+      "I've ___ to Paris three times — I love it there.",
+      ['gone', 'went', 'was', 'been'],
+      3,
+    ),
   },
 ]);
