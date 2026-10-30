@@ -101,6 +101,15 @@ export async function itemAttemptKeys(email: string) {
   return events.map((e) => e.idempotencyKey);
 }
 
+/** `User.signupSource` as the sign-up stored it (`null` = direct). */
+export async function signupSource(email: string) {
+  const user = await db().user.findUniqueOrThrow({
+    where: { email },
+    select: { signupSource: true },
+  });
+  return user.signupSource;
+}
+
 /** The learner's events of both types, oldest first. */
 export async function learnerEvents(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });

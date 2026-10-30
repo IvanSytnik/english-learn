@@ -79,6 +79,41 @@
         "title": "Progress you can actually read",
         "body": "Every grammar topic carries its CEFR level and moves through plain stages — Emerging, Developing, Solid, Secure — while each word goes from New to Mastered. See what’s improving and what still needs work, never raw scores."
       }
+    },
+    "howItWorks": {
+      "title": "From “where am I?” to steady progress in three steps.",
+      "steps": {
+        "diagnostic": {
+          "title": "Take the diagnostic",
+          "body": "A quick assessment places your level in grammar and vocabulary. Around five minutes."
+        },
+        "practice": {
+          "title": "Practice your gaps",
+          "body": "The AI serves exercises aimed at your weak spots and spaces out review so it sticks. Difficulty shifts with you."
+        },
+        "progress": {
+          "title": "Watch your topics move",
+          "body": "Each grammar topic and each word moves through plain stages as you practice, so improvement is visible — and the plan updates as you go."
+        }
+      },
+      "cta": "Start with the diagnostic"
+    },
+    "finalCta": {
+      "title": "Find out where your English actually stands.",
+      "subtitle": "Five minutes. No card. A clear picture of your level — and a plan to move it.",
+      "cta": "Take the free diagnostic"
+    },
+    "nav": {
+      "label": "Site",
+      "tagline": "English that adapts to you.",
+      "howItWorks": "How it works",
+      "language": "Language",
+      "languages": {
+        "en": "English",
+        "ru": "Русский",
+        "uk": "Українська",
+        "de": "Deutsch"
+      }
     }
   },
   "auth": {

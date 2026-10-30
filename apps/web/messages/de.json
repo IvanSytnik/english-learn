@@ -79,6 +79,41 @@
         "title": "Fortschritt, den du wirklich lesen kannst",
         "body": "Jedes Grammatikthema hat sein GER-Niveau und durchläuft klare Stufen – „Erste Schritte“, „Im Aufbau“, „Sicher“, „Gefestigt“ –, und jedes Wort geht den Weg von „Neu“ bis „Sicher“. Du siehst, was besser wird und woran du noch arbeiten musst – ohne rohe Punktzahlen."
       }
+    },
+    "howItWorks": {
+      "title": "Von „Wo stehe ich?“ zu stetigem Fortschritt – in drei Schritten.",
+      "steps": {
+        "diagnostic": {
+          "title": "Mach die Einstufung",
+          "body": "Ein kurzer Test bestimmt dein Niveau in Grammatik und Wortschatz. Etwa fünf Minuten."
+        },
+        "practice": {
+          "title": "Übe deine Lücken",
+          "body": "Die KI wählt Übungen zu deinen Schwachstellen und verteilt Wiederholungen so, dass sie hängen bleiben. Die Schwierigkeit wächst mit dir."
+        },
+        "progress": {
+          "title": "Sieh deine Themen wachsen",
+          "body": "Jedes Grammatikthema und jedes Wort durchläuft beim Üben klare Stufen – so wird Fortschritt sichtbar, und der Plan passt sich laufend an."
+        }
+      },
+      "cta": "Mit der Einstufung beginnen"
+    },
+    "finalCta": {
+      "title": "Finde heraus, wo dein Englisch wirklich steht.",
+      "subtitle": "Fünf Minuten. Keine Kreditkarte. Ein klares Bild deines Niveaus – und ein Plan, es zu verbessern.",
+      "cta": "Kostenlose Einstufung starten"
+    },
+    "nav": {
+      "label": "Seitennavigation",
+      "tagline": "Englisch, das sich dir anpasst.",
+      "howItWorks": "So funktioniert es",
+      "language": "Sprache",
+      "languages": {
+        "en": "English",
+        "ru": "Русский",
+        "uk": "Українська",
+        "de": "Deutsch"
+      }
     }
   },
   "auth": {

@@ -8,13 +8,13 @@ import { chooseNativeLanguage } from './helpers/diagnostic';
 
 test('/ru: the primary CTA signs up straight into the diagnostic', async ({ page }) => {
   await page.goto('/ru');
-  const cta = page.getByRole('link', { name: 'Пройти бесплатную диагностику' });
+  const cta = page.getByRole('link', { name: 'Пройти бесплатную диагностику' }).first();
   await expect(cta).toHaveAttribute('href', '/ru/register?callbackUrl=%2Fdiagnostic');
 });
 
 test('/ (en): the same CTA, unprefixed', async ({ page }) => {
   await page.goto('/');
-  const cta = page.getByRole('link', { name: 'Take the free diagnostic' });
+  const cta = page.getByRole('link', { name: 'Take the free diagnostic' }).first();
   await expect(cta).toHaveAttribute('href', '/register?callbackUrl=%2Fdiagnostic');
 });
 
@@ -22,7 +22,7 @@ test('/ru: signing up from the landing CTA lands on the diagnostic, not the dash
   page,
 }) => {
   await page.goto('/ru');
-  await page.getByRole('link', { name: 'Пройти бесплатную диагностику' }).click();
+  await page.getByRole('link', { name: 'Пройти бесплатную диагностику' }).first().click();
   await expect(page).toHaveURL(/\/ru\/register\?callbackUrl=%2Fdiagnostic$/);
   await page.locator('#name').fill('E2E cta');
   await page.locator('#email').fill(uniqueEmail('cta'));

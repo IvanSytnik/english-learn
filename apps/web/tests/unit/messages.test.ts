@@ -238,11 +238,12 @@ describe('vocabulary player (student.words.player)', () => {
 });
 
 describe('landing copy (marketing)', () => {
-  // Same in every locale: English grammar terms and the product name.
+  // Same in every locale: English grammar terms, the product name and language endonyms.
   const SAME_AS_EN = new Set([
     'map.rows.pastSimple',
     'map.rows.presentPerfect',
     'problem.ours.label',
+    ...['en', 'ru', 'uk', 'de'].map((l) => `nav.languages.${l}`),
   ]);
   const marketing = (locale: keyof typeof MESSAGES) =>
     (MESSAGES[locale] as { marketing: Record<string, unknown> }).marketing;

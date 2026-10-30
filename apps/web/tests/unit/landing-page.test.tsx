@@ -12,6 +12,7 @@ type Locale = keyof typeof MESSAGES;
 
 const { current } = vi.hoisted(() => ({ current: { locale: 'en' as Locale } }));
 vi.mock('next-intl/server', () => ({
+  getLocale: async () => current.locale,
   getTranslations: async (namespace: string) =>
     createTranslator({
       locale: current.locale,
@@ -78,11 +79,12 @@ describe.each(Object.keys(MESSAGES) as Locale[])('landing (%s)', (locale) => {
     await renderLanding(locale);
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(m.hero.title);
-    expect(screen.getByRole('link', { name: m.hero.primaryCta })).toHaveAttribute(
+    const hero = screen.getByRole('region', { name: m.hero.title });
+    expect(within(hero).getByRole('link', { name: m.hero.primaryCta })).toHaveAttribute(
       'href',
       '/register?callbackUrl=%2Fdiagnostic',
     );
-    expect(screen.getByRole('link', { name: m.hero.secondaryCta })).toHaveAttribute(
+    expect(within(hero).getByRole('link', { name: m.hero.secondaryCta })).toHaveAttribute(
       'href',
       '#how-it-works',
     );
@@ -143,6 +145,66 @@ describe.each(Object.keys(MESSAGES) as Locale[])('landing (%s)', (locale) => {
       .replace(/\b0[1-6]\b/g, '')
       .replace(/\b[015]\b/g, '');
     expect(digits).not.toMatch(/\d/);
+  });
+
+  it('how it works: the anchor target, three numbered steps and a diagnostic CTA', async () => {
+    await renderLanding(locale);
+    const section = document.getElementById('how-it-works') as HTMLElement;
+    expect(section).not.toBeNull();
+    expect(within(section).getByRole('heading', { level: 2 })).toHaveTextContent(
+      m.howItWorks.title,
+    );
+    const steps = within(section)
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent);
+    expect(steps).toEqual([
+      m.howItWorks.steps.diagnostic.title,
+      m.howItWorks.steps.practice.title,
+      m.howItWorks.steps.progress.title,
+    ]);
+    expect(within(section).getByRole('link', { name: m.howItWorks.cta })).toHaveAttribute(
+      'href',
+      '/register?callbackUrl=%2Fdiagnostic',
+    );
+  });
+
+  it('every diagnostic CTA (hero, how it works, final) signs up into the diagnostic', async () => {
+    await renderLanding(locale);
+    const ctas = [...document.querySelectorAll('a[data-cta]')].filter(
+      (a) => a.getAttribute('data-cta') !== 'secondary',
+    );
+    expect(ctas.map((a) => a.getAttribute('data-cta'))).toEqual([
+      'primary',
+      'how-it-works',
+      'final',
+    ]);
+    for (const a of ctas) expect(a).toHaveAttribute('href', '/register?callbackUrl=%2Fdiagnostic');
+    expect(screen.getByRole('heading', { level: 2, name: m.finalCta.title })).toBeInTheDocument();
+  });
+
+  it('landing nav: only real targets, and a language switch to the other three locales', async () => {
+    await renderLanding(locale);
+    const nav = screen.getByRole('navigation', { name: m.nav.label });
+    const links = within(nav)
+      .getAllByRole('link')
+      .map((a) => [a.getAttribute('href'), a.getAttribute('locale')]);
+    const others = (Object.keys(MESSAGES) as Locale[]).filter((l) => l !== locale);
+    expect(links).toEqual([
+      ['#how-it-works', null],
+      ['/login', null],
+      ...others.map((l) => ['/', l]),
+    ]);
+    const languages = within(nav).getByRole('list', { name: m.nav.language });
+    expect(within(languages).getByText(locale.toUpperCase())).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    for (const l of others) {
+      expect(within(languages).getByRole('link', { name: m.nav.languages[l] })).toHaveAttribute(
+        'hrefLang',
+        l,
+      );
+    }
   });
 
   it('metadata comes from marketing.meta', async () => {

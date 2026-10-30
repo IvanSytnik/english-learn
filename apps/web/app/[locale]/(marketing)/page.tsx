@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { FinalCta } from './_components/final-cta';
+import { HowItWorks } from './_components/how-it-works';
 import { LandingHeader } from './_components/landing-header';
 import { LandingHero } from './_components/landing-hero';
+import { LandingNav } from './_components/landing-nav';
 import { ProblemShift } from './_components/problem-shift';
 import { ValueProps } from './_components/value-props';
 
@@ -19,7 +22,10 @@ export default function MarketingPage() {
         <LandingHero />
         <ProblemShift />
         <ValueProps />
+        <HowItWorks />
+        <FinalCta />
       </main>
+      <LandingNav />
     </>
   );
 }
