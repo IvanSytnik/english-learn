@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, uniqueEmail } from './helpers/auth';
 import { closeDb, conceptTitle, learnerEvents } from './helpers/db';
 import { answer, start } from './helpers/diagnostic';
+import { toQuestion } from './helpers/player';
 
 /**
  * The whole first visit, clicked through as a guest would: landing → sign-up
@@ -50,6 +51,8 @@ test('guest → sign-up → diagnostic → the recommended topic is the first ex
   await expect(page.locator('header').getByText(startTitle, { exact: true })).toBeVisible();
 
   // 5. The first answer — "I don't know" works on any question type (gotcha 109).
+  // A grammar start topic is unpractised: it opens on its rule card (B3.2).
+  await toQuestion(page);
   await page.getByRole('button', { name: /^Не знаю/ }).click();
   await expect(page.getByRole('status').locator('[data-verdict="dontKnow"]')).toBeVisible(
     AFTER_SUBMIT,

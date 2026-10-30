@@ -33,6 +33,18 @@ describe('resolveShortcut', () => {
     expect(resolveShortcut({ key: 'Escape' }, typing)).toEqual({ type: 'pause' });
   });
 
+  it('on the rule card only Enter (start) and Esc act', () => {
+    const card = ctx({ phase: 'theory' });
+    expect(resolveShortcut({ key: 'Enter' }, card)).toEqual({ type: 'enter' });
+    expect(resolveShortcut({ key: 'Escape' }, card)).toEqual({ type: 'pause' });
+    for (const key of ['1', '4', '0', 'h', '?']) {
+      expect(resolveShortcut({ key }, card), key).toBeNull();
+    }
+    expect(
+      resolveShortcut({ key: 'Enter' }, ctx({ phase: 'theory', onActivatable: true })),
+    ).toBeNull();
+  });
+
   it('lets a focused button handle its own Enter', () => {
     expect(resolveShortcut({ key: 'Enter' }, ctx({ onActivatable: true }))).toBeNull();
   });

@@ -3,6 +3,7 @@ import { expect, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, itemAttemptKeys, itemAttempts, practiceQuestions } from './helpers/db';
 import { chooseNativeLanguage } from './helpers/diagnostic';
+import { ruleCard, toQuestion } from './helpers/player';
 
 test.afterAll(closeDb);
 
@@ -18,6 +19,7 @@ const answerField = (page: Page) => page.getByRole('textbox', { name: 'Ваш о
  * type check never runs while the next question is still loading.
  */
 async function questionType(page: Page): Promise<'cloze' | 'choice'> {
+  await toQuestion(page);
   const field = answerField(page);
   await expect(field.or(page.locator('[data-player-option]').first())).toBeVisible(AFTER_SUBMIT);
   return (await field.isVisible()) ? 'cloze' : 'choice';
@@ -25,6 +27,11 @@ async function questionType(page: Page): Promise<'cloze' | 'choice'> {
 
 /** "I don't know" on any question type: the visible button, not the key. */
 const dontKnowButton = (page: Page) => page.getByRole('button', { name: /^Не знаю/ });
+
+async function dontKnow(page: Page) {
+  await toQuestion(page);
+  await dontKnowButton(page).click();
+}
 
 /** Answer whatever question is on screen using only the keyboard. */
 async function answerWithKeyboard(page: Page) {
@@ -58,6 +65,7 @@ test('/ru/exercises: keyboard-only session — don’t know, feedback, continue,
   const progress = page.getByRole('progressbar', { name: 'Прогресс сессии' });
   await expect(progress).toHaveAttribute('aria-valuemax', '6');
   await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  await toQuestion(page);
   const prompt = page.locator('#exercise-prompt');
   await expect(prompt).toHaveAttribute('lang', 'en');
   await expect(prompt).toContainText(/\S/);
@@ -147,7 +155,7 @@ test.describe('session summary (Europe/Vienna)', () => {
     const status = page.getByRole('status');
 
     for (let done = 1; done <= 6; done++) {
-      if (done % 2 === 0) await dontKnowButton(page).click();
+      if (done % 2 === 0) await dontKnow(page);
       else await answerWithKeyboard(page);
       await expect(status.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
       await expect(progress).toHaveAttribute('aria-valuenow', String(done));
@@ -205,6 +213,7 @@ test('the "why" follows the native language (ru), the chrome the URL locale (en)
   // An explicit /en sets the interface to English (unprefixed URL).
   await page.goto('/en/exercises?minutes=5');
   await expect(page).toHaveURL(/\/exercises\?minutes=5$/, AFTER_SUBMIT);
+  await toQuestion(page);
   await page.getByRole('button', { name: /^I don't know/ }).click();
   const status = page.getByRole('status');
   await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText(
@@ -220,7 +229,7 @@ test('"other" native language: the "why" in English, even on the Russian interfa
   await registerFreshLearner(page, 'player');
   await chooseNativeLanguage(page, 'Другой язык');
   await page.goto('/ru/exercises?minutes=5');
-  await dontKnowButton(page).click();
+  await dontKnow(page);
   const status = page.getByRole('status');
   await expect(status.locator('[data-verdict="dontKnow"]')).toHaveText('Вот ответ', AFTER_SUBMIT);
   await expect(status.locator('[data-why]')).toHaveText(/\S/);
@@ -260,6 +269,7 @@ test('a right answer after the hint is recorded as hinted and rated HARD; the ne
   const status = page.getByRole('status');
 
   // 1. Open the hint and close it again: it still counts.
+  await toQuestion(page);
   const hint = page.getByRole('button', { name: /^Подсказка/ });
   await hint.click();
   await expect(hint).toHaveAttribute('aria-expanded', 'true');
@@ -270,6 +280,8 @@ test('a right answer after the hint is recorded as hinted and rated HARD; the ne
 
   // 2. The next question starts without the hint.
   await page.getByRole('button', { name: /^Дальше/ }).click();
+  await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+  await toQuestion(page);
   await expect(hint).toHaveAttribute('aria-expanded', 'false', AFTER_SUBMIT);
   await answerRight(page);
   await expect(status.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
@@ -325,9 +337,92 @@ test('a reply lost after the answer was recorded: Retry (Enter) shows it, nothin
   // The next question is a new attempt with a new key.
   await page.keyboard.press('Enter');
   await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
-  await dontKnowButton(page).click();
+  await dontKnow(page);
   await expect(status.locator('[data-verdict="dontKnow"]')).toBeVisible(AFTER_SUBMIT);
   const keys = await itemAttemptKeys(email);
   expect(keys).toHaveLength(2);
   expect(keys[1]).not.toBe(key);
+});
+
+/** Contrast inside `selector`, in both colour schemes (reduced motion: no mid-transition reads). */
+async function expectContrast(page: Page, selector: string) {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    const { violations } = await new AxeBuilder({ page })
+      .include(selector)
+      .withRules(['color-contrast'])
+      .analyze();
+    const report = violations.flatMap((v) =>
+      v.nodes.map((n) => `${colorScheme} ${n.target.join(' ')}: ${n.failureSummary ?? v.help}`),
+    );
+    expect(report, report.join('\n')).toEqual([]);
+  }
+}
+
+test('a new grammar topic opens on its rule (de), Enter starts it; the rule on demand is not a hint', async ({
+  page,
+}) => {
+  const email = await registerFreshLearner(page, 'theory');
+  await chooseNativeLanguage(page, 'Deutsch');
+  await page.goto('/ru/exercises?minutes=20');
+  const card = ruleCard(page);
+  const prompt = page.locator('#exercise-prompt');
+  const status = page.getByRole('status');
+
+  // Which topic comes first is Thompson's pick: skip questions until a new
+  // grammar topic opens (16 of the 23 topics are grammar).
+  for (let skipped = 0; ; skipped++) {
+    await expect(card.or(prompt)).toBeVisible(AFTER_SUBMIT);
+    if (await card.isVisible()) break;
+    expect(skipped, 'no new grammar topic within the session').toBeLessThan(20);
+    await dontKnowButton(page).click();
+    await expect(status.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
+    await page.keyboard.press('Enter');
+    await expect(status.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+  }
+
+  // The card: chrome in the URL locale, the rule in the native language.
+  await expect(card.getByRole('heading', { name: 'Новая тема: сначала правило' })).toBeVisible();
+  await expect(card.locator('[data-theory-formula]')).toHaveAttribute('lang', 'en');
+  const summary = card.locator('[data-theory-summary]');
+  await expect(summary).toHaveAttribute('lang', 'de');
+  await expect(summary).toHaveText(/\S/);
+  await expect(summary).not.toHaveText(CYRILLIC);
+  expect(await card.locator('[data-theory-examples] > li').count()).toBeGreaterThanOrEqual(2);
+  await expect(prompt).toHaveCount(0);
+  const start = card.getByRole('button', { name: /^К вопросам/ });
+  await expect(start).toBeFocused();
+  await expectContrast(page, '[data-theory-intro]');
+
+  // Enter: the question, focused for answering.
+  await page.keyboard.press('Enter');
+  await expect(card).toHaveCount(0, AFTER_SUBMIT);
+  await expect(prompt).toBeVisible();
+
+  // The rule again, during the question: a reference, not the H hint.
+  const rule = page.getByRole('button', { name: 'Правило', exact: true });
+  await rule.click();
+  await expect(rule).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('[data-theory-peek] [data-theory-summary]')).toHaveAttribute(
+    'lang',
+    'de',
+  );
+  const before = (await itemAttempts(email)).length;
+  await answerRight(page);
+  await expect(status.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
+  const attempts = await itemAttempts(email);
+  expect(attempts).toHaveLength(before + 1);
+  expect(attempts.at(-1)).toMatchObject({ correct: true, rating: 'GOOD' });
+  expect(attempts.at(-1)).not.toHaveProperty('hinted');
+
+  // The same rule in the dashboard's topic sheet.
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/ru\/dashboard$/, AFTER_SUBMIT);
+  await page.locator('main button[data-concept^="grammar."]').first().click();
+  const sheet = page.getByRole('dialog');
+  const theory = sheet.locator('[data-sheet-theory]');
+  await expect(theory.getByRole('heading', { name: 'Правило' })).toBeVisible();
+  await expect(theory.locator('[data-theory-summary]')).toHaveAttribute('lang', 'de');
+  await expect(theory.locator('[data-theory-summary]')).not.toHaveText(CYRILLIC);
+  await expectContrast(page, 'dialog[open]');
 });

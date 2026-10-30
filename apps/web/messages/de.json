@@ -362,6 +362,13 @@
       "dayDone": "Sitzung erledigt",
       "dayOpen": "keine Sitzung",
       "today": "heute"
+    },
+    "theory": {
+      "introTitle": "Neues Thema: zuerst die Regel",
+      "formula": "Muster",
+      "examples": "Beispiele",
+      "start": "Zu den Fragen",
+      "show": "Regel"
     }
   },
   "feedback": {

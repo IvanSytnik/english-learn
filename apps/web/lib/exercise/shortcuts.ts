@@ -1,13 +1,14 @@
 /**
  * Keyboard map for the exercise player (Case A anatomy, HANDOFF §7):
  *   1–4 choose · 0 "I don't know" · H hint · ? why · Enter check/continue · Esc pause
+ *   (on a new topic's rule card — phase `theory` — only Enter "start" and Esc act)
  *
  * Pure so the input guard is unit-testable: while focus is in a text field
  * only Enter and Esc act — typing "1", "0", "h" or "?" into a cloze answer
  * must type, not trigger shortcuts.
  */
 
-export type PlayerPhase = 'answering' | 'submitting' | 'feedback' | 'loading' | 'done';
+export type PlayerPhase = 'theory' | 'answering' | 'submitting' | 'feedback' | 'loading' | 'done';
 
 export type ShortcutAction =
   | { type: 'select'; index: number }
@@ -41,7 +42,9 @@ export function resolveShortcut(event: KeyLike, ctx: ShortcutContext): ShortcutA
   if (key === 'Escape') return { type: 'pause' };
   if (key === 'Enter') {
     if (ctx.onActivatable) return null;
-    return ctx.phase === 'answering' || ctx.phase === 'feedback' ? { type: 'enter' } : null;
+    return ctx.phase === 'theory' || ctx.phase === 'answering' || ctx.phase === 'feedback'
+      ? { type: 'enter' }
+      : null;
   }
   if (ctx.inTextField) return null;
 

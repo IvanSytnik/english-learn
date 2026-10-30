@@ -1,3 +1,4 @@
+import { getConceptTheory } from '@englishlearn/learner-model';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
@@ -32,6 +33,7 @@ const { ExercisePlayer } = await import('@/app/[locale]/(student)/exercises/exer
 
 const choiceView: ExerciseView = {
   itemRef: 'ref-item.a',
+  conceptId: 'grammar.past_simple',
   conceptTitle: 'Past Simple',
   reason: 'REVIEW_DUE',
   isNewConcept: false,
@@ -42,6 +44,7 @@ const choiceView: ExerciseView = {
     options: ['goed', 'gone', 'go', 'went'],
   },
   hint: 'go → went',
+  theory: null,
 };
 const clozeView: ExerciseView = {
   ...choiceView,
@@ -669,5 +672,158 @@ describe('ExercisePlayer — report an issue about the question on screen', () =
     key('Escape', field);
     expect(push).not.toHaveBeenCalled();
     expect(submitExerciseAttempt).not.toHaveBeenCalled();
+  });
+});
+
+describe('ExercisePlayer — the rule card of a new topic (B3.2)', () => {
+  const theory = getConceptTheory('grammar.past_simple', 'en');
+  if (!theory) throw new Error('no theory for grammar.past_simple');
+  /** First question of a topic the learner has never answered. */
+  const newView: ExerciseView = {
+    ...choiceView,
+    reason: 'NEW_INTRODUCTION',
+    isNewConcept: true,
+    detail: null,
+    theory,
+  };
+  const intro = () => document.querySelector('[data-theory-intro]');
+  const prompt = () => document.getElementById('exercise-prompt');
+  const onIntro = async () => {
+    const start = await screen.findByRole('button', { name: /^Start questions/ });
+    await waitFor(() => expect(start).toHaveFocus());
+    return start;
+  };
+  const onChoiceQuestion = async () => {
+    await waitFor(() => expect(prompt()).toHaveFocus());
+  };
+  const answerAndContinue = async () => {
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    key('Enter');
+  };
+
+  it('a new topic opens on its rule — formula, explanation, examples — not on the question', async () => {
+    renderPlayer(newView);
+    await onIntro();
+    const card = within(intro() as HTMLElement);
+    expect(card.getByRole('heading', { name: 'New topic: the rule first' })).toBeInTheDocument();
+    expect(intro()?.querySelector('[data-theory-formula]')).toHaveTextContent(theory.formula);
+    expect(intro()?.querySelector('[data-theory-summary]')).toHaveTextContent(theory.summary);
+    expect(intro()?.querySelectorAll('[data-theory-examples] > li')).toHaveLength(
+      theory.examples.length,
+    );
+    expect(prompt()).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Check/ })).toBeNull();
+    // The top bar stays: the learner sees which topic this is.
+    expect(screen.getByText('Past Simple')).toBeInTheDocument();
+  });
+
+  it('Start questions shows the question', async () => {
+    renderPlayer(newView);
+    fireEvent.click(await onIntro());
+    await onChoiceQuestion();
+    expect(intro()).toBeNull();
+    expect(prompt()).toHaveTextContent('Last summer we');
+  });
+
+  it('Enter starts the questions too', async () => {
+    renderPlayer(newView);
+    await onIntro();
+    key('Enter');
+    await onChoiceQuestion();
+    expect(intro()).toBeNull();
+    expect(submitExerciseAttempt).not.toHaveBeenCalled();
+  });
+
+  it('answer keys do nothing on the rule card', async () => {
+    renderPlayer(newView);
+    await onIntro();
+    key('4');
+    key('0');
+    key('h');
+    expect(submitExerciseAttempt).not.toHaveBeenCalled();
+    key('Enter');
+    await onChoiceQuestion();
+    expect(screen.getByRole('button', { name: /went/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('go → went')).toBeNull();
+  });
+
+  it('a practised topic goes straight to the question, the rule one click away', () => {
+    renderPlayer({ ...choiceView, theory });
+    expect(intro()).toBeNull();
+    expect(prompt()).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rule' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('a new topic without theory (vocabulary) goes straight to the question', () => {
+    renderPlayer({ ...newView, theory: null });
+    expect(intro()).toBeNull();
+    expect(prompt()).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rule' })).toBeNull();
+  });
+
+  it('once per topic per session; the next new topic gets its own card', async () => {
+    const plurals = getConceptTheory('grammar.plurals', 'en');
+    nextExercise
+      // Still unstarted on the server (e.g. the answer was not recorded yet).
+      .mockResolvedValueOnce({ ok: true, value: { ...newView, itemRef: 'ref-item.c' } })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          ...newView,
+          itemRef: 'ref-item.d',
+          conceptId: 'grammar.plurals',
+          conceptTitle: 'Plural nouns',
+          theory: plurals,
+        },
+      });
+    renderPlayer(newView);
+    fireEvent.click(await onIntro());
+    await onChoiceQuestion();
+    await answerAndContinue();
+    await waitFor(() => expect(nextExercise).toHaveBeenCalledTimes(1));
+    await onChoiceQuestion();
+    expect(intro()).toBeNull();
+
+    await answerAndContinue();
+    await onIntro();
+    expect(intro()?.querySelector('[data-theory-formula]')).toHaveTextContent(
+      plurals?.formula ?? '',
+    );
+  });
+
+  it('opening the rule during a question does not mark the answer hinted', async () => {
+    renderPlayer({ ...choiceView, theory });
+    fireEvent.click(screen.getByRole('button', { name: 'Rule' }));
+    expect(screen.getByRole('button', { name: 'Rule' })).toHaveAttribute('aria-expanded', 'true');
+    expect(document.querySelector('[data-theory-peek] [data-theory-formula]')).toHaveTextContent(
+      theory.formula,
+    );
+    key('4');
+    key('Enter');
+    await onFeedback('Correct');
+    expect(submitExerciseAttempt.mock.calls[0]?.[0]?.hinted).toBe(false);
+    // Rule reference is for the question, not the feedback.
+    expect(document.querySelector('[data-theory-peek]')).toBeNull();
+  });
+
+  it('the answer time starts with the question, not with the rule card', async () => {
+    let now = 1_000;
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      renderPlayer(newView);
+      const start = await onIntro();
+      now += 60_000; // a minute reading the rule
+      fireEvent.click(start);
+      await onChoiceQuestion();
+      now += 2_000;
+      key('4');
+      key('Enter');
+      await onFeedback('Correct');
+      expect(submitExerciseAttempt.mock.calls[0]?.[0]?.timeMs).toBe(2_000);
+    } finally {
+      clock.mockRestore();
+    }
   });
 });

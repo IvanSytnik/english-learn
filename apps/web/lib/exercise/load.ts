@@ -4,6 +4,7 @@ import { prisma } from '@englishlearn/db';
 import { getConceptTitles, getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
 import { getNativeLanguage } from '@englishlearn/db/queries/student-profile';
 import type { Locale } from '@englishlearn/db/schemas';
+import { getConceptTheory } from '@englishlearn/learner-model';
 import { encryptItemRef } from '@/lib/crypto/item-ref';
 import { selectionService } from '@/lib/learner';
 import { contentLocale, type ExerciseView, hintFor, reasonDetail, toQuestion } from './view';
@@ -37,6 +38,8 @@ export async function loadNextExercise(args: {
   ]);
   if (!item) return null;
 
+  // Help in the learner's language (hint, theory); titles below are chrome.
+  const helpLocale = contentLocale(nativeLanguage, args.locale);
   const titles = await getConceptTitles(
     [selection.conceptId, ...selection.unlockedBy],
     args.locale,
@@ -44,6 +47,7 @@ export async function loadNextExercise(args: {
 
   return {
     itemRef: await encryptItemRef({ itemId: item.id, userId: args.userId }, now),
+    conceptId: selection.conceptId,
     conceptTitle: titles.get(selection.conceptId) ?? item.concept.name,
     reason: selection.reason,
     isNewConcept: selection.isNewConcept,
@@ -54,7 +58,7 @@ export async function loadNextExercise(args: {
       now,
     }),
     question: toQuestion(item.practice),
-    // The hint is help in the learner's language; titles above are chrome.
-    hint: hintFor(item.kind, item.content, contentLocale(nativeLanguage, args.locale)),
+    hint: hintFor(item.kind, item.content, helpLocale),
+    theory: getConceptTheory(selection.conceptId, helpLocale),
   };
 }

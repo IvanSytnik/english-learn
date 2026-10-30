@@ -26,6 +26,7 @@ vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
 const { loadNextExercise } = await import('@/lib/exercise/load');
 const { decryptItemRef } = await import('@/lib/crypto/item-ref');
+const { getConceptTheory } = await import('@englishlearn/learner-model');
 
 const item = {
   id: 'item.vocab.travel.luggage',
@@ -104,5 +105,29 @@ describe('loadNextExercise', () => {
   it('a native language without a translation falls back to English, not to the interface', async () => {
     getNativeLanguage.mockResolvedValue('uk');
     expect((await load('ru'))?.hint).toBe('bags');
+  });
+
+  it('the theory follows the native language too, and carries the concept id', async () => {
+    selectNext.mockResolvedValue({
+      ok: true,
+      result: {
+        itemId: item.id,
+        conceptId: 'grammar.conditional_2',
+        reason: 'NEW_INTRODUCTION',
+        isNewConcept: true,
+        unlockedBy: [],
+        lastPracticedAt: null,
+      },
+    });
+    getNativeLanguage.mockResolvedValue('de');
+    const view = await load('ru');
+    expect(view?.conceptId).toBe('grammar.conditional_2');
+    expect(view?.isNewConcept).toBe(true);
+    expect(view?.theory).toEqual(getConceptTheory('grammar.conditional_2', 'de'));
+  });
+
+  it('a concept without theory (vocabulary): theory null', async () => {
+    getNativeLanguage.mockResolvedValue('ru');
+    expect((await load('ru'))?.theory).toBeNull();
   });
 });

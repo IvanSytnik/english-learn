@@ -21,6 +21,7 @@ import type {
   ExerciseView,
   ReasonDetail,
 } from '@/lib/exercise/view';
+import { ConceptTheory } from '../_components/concept-theory';
 import { FeedbackDialog } from '../_components/feedback-dialog';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
 import { nextExercise, submitExerciseAttempt } from './actions';
@@ -45,11 +46,24 @@ export function ExercisePlayer({
   const router = useRouter();
   const [, startTransition] = useTransition();
 
+  // Concepts whose rule card was already shown this session: the intro comes
+  // once per concept, before its first question (B3.2).
+  const introSeen = useRef(new Set<string>());
+  const needsIntro = useCallback(
+    (v: ExerciseView) => v.isNewConcept && v.theory !== null && !introSeen.current.has(v.conceptId),
+    [],
+  );
+
   const [view, setView] = useState(initial);
-  const [phase, setPhase] = useState<PlayerPhase>('answering');
+  const [phase, setPhase] = useState<PlayerPhase>(() =>
+    needsIntro(initial) ? 'theory' : 'answering',
+  );
   const [selected, setSelected] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [hintOpen, setHintOpen] = useState(false);
+  // The rule card reopened during a question. General reference, not this
+  // item's answer: unlike the `H` hint it does not mark the answer hinted.
+  const [ruleOpen, setRuleOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [feedback, setFeedback] = useState<ExerciseFeedback | null>(null);
   // Length is client-enforced by design (§8 #9); allowlist guards the input,
@@ -85,6 +99,7 @@ export function ExercisePlayer({
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const startRef = useRef<HTMLButtonElement>(null);
   const nextRetryRef = useRef<HTMLButtonElement>(null);
 
   const question = view.question;
@@ -94,6 +109,7 @@ export function ExercisePlayer({
   // question, Retry after a lost request, Continue once feedback is in.
   const hasUnsent = unsent !== null;
   useEffect(() => {
+    if (phase === 'theory') startRef.current?.focus();
     if (phase === 'answering') {
       if (hasUnsent) retryRef.current?.focus();
       else if (question.type === 'cloze') inputRef.current?.focus();
@@ -154,53 +170,66 @@ export function ExercisePlayer({
     }
   }, [question.type, selected, text, submit]);
 
+  // Leave the rule card for the question. The answer clock starts here, so
+  // reading the rule is not counted as thinking time.
+  const startQuestions = useCallback(() => {
+    if (phase !== 'theory') return;
+    introSeen.current.add(view.conceptId);
+    shownAt.current = Date.now();
+    setPhase('answering');
+  }, [phase, view.conceptId]);
+
   const toggleHint = useCallback(() => {
     if (phase !== 'answering' || view.hint === null) return;
     hintUsed.current = true;
     setHintOpen((open) => !open);
   }, [phase, view.hint]);
 
-  const loadNext = useCallback((recentRefs: string[]) => {
-    if (busy.current) return;
-    busy.current = true;
-    setPhase('loading');
-    setError(false);
-    setNextFailed(false);
-    startTransition(async () => {
-      let res: Awaited<ReturnType<typeof nextExercise>>;
-      try {
-        res = await nextExercise(recentRefs);
-      } catch {
-        // No reply: nothing was changed on the server, loading again is safe.
+  const loadNext = useCallback(
+    (recentRefs: string[]) => {
+      if (busy.current) return;
+      busy.current = true;
+      setPhase('loading');
+      setError(false);
+      setNextFailed(false);
+      startTransition(async () => {
+        let res: Awaited<ReturnType<typeof nextExercise>>;
+        try {
+          res = await nextExercise(recentRefs);
+        } catch {
+          // No reply: nothing was changed on the server, loading again is safe.
+          busy.current = false;
+          setNextFailed(true);
+          setPhase('feedback');
+          return;
+        }
         busy.current = false;
-        setNextFailed(true);
-        setPhase('feedback');
-        return;
-      }
-      busy.current = false;
-      if (!res.ok) {
-        setError(true);
-        setPhase('feedback');
-        return;
-      }
-      if (!res.value) {
-        setPhase('done');
-        return;
-      }
-      const next = res.value;
-      setView(next);
-      setRecent((refs) => [...refs, next.itemRef].slice(-10));
-      setSelected(null);
-      setText('');
-      setHintOpen(false);
-      hintUsed.current = false;
-      attemptKey.current = null;
-      setWhyOpen(false);
-      setFeedback(null);
-      shownAt.current = Date.now();
-      setPhase('answering');
-    });
-  }, []);
+        if (!res.ok) {
+          setError(true);
+          setPhase('feedback');
+          return;
+        }
+        if (!res.value) {
+          setPhase('done');
+          return;
+        }
+        const next = res.value;
+        setView(next);
+        setRecent((refs) => [...refs, next.itemRef].slice(-10));
+        setSelected(null);
+        setText('');
+        setHintOpen(false);
+        setRuleOpen(false);
+        hintUsed.current = false;
+        attemptKey.current = null;
+        setWhyOpen(false);
+        setFeedback(null);
+        shownAt.current = Date.now();
+        setPhase(needsIntro(next) ? 'theory' : 'answering');
+      });
+    },
+    [needsIntro],
+  );
 
   const goOn = useCallback(() => {
     if (phase !== 'feedback') return;
@@ -231,7 +260,8 @@ export function ExercisePlayer({
         router.push('/dashboard');
         break;
       case 'enter':
-        if (phase === 'answering') check();
+        if (phase === 'theory') startQuestions();
+        else if (phase === 'answering') check();
         else goOn();
         break;
       case 'select':
@@ -308,150 +338,203 @@ export function ExercisePlayer({
         </div>
       </header>
 
-      <section aria-labelledby="exercise-prompt" className="flex flex-col gap-5">
-        <p className="text-sm text-ink-muted">
-          {question.type === 'choice' ? t('player.chooseInstruction') : t('player.typeInstruction')}
-        </p>
-        <div
-          id="exercise-prompt"
-          ref={promptRef}
-          tabIndex={-1}
-          lang="en"
-          className="font-content text-[1.5rem] leading-snug text-ink outline-none sm:text-[1.625rem]"
+      {phase === 'theory' && view.theory ? (
+        <section
+          aria-labelledby="theory-intro-title"
+          className="flex flex-col gap-5 rounded-card border border-line bg-surface-2 p-5 shadow-soft"
+          data-theory-intro=""
         >
-          <Prompt
-            prompt={question.prompt}
-            gap={
-              question.type === 'cloze' && !answered ? (
-                <input
-                  ref={inputRef}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  disabled={phase !== 'answering'}
-                  aria-label={t('player.answerLabel')}
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  className="mx-1 inline-block w-[9ch] border-0 border-b-2 border-ink bg-transparent px-1 text-center font-content text-ink outline-none focus:border-accent"
-                />
-              ) : (
-                <span
-                  className={cn(
-                    'mx-1 inline-block min-w-[4ch] border-b-2 px-1 text-center',
-                    feedback ? 'border-feedback-correct' : 'border-ink',
-                  )}
-                >
-                  {gapFill ?? ' '}
-                </span>
-              )
-            }
+          <h2 id="theory-intro-title" className="font-content text-xl text-ink">
+            {t('theory.introTitle')}
+          </h2>
+          <ConceptTheory
+            theory={view.theory}
+            labels={{ formula: t('theory.formula'), examples: t('theory.examples') }}
           />
-        </div>
-
-        {question.type === 'choice' ? (
-          <ul className="flex flex-col gap-2">
-            {question.options.map((option, index) => {
-              const isCorrect = feedback?.correctIndex === index;
-              const isWrongPick = feedback !== null && feedback.chosenIndex === index && !isCorrect;
-              return (
-                <li key={option}>
-                  <button
-                    type="button"
-                    data-player-option=""
-                    aria-pressed={selected === index}
-                    disabled={phase !== 'answering'}
-                    onClick={() => setSelected(index)}
-                    className={cn(
-                      'flex w-full items-center gap-3 rounded-control border bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-(--duration-fast) ease-standard',
-                      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                      selected === index && !feedback
-                        ? 'border-accent bg-surface-2 ring-1 ring-accent'
-                        : 'border-line',
-                      phase === 'answering' && 'hover:bg-surface-2',
-                      isCorrect && 'border-feedback-correct',
-                      isWrongPick && 'border-feedback-incorrect',
-                    )}
-                  >
-                    <KeyHint>{String(index + 1)}</KeyHint>
-                    <span lang="en" className="flex-1 font-content text-lg text-ink">
-                      {option}
-                    </span>
-                    {isCorrect ? (
-                      <Check aria-hidden="true" className="size-5 text-feedback-correct" />
-                    ) : null}
-                    {isWrongPick ? (
-                      <X aria-hidden="true" className="size-5 text-feedback-incorrect" />
-                    ) : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-
-        {hintOpen && view.hint && !answered ? (
-          <p className="rounded-control bg-surface-2 px-4 py-3 text-sm text-ink">{view.hint}</p>
-        ) : null}
-
-        {!answered ? (
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className={primaryButton}
-              onClick={check}
-              disabled={
-                phase !== 'answering' ||
-                (question.type === 'choice' ? selected === null : text.trim().length === 0)
-              }
-            >
-              {t('player.check')}
+          <div>
+            <button ref={startRef} type="button" className={primaryButton} onClick={startQuestions}>
+              {t('theory.start')}
               <KeyHint className="border-transparent bg-transparent text-on-accent">Enter</KeyHint>
             </button>
-            <button
-              type="button"
-              className={quietButton}
-              onClick={() => submit({ type: 'dontKnow' })}
-              disabled={phase !== 'answering'}
+          </div>
+        </section>
+      ) : (
+        <section aria-labelledby="exercise-prompt" className="flex flex-col gap-5">
+          <p className="text-sm text-ink-muted">
+            {question.type === 'choice'
+              ? t('player.chooseInstruction')
+              : t('player.typeInstruction')}
+          </p>
+          <div
+            id="exercise-prompt"
+            ref={promptRef}
+            tabIndex={-1}
+            lang="en"
+            className="font-content text-[1.5rem] leading-snug text-ink outline-none sm:text-[1.625rem]"
+          >
+            <Prompt
+              prompt={question.prompt}
+              gap={
+                question.type === 'cloze' && !answered ? (
+                  <input
+                    ref={inputRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    disabled={phase !== 'answering'}
+                    aria-label={t('player.answerLabel')}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="mx-1 inline-block w-[9ch] border-0 border-b-2 border-ink bg-transparent px-1 text-center font-content text-ink outline-none focus:border-accent"
+                  />
+                ) : (
+                  <span
+                    className={cn(
+                      'mx-1 inline-block min-w-[4ch] border-b-2 px-1 text-center',
+                      feedback ? 'border-feedback-correct' : 'border-ink',
+                    )}
+                  >
+                    {gapFill ?? ' '}
+                  </span>
+                )
+              }
+            />
+          </div>
+
+          {question.type === 'choice' ? (
+            <ul className="flex flex-col gap-2">
+              {question.options.map((option, index) => {
+                const isCorrect = feedback?.correctIndex === index;
+                const isWrongPick =
+                  feedback !== null && feedback.chosenIndex === index && !isCorrect;
+                return (
+                  <li key={option}>
+                    <button
+                      type="button"
+                      data-player-option=""
+                      aria-pressed={selected === index}
+                      disabled={phase !== 'answering'}
+                      onClick={() => setSelected(index)}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-control border bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-(--duration-fast) ease-standard',
+                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+                        selected === index && !feedback
+                          ? 'border-accent bg-surface-2 ring-1 ring-accent'
+                          : 'border-line',
+                        phase === 'answering' && 'hover:bg-surface-2',
+                        isCorrect && 'border-feedback-correct',
+                        isWrongPick && 'border-feedback-incorrect',
+                      )}
+                    >
+                      <KeyHint>{String(index + 1)}</KeyHint>
+                      <span lang="en" className="flex-1 font-content text-lg text-ink">
+                        {option}
+                      </span>
+                      {isCorrect ? (
+                        <Check aria-hidden="true" className="size-5 text-feedback-correct" />
+                      ) : null}
+                      {isWrongPick ? (
+                        <X aria-hidden="true" className="size-5 text-feedback-incorrect" />
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+
+          {hintOpen && view.hint && !answered ? (
+            <p className="rounded-control bg-surface-2 px-4 py-3 text-sm text-ink">{view.hint}</p>
+          ) : null}
+
+          {ruleOpen && view.theory && !answered ? (
+            <div
+              id="exercise-rule"
+              className="rounded-card border border-line bg-surface-2 p-4"
+              data-theory-peek=""
             >
-              {t('player.dontKnow')}
-              <KeyHint>0</KeyHint>
-            </button>
-            {view.hint ? (
+              <ConceptTheory
+                theory={view.theory}
+                labels={{ formula: t('theory.formula'), examples: t('theory.examples') }}
+              />
+            </div>
+          ) : null}
+
+          {!answered ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className={primaryButton}
+                onClick={check}
+                disabled={
+                  phase !== 'answering' ||
+                  (question.type === 'choice' ? selected === null : text.trim().length === 0)
+                }
+              >
+                {t('player.check')}
+                <KeyHint className="border-transparent bg-transparent text-on-accent">
+                  Enter
+                </KeyHint>
+              </button>
               <button
                 type="button"
                 className={quietButton}
-                aria-expanded={hintOpen}
-                onClick={toggleHint}
+                onClick={() => submit({ type: 'dontKnow' })}
                 disabled={phase !== 'answering'}
               >
-                {t('player.hint')}
-                <KeyHint>H</KeyHint>
+                {t('player.dontKnow')}
+                <KeyHint>0</KeyHint>
               </button>
-            ) : null}
-          </div>
-        ) : null}
+              {view.hint ? (
+                <button
+                  type="button"
+                  className={quietButton}
+                  aria-expanded={hintOpen}
+                  onClick={toggleHint}
+                  disabled={phase !== 'answering'}
+                >
+                  {t('player.hint')}
+                  <KeyHint>H</KeyHint>
+                </button>
+              ) : null}
+              {view.theory ? (
+                <button
+                  type="button"
+                  className={quietButton}
+                  aria-expanded={ruleOpen}
+                  aria-controls="exercise-rule"
+                  onClick={() => setRuleOpen((open) => !open)}
+                  disabled={phase !== 'answering'}
+                  data-rule-toggle=""
+                >
+                  {t('theory.show')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
-        {error ? (
-          <p role="alert" className="text-sm text-feedback-incorrect">
-            {t('player.error')}
-          </p>
-        ) : null}
-        {unsent ? (
-          <div role="alert" className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-feedback-incorrect">{t('player.sendFailed')}</p>
-            <button
-              ref={retryRef}
-              type="button"
-              className={quietButton}
-              onClick={() => submit(unsent.answer, unsent.timeMs)}
-              disabled={phase !== 'answering'}
-            >
-              {t('player.retry')}
-            </button>
-          </div>
-        ) : null}
-      </section>
+          {error ? (
+            <p role="alert" className="text-sm text-feedback-incorrect">
+              {t('player.error')}
+            </p>
+          ) : null}
+          {unsent ? (
+            <div role="alert" className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-feedback-incorrect">{t('player.sendFailed')}</p>
+              <button
+                ref={retryRef}
+                type="button"
+                className={quietButton}
+                onClick={() => submit(unsent.answer, unsent.timeMs)}
+                disabled={phase !== 'answering'}
+              >
+                {t('player.retry')}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      )}
 
       <div aria-live="polite" role="status">
         {feedback ? (

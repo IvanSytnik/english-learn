@@ -362,6 +362,13 @@
       "dayDone": "session done",
       "dayOpen": "no session",
       "today": "today"
+    },
+    "theory": {
+      "introTitle": "New topic: the rule first",
+      "formula": "Pattern",
+      "examples": "Examples",
+      "start": "Start questions",
+      "show": "Rule"
     }
   },
   "feedback": {

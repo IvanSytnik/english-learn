@@ -9,7 +9,7 @@ import {
   PRACTICE_GAP,
   type Practice,
 } from '@englishlearn/db/schemas';
-import type { MasteryStage } from '@englishlearn/learner-model';
+import type { ConceptTheoryView, MasteryStage } from '@englishlearn/learner-model';
 import type { SelectionReasonValue, StageValue } from '@englishlearn/ui';
 
 /**
@@ -66,6 +66,8 @@ export type ExerciseView = {
    * id: item ids name the answer. Echoed back on submit.
    */
   itemRef: string;
+  /** Concept id (names the topic, not the answer): the player's intro-once key. */
+  conceptId: string;
   conceptTitle: string;
   reason: SelectionReasonValue;
   isNewConcept: boolean;
@@ -73,6 +75,12 @@ export type ExerciseView = {
   question: ExerciseQuestion;
   /** Localized nudge for `H`; null when the item has nothing useful. */
   hint: string | null;
+  /**
+   * The concept's rule reference in the learner's language (B3.2); null when
+   * the concept has none. Shown as an intro card before the first question
+   * of a new concept, and on demand — without counting as the `H` hint.
+   */
+  theory: ConceptTheoryView | null;
 };
 
 export type ExerciseAnswer =
