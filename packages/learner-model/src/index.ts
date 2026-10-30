@@ -75,4 +75,5 @@ export {
   parseEventRow,
 } from './service/event-store';
 export { createSelectionService, type SelectionService } from './service/selection-service';
+export * from './theory';
 export * from './vocab';
