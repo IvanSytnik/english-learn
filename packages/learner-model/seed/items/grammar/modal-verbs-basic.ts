@@ -1,4 +1,4 @@
-import { choice } from '../practice';
+import { choice, cloze } from '../practice';
 import { grammarItems } from './gp';
 
 export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
@@ -57,6 +57,108 @@ export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
     practice: choice(
       "You ___ smoke here. It's against the rules.",
       ["don't must", 'must', "mustn't", "needn't"],
+      2,
+    ),
+  },
+  {
+    slug: 'cant_negative',
+    level: 'A2',
+    pattern: "can't / cannot + V1",
+    example: "I can't come on Saturday. She cannot swim.",
+    explanation: {
+      en: "The negative of can is can't or cannot (one word).",
+      ru: "Отрицание от can — can't или cannot (одним словом).",
+      uk: "Заперечення від can — can't або cannot (одним словом).",
+      de: "Die Verneinung von can ist can't oder cannot (ein Wort).",
+    },
+    practice: cloze(
+      "Sorry, I ___ come to your party on Saturday — I'm working. (not / can)",
+      "can't",
+      'cannot',
+    ),
+  },
+  {
+    slug: 'can_permission',
+    level: 'A2',
+    pattern: 'Can I + V1? (asking for permission)',
+    example: 'Can I open the window? Can I sit here?',
+    explanation: {
+      en: 'Can I …? (or Could I …?) is how you ask for permission.',
+      ru: 'Can I …? (или Could I …?) — так просят разрешения.',
+      uk: 'Can I …? (або Could I …?) — так просять дозволу.',
+      de: 'Mit Can I …? (oder Could I …?) bittest du um Erlaubnis.',
+    },
+    practice: choice('___ I borrow your pen, please?', ['Must', 'Need', 'Can'], 2),
+  },
+  {
+    slug: 'dont_have_to',
+    level: 'A2',
+    pattern: "don't have to + V1 = not necessary",
+    example: "It's Sunday — you don't have to get up early.",
+    contrast: "You mustn't get up early. (= it is not allowed)",
+    explanation: {
+      en: "don't have to means it is not necessary; mustn't means it is not allowed.",
+      ru: "don't have to значит «не обязательно»; mustn't — «нельзя».",
+      uk: "don't have to означає «не обов’язково»; mustn't — «не можна».",
+      de: "don't have to heißt „nicht nötig“; mustn't heißt „nicht erlaubt“.",
+    },
+    practice: choice(
+      "It's Sunday, so you ___ get up early.",
+      ["mustn't", "haven't to", "don't must", "don't have to"],
+      3,
+    ),
+  },
+  {
+    slug: 'has_to_third_person',
+    level: 'A2',
+    pattern: 'he / she / it + has to + V1',
+    example: 'She has to wear a uniform.',
+    contrast: 'She have to wear a uniform. (wrong)',
+    explanation: {
+      en: 'have to works like an ordinary verb: has to with he, she, it.',
+      ru: 'have to ведёт себя как обычный глагол: с he, she, it — has to.',
+      uk: 'have to поводиться як звичайне дієслово: з he, she, it — has to.',
+      de: 'have to verhält sich wie ein normales Verb: bei he, she, it heißt es has to.',
+    },
+    practice: choice(
+      'She ___ wear a uniform at work.',
+      ['has to', 'have to', 'haves to', 'has'],
+      0,
+    ),
+  },
+  {
+    slug: 'modal_questions_no_do',
+    level: 'A2',
+    pattern: 'Can / Could / Should + subject + V1?',
+    example: 'Can you swim? Should we wait?',
+    contrast: 'Do you can swim? (wrong)',
+    explanation: {
+      en: 'To ask a question with a modal, put the modal before the subject — no do.',
+      ru: 'В вопросе модальный глагол ставится перед подлежащим — без do.',
+      uk: 'У питанні модальне дієслово ставиться перед підметом — без do.',
+      de: 'In einer Frage steht das Modalverb vor dem Subjekt — ohne do.',
+    },
+    practice: choice(
+      '___ swim? The water is very deep here.',
+      ['Do you can', 'Can you', 'Are you can', 'Can you to'],
+      1,
+    ),
+  },
+  {
+    slug: 'couldnt_past',
+    level: 'A2',
+    pattern: "couldn't + V1 (past)",
+    example: "I couldn't sleep last night.",
+    contrast: "I didn't can sleep. (wrong)",
+    explanation: {
+      en: "The past of can't is couldn't; can has no forms with did.",
+      ru: "Прошедшее время от can't — couldn't; у can нет форм с did.",
+      uk: "Минулий час від can't — couldn't; у can немає форм з did.",
+      de: "Die Vergangenheit von can't ist couldn't; can hat keine Formen mit did.",
+    },
+    practice: choice(
+      'I ___ sleep last night because of the noise.',
+      ["can't", "didn't can", "couldn't", "couldn't to"],
       2,
     ),
   },
