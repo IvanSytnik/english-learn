@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { createFormatter, createTranslator } from 'next-intl';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../messages/en.json';
 
@@ -10,14 +11,37 @@ const { auth, getBetaFeedbacks } = vi.hoisted(() => ({
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
-vi.mock('@englishlearn/db/queries/feedback', () => ({ getBetaFeedbacks }));
+vi.mock('@englishlearn/db/queries/feedback', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@englishlearn/db/queries/feedback')>()),
+  getBetaFeedbacks,
+}));
 vi.mock('next-intl/server', () => ({
   getTranslations: async (namespace: string) =>
     createTranslator({ locale: 'en', messages: en, namespace: namespace as never }),
   getFormatter: async () => createFormatter({ locale: 'en', timeZone: 'UTC' }),
 }));
 
-const { default: FeedbackAdminPage } = await import('@/app/[locale]/admin/feedback/page');
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: { pathname: string; query: Record<string, string> };
+    children: ReactNode;
+  }) => (
+    <a href={`${href.pathname}?${new URLSearchParams(href.query)}`} {...rest}>
+      {children}
+    </a>
+  ),
+}));
+vi.mock('@/app/[locale]/admin/feedback/export-feedback', () => ({
+  ExportFeedback: ({ sort }: { sort: string }) => <div data-export-sort={sort} />,
+}));
+
+const { default: Page } = await import('@/app/[locale]/admin/feedback/page');
+const FeedbackAdminPage = (sort?: string | string[]) =>
+  Page({ searchParams: Promise.resolve(sort === undefined ? {} : { sort }) });
 
 // notFound() throws a control-flow error tagged with this digest.
 const NOT_FOUND = { digest: expect.stringMatching(/^NEXT_HTTP_ERROR_FALLBACK;404/) };
@@ -73,7 +97,10 @@ describe('/admin/feedback', () => {
     asRole('ADMIN');
     render(await FeedbackAdminPage());
 
-    expect(getBetaFeedbacks).toHaveBeenCalledWith({ tag: 'prisma' }, { limit: 200 });
+    expect(getBetaFeedbacks).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      { limit: 200, sort: 'newest' },
+    );
     expect(screen.getByRole('heading', { name: en.admin.feedback.title })).toBeInTheDocument();
     const [first, second] = screen.getAllByRole('row').slice(1);
     expect(first).toHaveAttribute('data-feedback-row', 'fb-2');
@@ -99,7 +126,7 @@ describe('/admin/feedback', () => {
     const { container } = render(await FeedbackAdminPage());
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument();
     expect(container.querySelector('img')).toBeNull();
-    expect(container.querySelector('a')).toBeNull();
+    expect(container.querySelector('table a')).toBeNull();
     expect(screen.getByText('javascript:alert(1)').tagName).toBe('TD');
   });
 
@@ -109,5 +136,46 @@ describe('/admin/feedback', () => {
     render(await FeedbackAdminPage());
     expect(screen.getByText(en.admin.feedback.empty)).toBeInTheDocument();
     expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it.each([
+    'oldest',
+    'page',
+  ] as const)('?sort=%s orders the query and the export the same way', async (sort) => {
+    asRole('ADMIN');
+    const { container } = render(await FeedbackAdminPage(sort));
+    expect(getBetaFeedbacks).toHaveBeenCalledWith({ tag: 'prisma' }, { limit: 200, sort });
+    const nav = screen.getByRole('navigation', { name: en.admin.feedback.sort.label });
+    expect(within(nav).getByText(en.admin.feedback.sort[sort])).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    const others = (['newest', 'oldest', 'page'] as const).filter((o) => o !== sort);
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((a) => a.getAttribute('href')),
+    ).toEqual(others.map((o) => `/admin/feedback?sort=${o}`));
+    expect(container.querySelector('[data-export-sort]')).toHaveAttribute('data-export-sort', sort);
+  });
+
+  it.each([
+    ['bogus'],
+    [['page', 'oldest']],
+    [''],
+  ])('an unknown sort %j falls back to newest', async (sort) => {
+    asRole('ADMIN');
+    render(await FeedbackAdminPage(sort));
+    expect(getBetaFeedbacks).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      { limit: 200, sort: 'newest' },
+    );
+  });
+
+  it('offers no export when there is nothing to export', async () => {
+    asRole('ADMIN');
+    getBetaFeedbacks.mockResolvedValue([]);
+    const { container } = render(await FeedbackAdminPage());
+    expect(container.querySelector('[data-export-sort]')).toBeNull();
   });
 });

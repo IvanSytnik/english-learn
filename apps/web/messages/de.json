@@ -376,7 +376,7 @@
     },
     "feedback": {
       "title": "Beta-Feedback",
-      "subtitle": "{count, plural, =0 {Keine Meldungen} one {# Meldung, neueste zuerst} other {# Meldungen, neueste zuerst}}",
+      "subtitle": "{count, plural, =0 {Keine Meldungen} one {# Meldung} other {# Meldungen}}",
       "empty": "Noch kein Feedback.",
       "columns": {
         "createdAt": "Gesendet",
@@ -386,6 +386,17 @@
         "url": "Seite",
         "item": "Item",
         "concept": "Thema"
+      },
+      "sort": {
+        "label": "Sortierung",
+        "newest": "Neueste zuerst",
+        "oldest": "Älteste zuerst",
+        "page": "Nach Seite"
+      },
+      "export": {
+        "button": "CSV exportieren",
+        "downloading": "Wird vorbereitet…",
+        "error": "Export fehlgeschlagen. Versuch es noch einmal."
       }
     }
   },

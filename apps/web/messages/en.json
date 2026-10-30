@@ -376,7 +376,7 @@
     },
     "feedback": {
       "title": "Beta feedback",
-      "subtitle": "{count, plural, =0 {No reports} one {# report, newest first} other {# reports, newest first}}",
+      "subtitle": "{count, plural, =0 {No reports} one {# report} other {# reports}}",
       "empty": "No feedback yet.",
       "columns": {
         "createdAt": "Sent",
@@ -386,6 +386,17 @@
         "url": "Page",
         "item": "Item",
         "concept": "Concept"
+      },
+      "sort": {
+        "label": "Sort",
+        "newest": "Newest first",
+        "oldest": "Oldest first",
+        "page": "By page"
+      },
+      "export": {
+        "button": "Export CSV",
+        "downloading": "Preparing…",
+        "error": "Export failed. Try again."
       }
     }
   },

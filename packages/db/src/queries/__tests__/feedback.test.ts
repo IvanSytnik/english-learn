@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getBetaFeedbacks } from '../feedback';
+import { getBetaFeedbacks, parseBetaFeedbackSort } from '../feedback';
 
 type Db = Parameters<typeof getBetaFeedbacks>[0];
 
@@ -33,5 +33,35 @@ describe('getBetaFeedbacks', () => {
     const { db, findMany } = mockDb();
     await getBetaFeedbacks(db, { limit });
     expect(findMany.mock.calls[0]?.[0].take).toBe(take);
+  });
+});
+
+describe('getBetaFeedbacks sort', () => {
+  it.each([
+    ['newest', [{ createdAt: 'desc' }, { id: 'desc' }]],
+    ['oldest', [{ createdAt: 'asc' }, { id: 'asc' }]],
+    ['page', [{ url: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }]],
+  ] as const)('%s', async (sort, expected) => {
+    const { db, findMany } = mockDb();
+    await getBetaFeedbacks(db, { sort });
+    expect(findMany.mock.calls[0]?.[0].orderBy).toEqual(expected);
+  });
+});
+
+describe('parseBetaFeedbackSort', () => {
+  it.each(['newest', 'oldest', 'page'])('keeps %s', (sort) => {
+    expect(parseBetaFeedbackSort(sort)).toBe(sort);
+  });
+
+  it.each([
+    undefined,
+    null,
+    '',
+    'NEWEST',
+    'url',
+    ['page'],
+    1,
+  ])('falls back to newest for %j', (raw) => {
+    expect(parseBetaFeedbackSort(raw)).toBe('newest');
   });
 });
