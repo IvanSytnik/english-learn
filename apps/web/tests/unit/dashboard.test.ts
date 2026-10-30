@@ -13,6 +13,7 @@ vi.mock('@/lib/diagnostic', () => ({ isDiagnosticDone }));
 vi.mock('@/lib/vocab-overview', () => ({ loadVocabOverview }));
 
 const { dashboardCta, loadStudentDashboard } = await import('@/lib/dashboard');
+const { getConceptTheory } = await import('@englishlearn/learner-model');
 
 const NOW = Date.UTC(2026, 9, 26, 12);
 const DAY = 86_400_000;
@@ -178,6 +179,7 @@ describe('loadStudentDashboard', () => {
         'practicedItemCount',
         'requires',
         'stage',
+        'theory',
         'title',
         'unlocks',
       ].sort(),
@@ -186,6 +188,43 @@ describe('loadStudentDashboard', () => {
     for (const leak of ['pKnown', '0.4321', 'stability', '12.345', 'dueAt']) {
       expect(json).not.toContain(leak);
     }
+  });
+
+  it('a grammar topic carries its theory in the native language, not the URL locale', async () => {
+    findUnique.mockResolvedValue({ assessedLevel: 'B1', nativeLanguage: 'uk' });
+    getConceptProgress.mockResolvedValue({
+      ...progress(),
+      concepts: [
+        {
+          id: 'grammar.past_simple',
+          name: 'Past Simple',
+          title: 'Past Simple',
+          cefrLevel: 'A2',
+          category: 'GRAMMAR',
+          itemCount: 4,
+        },
+        progress().concepts[2],
+      ],
+      prereqEdges: [],
+    });
+    const d = await load();
+    const [grammar, vocab] = d.sections.flatMap((s) => s.concepts);
+    expect(findUnique.mock.calls[0]?.[0].select).toMatchObject({ nativeLanguage: true });
+    expect(grammar?.theory).toEqual(getConceptTheory('grammar.past_simple', 'uk'));
+    expect(vocab?.theory).toBeNull();
+  });
+
+  it('theory language: no native language → URL locale; other → English', async () => {
+    const withGrammar = () => ({
+      ...progress(),
+      concepts: [{ ...progress().concepts[0], id: 'grammar.plurals' }],
+      prereqEdges: [],
+    });
+    getConceptProgress.mockResolvedValue(withGrammar());
+    findUnique.mockResolvedValue({ assessedLevel: 'B1', nativeLanguage: null });
+    expect((await load()).sections[0]?.concepts[0]?.theory?.locale).toBe('ru');
+    findUnique.mockResolvedValue({ assessedLevel: 'B1', nativeLanguage: 'other' });
+    expect((await load()).sections[0]?.concepts[0]?.theory?.locale).toBe('en');
   });
 
   it('a failing progress query still yields the CTA, without a list', async () => {

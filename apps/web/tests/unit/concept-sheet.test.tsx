@@ -1,3 +1,4 @@
+import { getConceptTheory } from '@englishlearn/learner-model';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
@@ -51,6 +52,7 @@ const concept = (over: Partial<DashboardConcept>): DashboardConcept => ({
   lastPracticedAt: '2026-10-20T09:30:00.000Z',
   requires: [],
   unlocks: [],
+  theory: null,
   ...over,
 });
 
@@ -168,5 +170,60 @@ describe('ConceptSheet', () => {
     renderList(sections(concept({})));
     openTopic('Past Simple');
     expect(screen.getByRole('dialog', { name: 'Past Simple' })).toBe(dialog());
+  });
+
+  it('a grammar topic shows its rule: formula, explanation, examples with the rule in bold', () => {
+    const theory = getConceptTheory('grammar.past_simple', 'ru');
+    if (!theory) throw new Error('no theory for grammar.past_simple');
+    renderList(sections(concept({ id: 'grammar.past_simple', theory })));
+    openTopic('Past Simple');
+    const sheet = within(dialog());
+    const section = dialog().querySelector('[data-sheet-theory]') as HTMLElement;
+    expect(within(section).getByRole('heading', { name: 'Правило' })).toBeInTheDocument();
+    expect(sheet.getByText('Схема')).toBeInTheDocument();
+    expect(section.querySelector('[data-theory-formula]')).toHaveTextContent(theory.formula);
+    expect(section.querySelector('[data-theory-formula]')).toHaveAttribute('lang', 'en');
+    const summary = section.querySelector('[data-theory-summary]');
+    expect(summary).toHaveTextContent(theory.summary);
+    expect(summary).toHaveAttribute('lang', 'ru');
+
+    const items = section.querySelectorAll('[data-theory-examples] > li');
+    expect(items).toHaveLength(theory.examples.length);
+    theory.examples.forEach((example, i) => {
+      const li = items[i] as HTMLElement;
+      expect(li).toHaveTextContent(example.en);
+      expect(li).toHaveTextContent(example.translation ?? '');
+      // The rule is marked by weight, not colour alone.
+      const bold = [...li.querySelectorAll('strong')].map((b) => b.textContent);
+      expect(bold).toEqual(example.focus);
+    });
+  });
+
+  it('English: examples without a translation line', () => {
+    const theory = getConceptTheory('grammar.past_simple', 'en');
+    if (!theory) throw new Error('no theory for grammar.past_simple');
+    renderList(sections(concept({ id: 'grammar.past_simple', theory })));
+    openTopic('Past Simple');
+    for (const li of dialog().querySelectorAll('[data-theory-examples] > li')) {
+      expect(li.querySelectorAll('p')).toHaveLength(1);
+    }
+  });
+
+  it('a topic without theory has no rule section', () => {
+    renderList(sections(concept({ theory: null })));
+    openTopic('Past Simple');
+    expect(dialog().querySelector('[data-sheet-theory]')).toBeNull();
+    expect(within(dialog()).queryByText('Правило')).toBeNull();
+  });
+
+  it('shows no model numbers: no probabilities, no FSRS fields', () => {
+    const theory = getConceptTheory('grammar.conditional_2', 'ru');
+    renderList(sections(concept({ id: 'grammar.conditional_2', theory })));
+    openTopic('Past Simple');
+    const html = dialog().innerHTML;
+    for (const leak of ['pKnown', 'stability', 'observationCount', 'dueAt', 'displayStage']) {
+      expect(html).not.toContain(leak);
+    }
+    expect(dialog().textContent).not.toMatch(/\b0[.,]\d+/);
   });
 });

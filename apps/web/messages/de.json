@@ -114,6 +114,11 @@
         "requires": "Setzt voraus: {topics}",
         "unlocks": "Schaltet frei: {topics}"
       },
+      "concept": {
+        "theory": "Die Regel",
+        "formula": "Muster",
+        "examples": "Beispiele"
+      },
       "vocab": {
         "title": "Wortschatz",
         "due": "{count, plural, =0 {Gerade nichts zu wiederholen} one {# Wort zum Wiederholen} other {# Wörter zum Wiederholen}}",

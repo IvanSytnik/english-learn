@@ -8,9 +8,12 @@ import {
   type ConceptCategory,
   type ConceptProgressView,
   type ConceptRef,
+  type ConceptTheoryView,
   type EffectiveStage,
+  getConceptTheory,
 } from '@englishlearn/learner-model';
 import { isDiagnosticDone } from './diagnostic';
+import { contentLocale } from './exercise/view';
 import { type DashboardVocab, toDashboardVocab } from './vocab-card';
 import { loadVocabOverview } from './vocab-overview';
 
@@ -40,6 +43,8 @@ export type DashboardConcept = {
   lastPracticedAt: string | null;
   requires: ConceptRef[];
   unlocks: ConceptRef[];
+  /** Grammar rule reference in the learner's language (contentLocale); null if none. */
+  theory: ConceptTheoryView | null;
 };
 
 export type DashboardCta =
@@ -67,7 +72,8 @@ export function dashboardCta(diagnosticDone: boolean, fadingCount: number): Dash
   return fadingCount > 0 ? { kind: 'review', count: fadingCount } : { kind: 'practice' };
 }
 
-export function toDashboardConcept(v: ConceptProgressView): DashboardConcept {
+/** `theoryLocale`: the language of the theory text — contentLocale(), not the URL locale. */
+export function toDashboardConcept(v: ConceptProgressView, theoryLocale: Locale): DashboardConcept {
   const ref = (r: ConceptRef): ConceptRef => ({ id: r.id, title: r.title });
   return {
     id: v.id,
@@ -84,6 +90,7 @@ export function toDashboardConcept(v: ConceptProgressView): DashboardConcept {
     lastPracticedAt: v.lastPracticedAt === null ? null : new Date(v.lastPracticedAt).toISOString(),
     requires: v.requires.map(ref),
     unlocks: v.unlocks.map(ref),
+    theory: getConceptTheory(v.id, theoryLocale),
   };
 }
 
@@ -96,7 +103,7 @@ export async function loadStudentDashboard(args: {
   const [profile, diagnosticDone, progress, vocab] = await Promise.all([
     prisma.studentProfile.findUnique({
       where: { userId: args.userId },
-      select: { assessedLevel: true },
+      select: { assessedLevel: true, nativeLanguage: true },
     }),
     isDiagnosticDone(args.userId),
     getConceptProgress(prisma, args.userId, args.locale).catch((e: unknown) => {
@@ -129,9 +136,11 @@ export async function loadStudentDashboard(args: {
       })
     : { sections: [], fadingCount: 0 };
 
+  // The theory is help in the learner's language; titles stay on the URL locale.
+  const theoryLocale = contentLocale(profile?.nativeLanguage ?? null, args.locale);
   const sections = board.sections.map((s) => ({
     category: s.category,
-    concepts: s.concepts.map(toDashboardConcept),
+    concepts: s.concepts.map((c) => toDashboardConcept(c, theoryLocale)),
   }));
   const practised = sections.some((s) => s.concepts.some((c) => c.practicedItemCount > 0));
 

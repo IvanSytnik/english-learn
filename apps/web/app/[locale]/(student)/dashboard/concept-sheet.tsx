@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { type MouseEvent, useEffect, useRef } from 'react';
 import { Link } from '@/i18n/navigation';
 import type { DashboardConcept } from '@/lib/dashboard';
+import { ConceptTheory } from '../_components/concept-theory';
 
 type Translate = ReturnType<typeof useTranslations<'student.dashboard'>>;
 type Format = ReturnType<typeof useFormatter>;
@@ -31,7 +32,8 @@ export function lockText(concept: DashboardConcept, t: Translate, format: Format
  * Topic details in a native modal <dialog>: focus trap, Esc and focus
  * return come from the browser. Closed by Esc, the close button or a click
  * on the backdrop. Everything shown is already in the dashboard view — no
- * request on open, and no item content (no questions, no answer keys).
+ * request on open, and no item content (no questions, no answer keys). A
+ * grammar topic also shows its rule reference (B3.2); the dialog scrolls.
  */
 export function ConceptSheet({
   concept,
@@ -67,7 +69,7 @@ export function ConceptSheet({
       aria-labelledby="concept-sheet-title"
       onClose={onClose}
       onClick={onClick}
-      className="m-auto w-[min(32rem,calc(100%-2rem))] rounded-card border border-line bg-surface-2 p-0 text-ink shadow-soft backdrop:bg-surface/80"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100%-2rem))] overflow-y-auto rounded-card border border-line bg-surface-2 p-0 text-ink shadow-soft backdrop:bg-surface/80"
       data-concept-sheet={concept?.id}
     >
       {concept ? (
@@ -103,6 +105,22 @@ export function ConceptSheet({
               />
             )}
           </div>
+
+          {concept.theory ? (
+            <section
+              aria-labelledby="concept-sheet-theory"
+              className="flex flex-col gap-3 border-t border-line pt-4"
+              data-sheet-theory
+            >
+              <h3 id="concept-sheet-theory" className="font-medium text-ink">
+                {t('concept.theory')}
+              </h3>
+              <ConceptTheory
+                theory={concept.theory}
+                labels={{ formula: t('concept.formula'), examples: t('concept.examples') }}
+              />
+            </section>
+          ) : null}
 
           <ul className="flex flex-col gap-1 text-sm text-ink">
             <li data-sheet-items>
