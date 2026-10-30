@@ -9,11 +9,76 @@
     "cancel": "Cancel"
   },
   "marketing": {
+    "meta": {
+      "title": "EnglishLearn — English that adapts to you",
+      "description": "An AI that finds your exact weak spots and trains them — not another one-size-fits-all course. Start with a free diagnostic."
+    },
+    "header": {
+      "sheet": "Assessment sheet"
+    },
     "hero": {
-      "title": "Learn English with AI and real tutors",
-      "subtitle": "Adaptive lessons that focus on your weak spots, plus live tutoring when you need it.",
-      "cta": "Start free diagnostic",
-      "findLevel": "Find your level"
+      "eyebrow": "Adaptive English learning",
+      "title": "English that trains your weak spots, not everyone’s.",
+      "subtitle": "Most courses teach the same lessons to everyone. EnglishLearn starts by finding exactly where you struggle — then builds every session around closing that gap.",
+      "primaryCta": "Take the free diagnostic",
+      "secondaryCta": "See how it works",
+      "note": "~5 minutes. No card required."
+    },
+    "map": {
+      "label": "Example skill map",
+      "caption": "Example",
+      "title": "Skill map",
+      "grammar": "Grammar",
+      "vocabulary": "Vocabulary",
+      "focus": "Focus",
+      "coachNote": "start here",
+      "rows": {
+        "pastSimple": "Past Simple",
+        "presentPerfect": "Present Perfect",
+        "conditionals": "Zero and first conditionals",
+        "travel": "Travel",
+        "dailyLife": "Daily life",
+        "health": "Health and body"
+      },
+      "program": {
+        "title": "Next session",
+        "focus": "Present Perfect: the rule, then practice",
+        "review": "Past Simple: review when it’s due",
+        "words": "Daily life: today’s new words"
+      }
+    },
+    "problem": {
+      "title": "You already know some of this. Why study it again?",
+      "body": "Generic courses waste your time on what you’ve mastered and rush past what you haven’t. The result: hours spent, little moved. EnglishLearn flips it — we measure your level per skill, then spend your time only where it counts.",
+      "typical": {
+        "label": "Typical course",
+        "path": "Same path for everyone",
+        "result": "You relearn what you know"
+      },
+      "ours": {
+        "label": "EnglishLearn",
+        "path": "A path measured to you",
+        "result": "You practice only your gaps"
+      },
+      "difference": {
+        "label": "The difference",
+        "text": "Every minute targets real weakness"
+      }
+    },
+    "values": {
+      "title": "Built around one idea: practice what you actually need.",
+      "gaps": {
+        "title": "AI that finds your gaps",
+        "body": "A short diagnostic maps your English across grammar and vocabulary. From the first session, practice is aimed at your weakest areas — and it keeps recalibrating as you improve."
+      },
+      "adapt": {
+        "title": "Practice that adapts in real time",
+        "body": "Every answer updates what you see next. Struggle with a concept and it comes back sooner; master it and you move on. No fixed syllabus to grind through."
+      },
+      "progress": {
+        "title": "Progress you can actually read",
+        "body": "Every grammar topic carries its CEFR level and moves through plain stages — Emerging, Developing, Solid, Secure — while each word goes from New to Mastered. See what’s improving and what still needs work, never raw scores."
+      }
     }
   },
   "auth": {

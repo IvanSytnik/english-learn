@@ -22,7 +22,7 @@ test('guest → sign-up → diagnostic → the recommended topic is the first ex
 
   // 1. Landing → sign-up, carrying the diagnostic as the callback.
   await page.goto('/ru');
-  await page.getByRole('link', { name: 'Определить уровень' }).click();
+  await page.getByRole('link', { name: 'Пройти бесплатную диагностику' }).click();
   await expect(page).toHaveURL(/\/ru\/register\?callbackUrl=%2Fdiagnostic$/);
   const email = uniqueEmail('golden');
   await page.locator('#name').fill('E2E golden');

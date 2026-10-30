@@ -13,6 +13,8 @@ export const buttonVariants = cva(
         ghost: 'text-ink-muted underline underline-offset-4 hover:bg-surface-2 hover:text-ink',
         // No danger token: form errors and destructive actions share the "incorrect" colour.
         danger: 'bg-feedback-incorrect text-on-accent hover:bg-feedback-incorrect/90',
+        // Landing CTA: the weak-spot flag colour carries through to the action (docs/DESIGN.md).
+        flag: 'bg-flag text-on-flag hover:bg-flag/90',
       },
       size: {
         sm: 'h-8 px-3 text-sm',

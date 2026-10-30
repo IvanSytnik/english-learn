@@ -236,3 +236,60 @@ describe('vocabulary player (student.words.player)', () => {
     }
   });
 });
+
+describe('landing copy (marketing)', () => {
+  // Same in every locale: English grammar terms and the product name.
+  const SAME_AS_EN = new Set([
+    'map.rows.pastSimple',
+    'map.rows.presentPerfect',
+    'problem.ours.label',
+  ]);
+  const marketing = (locale: keyof typeof MESSAGES) =>
+    (MESSAGES[locale] as { marketing: Record<string, unknown> }).marketing;
+  const entries = (locale: keyof typeof MESSAGES) =>
+    keys(marketing(locale)).map((key) => [key, String(lookup(marketing(locale), key))] as const);
+
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: never promises listening — the product measures grammar and vocabulary', (locale) => {
+    for (const [key, text] of entries(locale)) {
+      expect(text, key).not.toMatch(/listen|аудир|аудіюв|слуха|слух|hörverst|zuhör/i);
+    }
+  });
+
+  it.each(
+    Object.keys(MESSAGES) as (keyof typeof MESSAGES)[],
+  )('%s: tutoring is never offered, and no straight double quotes', (locale) => {
+    for (const [key, text] of entries(locale)) {
+      expect(text, key).not.toMatch(/tutor|репетитор|Lehrer|Nachhilfe/i);
+      expect(text, key).not.toContain('"');
+    }
+  });
+
+  it.each(['ru', 'uk', 'de'] as const)('%s: translated, not left in English', (locale) => {
+    for (const [key, text] of entries(locale)) {
+      if (!SAME_AS_EN.has(key)) expect(text, key).not.toBe(lookup(marketing('en'), key));
+    }
+  });
+
+  it.each([
+    ['ru', /(^|[^\p{L}])(ты|тебя|тебе|тобой|твой|твоя|твоё|твое|твои|твоих|твоего)(?![\p{L}])/iu],
+    ['uk', /(^|[^\p{L}])(ти|тебе|тобі|тобою|твій|твоя|твоє|твої|твоїх|твого)(?![\p{L}])/iu],
+  ] as const)('%s: formal address, «…» quotes only', (locale, informal) => {
+    for (const [key, text] of entries(locale)) {
+      expect(text, key).not.toMatch(informal);
+      expect(text, key).not.toMatch(/[„“]/);
+    }
+  });
+
+  it('uk: the apostrophe inside words is U+2019', () => {
+    for (const [key, text] of entries('uk')) expect(text, key).not.toMatch(/\p{L}'\p{L}/u);
+  });
+
+  it('de: "du", „…“ quotes only', () => {
+    for (const [key, text] of entries('de')) {
+      expect(text, key).not.toMatch(/\b(Sie|Ihre?[mnrs]?|Ihnen)\b/);
+      expect(text, key).not.toMatch(/[«»]/);
+    }
+  });
+});

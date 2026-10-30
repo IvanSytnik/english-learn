@@ -2,3 +2,39 @@
 @import "../../../packages/ui/src/tokens.css";
 @source "../../../packages/ui/src";
 
+
+/*
+ * Landing "Coach's chart" (docs/DESIGN.md). The grid is decorative: text sits on
+ * rows with a solid background so axe measures a real colour, not the gradient.
+ * The pulse stops after 3 rounds (< 5 s, WCAG 2.2.2); reduced motion zeroes both.
+ */
+@utility chart-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@theme {
+  --animate-stamp: stamp 200ms var(--ease-standard) 300ms both;
+  --animate-flag-pulse: flag-pulse 1.5s ease-in-out 600ms 3;
+
+  @keyframes stamp {
+    from {
+      transform: scale(1.4) rotate(-8deg);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  @keyframes flag-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+}

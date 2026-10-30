@@ -9,11 +9,76 @@
     "cancel": "Abbrechen"
   },
   "marketing": {
+    "meta": {
+      "title": "EnglishLearn — Englisch, das sich dir anpasst",
+      "description": "Eine KI findet genau deine Schwachstellen und trainiert sie – statt eines weiteren Kurses „für alle“. Starte mit der kostenlosen Einstufung."
+    },
+    "header": {
+      "sheet": "Einstufungsbogen"
+    },
     "hero": {
-      "title": "Englisch lernen mit KI und echten Lehrern",
-      "subtitle": "Adaptive Übungen, die genau deine Schwachstellen trainieren.",
-      "cta": "Diagnose starten",
-      "findLevel": "Niveau bestimmen"
+      "eyebrow": "Adaptives Englischlernen",
+      "title": "Englisch, das deine Schwachstellen trainiert – nicht die von allen.",
+      "subtitle": "Die meisten Kurse geben allen dieselben Lektionen. EnglishLearn findet zuerst heraus, wo genau du Schwierigkeiten hast – und baut jede Einheit darum, diese Lücke zu schließen.",
+      "primaryCta": "Kostenlose Einstufung starten",
+      "secondaryCta": "So funktioniert es",
+      "note": "Etwa 5 Minuten. Keine Kreditkarte nötig."
+    },
+    "map": {
+      "label": "Beispiel einer Kompetenzkarte",
+      "caption": "Beispiel",
+      "title": "Kompetenzkarte",
+      "grammar": "Grammatik",
+      "vocabulary": "Wortschatz",
+      "focus": "Fokus",
+      "coachNote": "hier anfangen",
+      "rows": {
+        "pastSimple": "Past Simple",
+        "presentPerfect": "Present Perfect",
+        "conditionals": "Bedingungssätze Typ 0 und 1",
+        "travel": "Reisen",
+        "dailyLife": "Alltag",
+        "health": "Gesundheit und Körper"
+      },
+      "program": {
+        "title": "Nächste Einheit",
+        "focus": "Present Perfect: erst die Regel, dann üben",
+        "review": "Past Simple: Wiederholung, wenn sie fällig ist",
+        "words": "Alltag: neue Wörter für heute"
+      }
+    },
+    "problem": {
+      "title": "Manches davon kannst du schon. Warum es noch einmal lernen?",
+      "body": "Übliche Kurse verschwenden deine Zeit mit dem, was du schon beherrschst, und hetzen über das, was du noch nicht kannst. Das Ergebnis: viele Stunden, wenig Fortschritt. EnglishLearn dreht das um – wir messen dein Niveau pro Fertigkeit und setzen deine Zeit nur dort ein, wo es zählt.",
+      "typical": {
+        "label": "Üblicher Kurs",
+        "path": "Derselbe Weg für alle",
+        "result": "Du lernst neu, was du schon kannst"
+      },
+      "ours": {
+        "label": "EnglishLearn",
+        "path": "Ein Weg, auf dich zugeschnitten",
+        "result": "Du übst nur deine Lücken"
+      },
+      "difference": {
+        "label": "Der Unterschied",
+        "text": "Jede Minute zielt auf eine echte Schwäche"
+      }
+    },
+    "values": {
+      "title": "Gebaut um eine Idee: üben, was du wirklich brauchst.",
+      "gaps": {
+        "title": "KI, die deine Lücken findet",
+        "body": "Eine kurze Einstufung erfasst dein Englisch in Grammatik und Wortschatz. Ab der ersten Einheit zielt das Üben auf deine schwächsten Bereiche – und stellt sich laufend neu ein, während du besser wirst."
+      },
+      "adapt": {
+        "title": "Üben, das sich in Echtzeit anpasst",
+        "body": "Jede Antwort verändert, was du als Nächstes siehst. Fällt dir ein Thema schwer, kommt es früher wieder; beherrschst du es, geht es weiter. Kein fester Lehrplan zum Abarbeiten."
+      },
+      "progress": {
+        "title": "Fortschritt, den du wirklich lesen kannst",
+        "body": "Jedes Grammatikthema hat sein GER-Niveau und durchläuft klare Stufen – „Erste Schritte“, „Im Aufbau“, „Sicher“, „Gefestigt“ –, und jedes Wort geht den Weg von „Neu“ bis „Sicher“. Du siehst, was besser wird und woran du noch arbeiten musst – ohne rohe Punktzahlen."
+      }
     }
   },
   "auth": {

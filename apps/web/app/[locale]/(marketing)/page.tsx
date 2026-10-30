@@ -1,27 +1,25 @@
-import { Button } from '@englishlearn/ui';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import { LandingHeader } from './_components/landing-header';
+import { LandingHero } from './_components/landing-hero';
+import { ProblemShift } from './_components/problem-shift';
+import { ValueProps } from './_components/value-props';
 
-export default async function MarketingPage() {
-  const t = await getTranslations('marketing.hero');
-  const tc = await getTranslations('common');
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('marketing.meta');
+  return { title: t('title'), description: t('description') };
+}
 
+/** The landing page: "Coach's chart" (docs/DESIGN.md). */
+export default function MarketingPage() {
   return (
-    <main className="mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-6xl">{t('title')}</h1>
-      <p className="mt-6 text-lg text-ink-muted">{t('subtitle')}</p>
-      <div className="mt-10 flex gap-4">
-        {/* Sign-up goes straight on to the diagnostic. The callback has no locale
-            prefix, so it resolves to the register page's locale (en unprefixed). */}
-        <Link href={{ pathname: '/register', query: { callbackUrl: '/diagnostic' } }}>
-          <Button size="lg">{t('findLevel')}</Button>
-        </Link>
-        <Link href="/login">
-          <Button size="lg" variant="ghost">
-            {tc('signIn')}
-          </Button>
-        </Link>
-      </div>
-    </main>
+    <>
+      <LandingHeader />
+      <main className="flex-1">
+        <LandingHero />
+        <ProblemShift />
+        <ValueProps />
+      </main>
+    </>
   );
 }

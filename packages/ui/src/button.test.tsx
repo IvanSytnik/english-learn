@@ -17,6 +17,13 @@ describe('Button', () => {
     expect(btn.className).not.toBe(cn(buttonVariants({ variant: 'primary' })));
   });
 
+  it('flag variant uses the flag fill and its on-flag text', () => {
+    render(<Button variant="flag">Start</Button>);
+    expect(screen.getByRole('button').className).toBe(cn(buttonVariants({ variant: 'flag' })));
+    expect(buttonVariants({ variant: 'flag' })).toMatch(/(^| )bg-flag( |$)/);
+    expect(buttonVariants({ variant: 'flag' })).toMatch(/(^| )text-on-flag( |$)/);
+  });
+
   it('respects disabled state', () => {
     render(<Button disabled>Off</Button>);
     expect(screen.getByRole('button')).toBeDisabled();
