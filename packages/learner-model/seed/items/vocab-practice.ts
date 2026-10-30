@@ -117,9 +117,10 @@ export const VOCAB_PRACTICE: Readonly<Record<string, Practice>> = {
     ['come up', 'take up', 'put up', 'run out'],
     2,
   ),
+  // No "turned over": "turn an offer over" means think it over.
   'item.vocab.phrasal_verbs_b2.turn_down': choice(
     'He ___ the job offer because the salary was too low.',
-    ['turned up', 'turned over', 'turned out', 'turned down'],
+    ['turned up', 'turned off', 'turned out', 'turned down'],
     3,
   ),
 
@@ -148,9 +149,10 @@ export const VOCAB_PRACTICE: Readonly<Record<string, Practice>> = {
   ),
 
   // ── vocab.idioms_everyday ──────────────────────────────────────────────────
+  // No "pie": "easy as pie" means the same.
   'item.vocab.idioms_everyday.piece_of_cake': choice(
     'The test was a piece of ___ — I finished it in ten minutes.',
-    ['bread', 'cake', 'pie', 'sugar'],
+    ['bread', 'cake', 'cheese', 'sugar'],
     1,
   ),
   'item.vocab.idioms_everyday.under_the_weather': choice(
@@ -158,10 +160,11 @@ export const VOCAB_PRACTICE: Readonly<Record<string, Practice>> = {
     ['rain', 'sky', 'weather', 'cloud'],
     2,
   ),
-  // "melt" is the Russian calque ("растопить лёд"); the English idiom is break.
+  // "melt" is the Russian calque ("melt the ice"); the English idiom is break.
+  // No "crack" (a literal near-synonym) and no "cut" ("cut no ice" exists).
   'item.vocab.idioms_everyday.break_the_ice': choice(
     'He told a funny story to ___ the ice at the start of the meeting.',
-    ['melt', 'crack', 'cut', 'break'],
+    ['melt', 'warm', 'clear', 'break'],
     3,
   ),
   'item.vocab.idioms_everyday.once_in_a_blue_moon': choice(
