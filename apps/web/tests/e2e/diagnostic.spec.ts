@@ -235,6 +235,10 @@ for (const colorScheme of ['light', 'dark'] as const) {
     await registerFreshLearner(page, 'diag');
     await start(page);
     await page.keyboard.press('1'); // a selected option too
+    // Axe must not catch the submit mid-way out of `disabled:opacity-50`.
+    const submit = page.getByRole('button', { name: /^Ответить/ });
+    await expect(submit).toBeEnabled();
+    await expect(submit).toHaveCSS('opacity', '1');
     const { violations } = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
     const report = violations.flatMap((v) =>
       v.nodes.map((node) => `${node.target.join(' ')}: ${node.failureSummary ?? v.help}`),

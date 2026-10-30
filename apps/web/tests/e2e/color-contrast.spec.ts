@@ -22,7 +22,15 @@ for (const colorScheme of ['dark', 'light'] as const) {
 
     // The landing (ru and de copy) animates its flag: reduced motion before goto,
     // so axe never measures mid-way.
-    for (const path of ['/ru', '/de', '/ru/login', '/ru/register']) {
+    for (const path of [
+      '/ru',
+      '/de',
+      '/ru/login',
+      '/ru/register',
+      '/ru/impressum',
+      '/ru/datenschutz',
+      '/ru/credits',
+    ]) {
       test(`${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
         await page.goto(path);

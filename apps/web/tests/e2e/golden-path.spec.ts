@@ -66,4 +66,14 @@ test('guest → sign-up → diagnostic → the recommended topic is the first ex
   const attempted = attempt.payload as { conceptId: string; dontKnow?: true };
   expect(attempted.dontKnow).toBe(true);
   expect(await conceptTitle(attempted.conceptId, 'ru')).toBe(startTitle);
+
+  // 7. The dashboard reads the new state: practice instead of the diagnostic,
+  // the week appears, and the topic practised is no longer "not started".
+  await page.goto('/ru/dashboard');
+  await expect(page.getByRole('link', { name: 'Продолжить практику' })).toBeVisible();
+  await expect(page.locator('main a[href="/ru/diagnostic"]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Эта неделя' })).toBeVisible();
+  const topic = page.locator(`main button[data-concept="${attempted.conceptId}"]`);
+  await expect(topic).toContainText(startTitle);
+  await expect(topic.locator('[data-stage]')).not.toHaveAttribute('data-stage', 'NOT_STARTED');
 });
