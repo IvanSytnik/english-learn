@@ -10,6 +10,8 @@ export const ARTICLES_BASIC = grammarItems('grammar.articles_basic', [
     explanation: {
       en: 'Use a/an when mentioning a singular countable noun for the first time.',
       ru: 'Используйте a/an при первом упоминании исчисляемого существительного в единственном числе.',
+      uk: 'Вживайте a/an, коли вперше згадуєте обчислюваний іменник в однині.',
+      de: 'Nimm a/an, wenn du ein zählbares Nomen im Singular zum ersten Mal erwähnst.',
     },
     practice: choice(
       'Guess what? I saw ___ funny dog in the park this morning.',
@@ -25,6 +27,8 @@ export const ARTICLES_BASIC = grammarItems('grammar.articles_basic', [
     explanation: {
       en: 'Use the when both speaker and listener know which thing is meant.',
       ru: 'Используйте the, когда и говорящий, и слушающий знают, о чём речь.',
+      uk: 'Вживайте the, коли і мовець, і слухач знають, про що йдеться.',
+      de: 'Nimm the, wenn Sprecher und Zuhörer beide wissen, was gemeint ist.',
     },
     practice: choice('I saw a dog in the park. ___ dog was very friendly.', ['A', 'An', 'The'], 2),
   },
@@ -37,6 +41,8 @@ export const ARTICLES_BASIC = grammarItems('grammar.articles_basic', [
     explanation: {
       en: 'Choose an before a vowel sound, not a vowel letter.',
       ru: 'Выбирайте an перед гласным ЗВУКОМ, а не буквой.',
+      uk: 'Обирайте an перед голосним ЗВУКОМ, а не літерою.',
+      de: 'Nimm an vor einem Vokal-LAUT, nicht vor einem Vokalbuchstaben.',
     },
     practice: choice('It takes ___ hour to get there by bus.', ['an', 'a'], 0),
   },
@@ -48,6 +54,8 @@ export const ARTICLES_BASIC = grammarItems('grammar.articles_basic', [
     explanation: {
       en: 'No article with plurals and uncountables in a general sense.',
       ru: 'Без артикля с множественным числом и неисчисляемыми в общем значении.',
+      uk: 'Без артикля з множиною та необчислюваними іменниками в загальному значенні.',
+      de: 'Kein Artikel bei Plural und unzählbaren Nomen in allgemeiner Bedeutung.',
     },
     practice: choice('In general, ___ dogs are loyal animals.', ['the', '—', 'a'], 1),
   },

@@ -10,7 +10,8 @@
 import type { Practice } from '@englishlearn/db/schemas';
 import type { SeedItem } from '../types';
 
-type Localized = { en: string; ru?: string; uk?: string; de?: string };
+/** Every learner-facing text ships in all four content languages. */
+type Localized = { en: string; ru: string; uk: string; de: string };
 
 export type GrammarSeed = {
   slug: string;

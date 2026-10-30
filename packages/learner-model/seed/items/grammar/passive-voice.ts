@@ -10,6 +10,8 @@ export const PASSIVE_VOICE = grammarItems('grammar.passive_voice', [
     explanation: {
       en: 'Present Simple passive: is/are + past participle when the action matters more than who does it.',
       ru: 'Пассив в Present Simple: is/are + третья форма, когда важно действие, а не исполнитель.',
+      uk: 'Пасив у Present Simple: is/are + V3, коли важлива дія, а не виконавець.',
+      de: 'Passiv im Present Simple: is/are + V3, wenn die Handlung wichtiger ist als die handelnde Person.',
     },
     practice: choice('These cars ___ in Germany.', ['are made', 'make', 'made', 'are making'], 0),
   },
@@ -21,6 +23,8 @@ export const PASSIVE_VOICE = grammarItems('grammar.passive_voice', [
     explanation: {
       en: 'Past Simple passive: was/were + past participle.',
       ru: 'Пассив в Past Simple: was/were + третья форма.',
+      uk: 'Пасив у Past Simple: was/were + V3.',
+      de: 'Passiv im Past Simple: was/were + V3.',
     },
     practice: choice(
       'My bike ___ last night, so I walked to work.',
@@ -36,6 +40,8 @@ export const PASSIVE_VOICE = grammarItems('grammar.passive_voice', [
     explanation: {
       en: 'By introduces who did the action.',
       ru: 'By вводит того, кто совершил действие.',
+      uk: 'By вводить того, хто виконав дію.',
+      de: 'By nennt, wer die Handlung ausgeführt hat.',
     },
     practice: choice(
       'This song was written ___ my favourite singer.',
@@ -51,6 +57,8 @@ export const PASSIVE_VOICE = grammarItems('grammar.passive_voice', [
     explanation: {
       en: 'After a modal, the passive is be + past participle.',
       ru: 'После модального глагола пассив — be + третья форма.',
+      uk: 'Після модального дієслова пасив — be + V3.',
+      de: 'Nach einem Modalverb ist das Passiv be + V3.',
     },
     practice: choice(
       'Mobile phones must ___ off during the exam.',

@@ -10,6 +10,8 @@ export const CONDITIONAL_3 = grammarItems('grammar.conditional_3', [
     explanation: {
       en: 'Third conditional: an imagined past that did not happen, and its result.',
       ru: 'Третий тип: воображаемое прошлое, которого не было, и его результат.',
+      uk: 'Third conditional: уявне минуле, якого не було, і його результат.',
+      de: 'Third Conditional: eine gedachte Vergangenheit, die nicht passiert ist, und ihr Ergebnis.',
     },
     // No "would help": a mixed conditional (present result) is also right.
     practice: choice(
@@ -26,6 +28,8 @@ export const CONDITIONAL_3 = grammarItems('grammar.conditional_3', [
     explanation: {
       en: 'The if-clause takes the past perfect.',
       ru: 'В придаточном с if — Past Perfect.',
+      uk: 'У підрядному з if — Past Perfect.',
+      de: 'Der if-Satz steht im Past Perfect.',
     },
     practice: cloze('If I ___ about the party, I would have come. (know)', 'had known', "'d known"),
   },
@@ -37,6 +41,8 @@ export const CONDITIONAL_3 = grammarItems('grammar.conditional_3', [
     explanation: {
       en: 'Might/could have + past participle: a possible past result.',
       ru: 'Might/could have + третья форма: возможный результат в прошлом.',
+      uk: 'Might/could have + V3: можливий результат у минулому.',
+      de: 'Might/could have + V3: ein mögliches Ergebnis in der Vergangenheit.',
     },
     // No "might win": a mixed conditional is also right.
     practice: choice(
@@ -53,6 +59,8 @@ export const CONDITIONAL_3 = grammarItems('grammar.conditional_3', [
     explanation: {
       en: "In the if-clause 'd is had, so the past participle follows.",
       ru: "В придаточном 'd = had, поэтому дальше — третья форма.",
+      uk: "У підрядному з if 'd = had, тому далі — V3.",
+      de: "Im if-Satz ist 'd = had, deshalb folgt V3.",
     },
     practice: choice(
       "If you'd ___ me, I'd have lent you the money.",

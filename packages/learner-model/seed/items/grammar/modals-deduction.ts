@@ -10,6 +10,8 @@ export const MODALS_DEDUCTION = grammarItems('grammar.modals_deduction', [
     explanation: {
       en: 'Must: you are almost sure something is true.',
       ru: 'Must: вы почти уверены, что это так.',
+      uk: 'Must: ви майже впевнені, що це так.',
+      de: 'Must: du bist fast sicher, dass es stimmt.',
     },
     practice: choice(
       "You've been walking all day — you ___ be exhausted.",
@@ -25,6 +27,8 @@ export const MODALS_DEDUCTION = grammarItems('grammar.modals_deduction', [
     explanation: {
       en: "Can't: you are sure something is impossible.",
       ru: "Can't: вы уверены, что это невозможно.",
+      uk: "Can't: ви впевнені, що це неможливо.",
+      de: "Can't: du bist sicher, dass es unmöglich ist.",
     },
     practice: choice(
       "That ___ be Tom at the door — he's on holiday in Spain.",
@@ -40,6 +44,8 @@ export const MODALS_DEDUCTION = grammarItems('grammar.modals_deduction', [
     explanation: {
       en: 'Might/could: something is possible, but you are not sure.',
       ru: 'Might/could: возможно, но вы не уверены.',
+      uk: 'Might/could: можливо, але ви не впевнені.',
+      de: 'Might/could: etwas ist möglich, aber du bist dir nicht sicher.',
     },
     practice: choice(
       "Take an umbrella — it ___ rain later, but I'm not sure.",
@@ -55,6 +61,8 @@ export const MODALS_DEDUCTION = grammarItems('grammar.modals_deduction', [
     explanation: {
       en: 'For a deduction about the past, add have + past participle.',
       ru: 'Предположение о прошлом: + have + третья форма.',
+      uk: 'Припущення про минуле: + have + V3.',
+      de: 'Für eine Vermutung über die Vergangenheit: + have + V3.',
     },
     practice: choice(
       'The ground is wet. It must ___ during the night.',

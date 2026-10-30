@@ -29,10 +29,14 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'a plan of what you will do and when; timetable',
           ru: 'расписание, график',
+          uk: 'розклад, графік',
+          de: 'Zeitplan, Terminplan',
         },
         exampleTranslation: {
           en: 'My schedule is very busy this week.',
           ru: 'Моё расписание на этой неделе очень плотное.',
+          uk: 'Мій розклад на цьому тижні дуже щільний.',
+          de: 'Mein Terminplan ist diese Woche sehr voll.',
         },
       },
     },
@@ -49,10 +53,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'I buy groceries every Saturday.',
       },
       localized: {
-        translation: { en: 'food and household items you buy in a shop', ru: 'продукты (покупки)' },
+        translation: {
+          en: 'food and household items you buy in a shop',
+          ru: 'продукты (покупки)',
+          uk: 'продукти (покупки)',
+          de: 'Lebensmittel (Einkäufe)',
+        },
         exampleTranslation: {
           en: 'I buy groceries every Saturday.',
           ru: 'Я покупаю продукты каждую субботу.',
+          uk: 'Я купую продукти щосуботи.',
+          de: 'Ich kaufe jeden Samstag Lebensmittel ein.',
         },
       },
     },
@@ -68,10 +79,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'Whose turn is it to do the dishes?',
       },
       localized: {
-        translation: { en: 'wash the plates and cutlery', ru: 'мыть посуду' },
+        translation: {
+          en: 'wash the plates and cutlery',
+          ru: 'мыть посуду',
+          uk: 'мити посуд',
+          de: 'abwaschen, das Geschirr spülen',
+        },
         usageNote: {
           en: 'do (not make) with housework: do the dishes/laundry/cleaning.',
           ru: 'С домашними делами — do (не make): do the dishes/laundry/cleaning.',
+          uk: 'З хатніми справами — do (не make): do the dishes/laundry/cleaning.',
+          de: 'Bei Hausarbeit steht do (nicht make): do the dishes/laundry/cleaning.',
         },
       },
     },
@@ -90,10 +108,14 @@ export const VOCAB_ITEMS: SeedItem[] = [
         meaning: {
           en: 'a person who wakes up or arrives early',
           ru: 'ранняя пташка; тот, кто рано встаёт',
+          uk: 'рання пташка; той, хто рано встає',
+          de: 'Frühaufsteher; jemand, der früh aufsteht oder früh da ist',
         },
         exampleTranslation: {
           en: "She's an early bird — she's up at 5 every day.",
           ru: 'Она ранняя пташка — встаёт в 5 каждый день.',
+          uk: 'Вона рання пташка — встає о 5 щодня.',
+          de: 'Sie ist eine Frühaufsteherin — sie ist jeden Tag um 5 wach.',
         },
       },
     },
@@ -112,10 +134,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'Please have your boarding pass and passport ready.',
       },
       localized: {
-        translation: { en: 'the card that lets you get on a plane', ru: 'посадочный талон' },
+        translation: {
+          en: 'the card that lets you get on a plane',
+          ru: 'посадочный талон',
+          uk: 'посадковий талон',
+          de: 'Bordkarte',
+        },
         exampleTranslation: {
           en: 'Please have your boarding pass and passport ready.',
           ru: 'Пожалуйста, приготовьте посадочный талон и паспорт.',
+          uk: 'Будь ласка, приготуйте посадковий талон і паспорт.',
+          de: 'Bitte halte deine Bordkarte und deinen Reisepass bereit.',
         },
       },
     },
@@ -132,10 +161,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'How much luggage can I take on board?',
       },
       localized: {
-        translation: { en: 'bags and suitcases (uncountable)', ru: 'багаж' },
+        translation: {
+          en: 'bags and suitcases (uncountable)',
+          ru: 'багаж',
+          uk: 'багаж (валізи й сумки)',
+          de: 'Gepäck',
+        },
         definition: {
           en: "Uncountable: a piece of luggage, not 'a luggage' or 'luggages'.",
           ru: "Неисчисляемое: a piece of luggage, а не 'a luggage' или 'luggages'.",
+          uk: 'Необчислюване: a piece of luggage, а не «a luggage» чи «luggages».',
+          de: 'Unzählbar: a piece of luggage, nicht „a luggage“ oder „luggages“.',
         },
       },
     },
@@ -154,10 +190,14 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'register at a hotel/airport',
           ru: 'зарегистрироваться (в отеле/на рейс)',
+          uk: 'зареєструватися (у готелі / на рейс)',
+          de: 'einchecken (im Hotel / am Flughafen)',
         },
         usageNote: {
           en: 'Opposite at hotels: check out.',
           ru: 'Противоположное в отеле: check out (выписаться).',
+          uk: 'Протилежне в готелі: check out (виписатися).',
+          de: 'Das Gegenteil im Hotel: check out (auschecken).',
         },
       },
     },
@@ -176,6 +216,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         meaning: {
           en: 'far from popular tourist routes',
           ru: 'вдали от туристических маршрутов; в глуши',
+          uk: 'далеко від туристичних маршрутів; у глушині',
+          de: 'abseits der Touristenpfade; abgelegen',
         },
       },
     },
@@ -193,7 +235,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'I usually get up at seven.',
       },
       localized: {
-        translation: { en: 'rise from bed', ru: 'вставать (с постели)' },
+        translation: {
+          en: 'rise from bed',
+          ru: 'вставать (с постели)',
+          uk: 'вставати (з ліжка)',
+          de: 'aufstehen',
+        },
       },
     },
   },
@@ -211,10 +258,14 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'switch a device on/off',
           ru: 'включать / выключать',
+          uk: 'вмикати / вимикати',
+          de: 'einschalten / ausschalten',
         },
         usageNote: {
           en: 'Separable: turn it on (not: turn on it).',
           ru: 'Разделяемый: turn it on (не turn on it).',
+          uk: 'Роздільне: turn it on (не turn on it).',
+          de: 'Trennbar: turn it on (nicht turn on it).',
         },
       },
     },
@@ -230,10 +281,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: "I'm looking for my keys.",
       },
       localized: {
-        translation: { en: 'try to find', ru: 'искать' },
+        translation: { en: 'try to find', ru: 'искать', uk: 'шукати', de: 'suchen' },
         usageNote: {
           en: 'Compare: look for (search) vs find out (discover information).',
           ru: 'Сравните: look for (искать) и find out (узнавать информацию).',
+          uk: 'Порівняйте: look for (шукати) і find out (дізнаватися інформацію).',
+          de: 'Vergleiche: look for (suchen) und find out (etwas herausfinden).',
         },
       },
     },
@@ -252,6 +305,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'stop trying; quit a habit',
           ru: 'сдаваться; бросать (привычку)',
+          uk: 'здаватися; кидати (звичку)',
+          de: 'aufgeben; mit etwas aufhören',
         },
       },
     },
@@ -269,10 +324,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'She has applied for a job at the library.',
       },
       localized: {
-        translation: { en: 'formally ask to be given a job', ru: 'подать заявку на работу' },
+        translation: {
+          en: 'formally ask to be given a job',
+          ru: 'подать заявку на работу',
+          uk: 'подати заявку на роботу',
+          de: 'sich um eine Stelle bewerben',
+        },
         usageNote: {
           en: 'apply FOR a job or visa, apply TO a company.',
           ru: 'apply FOR — на должность или визу, apply TO — в компанию.',
+          uk: 'apply FOR — на посаду чи візу, apply TO — до компанії.',
+          de: 'apply FOR — für eine Stelle oder ein Visum, apply TO — bei einer Firma.',
         },
       },
     },
@@ -292,6 +354,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'the latest time by which something must be done',
           ru: 'крайний срок, дедлайн',
+          uk: 'крайній термін, дедлайн',
+          de: 'Frist, letzter Termin',
         },
       },
     },
@@ -308,7 +372,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: "I'm meeting a colleague for lunch.",
       },
       localized: {
-        translation: { en: 'a person you work with', ru: 'коллега' },
+        translation: {
+          en: 'a person you work with',
+          ru: 'коллега',
+          uk: 'колега',
+          de: 'Kollege / Kollegin',
+        },
       },
     },
   },
@@ -323,10 +392,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'We take exams in June.',
       },
       localized: {
-        translation: { en: 'do an exam', ru: 'сдавать экзамен (проходить его)' },
+        translation: {
+          en: 'do an exam',
+          ru: 'сдавать экзамен (проходить его)',
+          uk: 'складати іспит (проходити його)',
+          de: 'eine Prüfung ablegen (schreiben)',
+        },
         usageNote: {
           en: 'take (or sit) an exam; pass = succeed; never "make an exam".',
           ru: 'take (или sit) an exam; pass — успешно сдать; «make an exam» — ошибка.',
+          uk: 'take (або sit) an exam; pass — успішно скласти; «make an exam» — помилка.',
+          de: 'take (oder sit) an exam; pass = bestehen; „make an exam“ ist falsch.',
         },
       },
     },
@@ -347,10 +423,14 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'use all of something so that none is left',
           ru: 'закончиться (о запасах)',
+          uk: 'закінчитися (про запаси)',
+          de: 'ausgehen (Vorräte), nichts mehr übrig haben',
         },
         usageNote: {
           en: 'run out OF something: We have run out of milk.',
           ru: 'run out OF + то, что закончилось: We have run out of milk.',
+          uk: 'run out OF + те, що закінчилося: We have run out of milk.',
+          de: 'run out OF + das, was ausgeht: We have run out of milk.',
         },
       },
     },
@@ -366,7 +446,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'She came up with a plan.',
       },
       localized: {
-        translation: { en: 'think of an idea or plan', ru: 'придумать (идею, план)' },
+        translation: {
+          en: 'think of an idea or plan',
+          ru: 'придумать (идею, план)',
+          uk: 'вигадати (ідею, план)',
+          de: 'sich ausdenken (eine Idee, einen Plan)',
+        },
       },
     },
   },
@@ -384,6 +469,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'accept something unpleasant without complaining',
           ru: 'терпеть, мириться с',
+          uk: 'терпіти, миритися з',
+          de: 'ertragen, sich abfinden mit',
         },
       },
     },
@@ -399,7 +486,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'He turned down the offer.',
       },
       localized: {
-        translation: { en: 'refuse an offer or request', ru: 'отклонить, отказаться от' },
+        translation: {
+          en: 'refuse an offer or request',
+          ru: 'отклонить, отказаться от',
+          uk: 'відхилити, відмовитися від',
+          de: 'ablehnen (ein Angebot, eine Bitte)',
+        },
       },
     },
   },
@@ -416,7 +508,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'Pay attention to the road.',
       },
       localized: {
-        translation: { en: 'listen or watch carefully', ru: 'обращать внимание' },
+        translation: {
+          en: 'listen or watch carefully',
+          ru: 'обращать внимание',
+          uk: 'звертати увагу',
+          de: 'aufpassen, Aufmerksamkeit schenken',
+        },
       },
     },
   },
@@ -431,7 +528,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: "She's making good progress.",
       },
       localized: {
-        translation: { en: 'get better at something', ru: 'делать успехи' },
+        translation: {
+          en: 'get better at something',
+          ru: 'делать успехи',
+          uk: 'робити успіхи',
+          de: 'Fortschritte machen',
+        },
       },
     },
   },
@@ -446,10 +548,17 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'He always keeps his promises.',
       },
       localized: {
-        translation: { en: 'do what you promised', ru: 'сдержать обещание' },
+        translation: {
+          en: 'do what you promised',
+          ru: 'сдержать обещание',
+          uk: 'дотримати обіцянки',
+          de: 'ein Versprechen halten',
+        },
         usageNote: {
           en: 'keep (not hold) a promise.',
           ru: 'keep, а не hold (калька с нем. «halten»).',
+          uk: 'keep, а не hold (калька з нім. «halten»).',
+          de: 'keep, nicht hold — Vorsicht, Falle: Auf Deutsch sagt man „ein Versprechen halten“.',
         },
       },
     },
@@ -468,6 +577,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         translation: {
           en: 'accept that something is your duty or your fault',
           ru: 'брать на себя ответственность',
+          uk: 'брати на себе відповідальність',
+          de: 'Verantwortung übernehmen',
         },
       },
     },
@@ -485,7 +596,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'The exam was a piece of cake.',
       },
       localized: {
-        meaning: { en: 'very easy', ru: 'проще простого' },
+        meaning: {
+          en: 'very easy',
+          ru: 'проще простого',
+          uk: 'простіше простого',
+          de: 'kinderleicht',
+        },
       },
     },
   },
@@ -500,7 +616,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: "I'm a bit under the weather.",
       },
       localized: {
-        meaning: { en: 'slightly ill', ru: 'неважно себя чувствовать' },
+        meaning: {
+          en: 'slightly ill',
+          ru: 'неважно себя чувствовать',
+          uk: 'почуватися не дуже добре',
+          de: 'sich nicht ganz wohl fühlen, leicht krank',
+        },
       },
     },
   },
@@ -518,6 +639,8 @@ export const VOCAB_ITEMS: SeedItem[] = [
         meaning: {
           en: 'make people relax at the start of a meeting or party',
           ru: 'разрядить обстановку, «растопить лёд»',
+          uk: 'розрядити атмосферу, «розтопити лід»',
+          de: 'die Stimmung auflockern',
         },
       },
     },
@@ -533,7 +656,12 @@ export const VOCAB_ITEMS: SeedItem[] = [
         exampleSentence: 'He calls once in a blue moon.',
       },
       localized: {
-        meaning: { en: 'very rarely', ru: 'раз в сто лет, очень редко' },
+        meaning: {
+          en: 'very rarely',
+          ru: 'раз в сто лет, очень редко',
+          uk: 'раз на сто років, дуже рідко',
+          de: 'alle Jubeljahre, sehr selten',
+        },
       },
     },
   },

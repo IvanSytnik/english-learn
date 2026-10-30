@@ -10,6 +10,8 @@ export const PREPOSITIONS_TIME_PLACE = grammarItems('grammar.prepositions_time_p
     explanation: {
       en: 'in for longer periods: months, years, seasons, parts of the day.',
       ru: 'in для длительных периодов: месяцы, годы, сезоны, части дня.',
+      uk: 'in — для тривалих періодів: місяці, роки, пори року, частини доби.',
+      de: 'in für längere Zeiträume: Monate, Jahre, Jahreszeiten, Tageszeiten.',
     },
     practice: choice('My birthday is ___ July.', ['on', 'in', 'at'], 1),
   },
@@ -18,7 +20,12 @@ export const PREPOSITIONS_TIME_PLACE = grammarItems('grammar.prepositions_time_p
     level: 'A2',
     pattern: 'on + day/date',
     example: 'on Monday, on 5 May, on my birthday',
-    explanation: { en: 'on for days and dates.', ru: 'on для дней недели и дат.' },
+    explanation: {
+      en: 'on for days and dates.',
+      ru: 'on для дней недели и дат.',
+      uk: 'on — для днів тижня та дат.',
+      de: 'on für Wochentage und Daten.',
+    },
     practice: choice('The meeting is ___ Monday.', ['on', 'at', 'in'], 0),
   },
   {
@@ -29,6 +36,8 @@ export const PREPOSITIONS_TIME_PLACE = grammarItems('grammar.prepositions_time_p
     explanation: {
       en: 'at for precise points in time and fixed expressions (at night).',
       ru: 'at для точного времени и устойчивых выражений (at night).',
+      uk: 'at — для точного часу та сталих виразів (at night).',
+      de: 'at für genaue Zeitpunkte und feste Ausdrücke (at night).',
     },
     practice: choice("The film starts ___ 7 o'clock.", ['in', 'on', 'at'], 2),
   },
@@ -40,6 +49,8 @@ export const PREPOSITIONS_TIME_PLACE = grammarItems('grammar.prepositions_time_p
     explanation: {
       en: 'in = inside a space, on = on a surface, at = at a point/location.',
       ru: 'in = внутри пространства, on = на поверхности, at = в точке/месте.',
+      uk: 'in = всередині простору, on = на поверхні, at = у точці/місці.',
+      de: 'in = innerhalb eines Raums, on = auf einer Fläche, at = an einem Punkt/Ort.',
     },
     practice: choice("I'll wait for you ___ the bus stop.", ['at', 'on', 'in'], 0),
   },

@@ -10,6 +10,8 @@ export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic
     explanation: {
       en: 'Form: have/has + past participle.',
       ru: 'Форма: have/has + причастие прошедшего времени.',
+      uk: 'Форма: have/has + V3.',
+      de: 'Form: have/has + V3.',
     },
     practice: choice(
       'Look — she ___ her homework, so she can go out now.',
@@ -25,6 +27,8 @@ export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic
     explanation: {
       en: 'Life experience without a specific time — ever in questions, never in negatives.',
       ru: 'Жизненный опыт без указания времени — ever в вопросах, never в отрицаниях.',
+      uk: 'Життєвий досвід без вказівки часу — ever у питаннях, never у запереченнях.',
+      de: 'Lebenserfahrung ohne genaue Zeitangabe — ever in Fragen, never in Verneinungen.',
     },
     practice: choice(
       '___ to Japan?',
@@ -40,6 +44,8 @@ export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic
     explanation: {
       en: 'just = very recently; already = sooner than expected; yet = in questions/negatives, at the end.',
       ru: 'just = только что; already = раньше ожидаемого; yet = в вопросах/отрицаниях, в конце.',
+      uk: 'just = щойно; already = раніше, ніж очікували; yet = у питаннях/запереченнях, у кінці.',
+      de: 'just = gerade eben; already = früher als erwartet; yet = in Fragen/Verneinungen, am Satzende.',
     },
     practice: choice('Have you finished your report ___?', ['just', 'ago', 'yet'], 2),
   },
@@ -52,6 +58,8 @@ export const PRESENT_PERFECT_BASIC = grammarItems('grammar.present_perfect_basic
     explanation: {
       en: 'Unfinished states: for + duration, since + starting moment.',
       ru: 'Незавершённые состояния: for + длительность, since + точка отсчёта.',
+      uk: 'Незавершені стани: for + тривалість, since + точка відліку.',
+      de: 'Andauernde Zustände: for + Zeitdauer, since + Startpunkt.',
     },
     practice: choice("I've lived here ___ five years.", ['since', 'for', 'from', 'during'], 1),
   },

@@ -10,6 +10,8 @@ export const PAST_SIMPLE = grammarItems('grammar.past_simple', [
     explanation: {
       en: '-ed spelling: y→ied after consonant; final consonant doubles after short stressed vowel.',
       ru: 'Правописание -ed: y→ied после согласной; удвоение конечной согласной после краткой ударной гласной.',
+      uk: 'Правопис -ed: y→ied після приголосної; подвоєння кінцевого приголосного після короткого наголошеного голосного.',
+      de: 'Schreibung von -ed: y→ied nach Konsonant; Verdopplung des Endkonsonanten nach kurzem betontem Vokal.',
     },
     practice: cloze('Yesterday we ___ football in the park. (play)', 'played'),
   },
@@ -21,6 +23,8 @@ export const PAST_SIMPLE = grammarItems('grammar.past_simple', [
     explanation: {
       en: 'High-frequency irregular past forms must be memorized.',
       ru: 'Частотные неправильные формы прошедшего времени нужно запоминать.',
+      uk: 'Часті неправильні форми минулого часу треба запам’ятати.',
+      de: 'Häufige unregelmäßige Vergangenheitsformen muss man auswendig lernen.',
     },
     practice: choice('Last summer we ___ to Spain.', ['goed', 'gone', 'go', 'went'], 3),
   },
@@ -33,6 +37,8 @@ export const PAST_SIMPLE = grammarItems('grammar.past_simple', [
     explanation: {
       en: "Negatives use didn't + base verb — the past marking moves to did.",
       ru: "Отрицание: didn't + начальная форма — показатель прошедшего переходит в did.",
+      uk: "Заперечення: didn't + початкова форма — ознака минулого часу переходить у did.",
+      de: "Verneinung: didn't + Grundform — die Vergangenheit steckt schon in did.",
     },
     practice: choice("I didn't ___ him yesterday.", ['see', 'saw', 'seen', 'seeing'], 0),
   },
@@ -45,6 +51,8 @@ export const PAST_SIMPLE = grammarItems('grammar.past_simple', [
     explanation: {
       en: 'Questions use did + base verb.',
       ru: 'Вопросы: did + начальная форма глагола.',
+      uk: 'Питання: did + початкова форма дієслова.',
+      de: 'Fragen: did + Grundform des Verbs.',
     },
     practice: choice(
       '___ the report on time?',

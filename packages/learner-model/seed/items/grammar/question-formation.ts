@@ -11,6 +11,8 @@ export const QUESTION_FORMATION = grammarItems('grammar.question_formation', [
     explanation: {
       en: 'Yes/no questions in Present Simple use do/does before the subject; the verb stays base.',
       ru: 'Общие вопросы в Present Simple используют do/does перед подлежащим; глагол в начальной форме.',
+      uk: 'Загальні питання в Present Simple будуються з do/does перед підметом; дієслово в початковій формі.',
+      de: 'Ja/Nein-Fragen im Present Simple bilden sich mit do/does vor dem Subjekt; das Verb bleibt in der Grundform.',
     },
     practice: choice('___ she work here?', ['Do', 'Is', 'Does'], 2),
   },
@@ -22,6 +24,8 @@ export const QUESTION_FORMATION = grammarItems('grammar.question_formation', [
     explanation: {
       en: 'Wh-word first, then auxiliary, then subject, then base verb.',
       ru: 'Сначала вопросительное слово, затем вспомогательный глагол, подлежащее и основа глагола.',
+      uk: 'Спершу питальне слово, потім допоміжне дієслово, підмет і початкова форма дієслова.',
+      de: 'Zuerst das Fragewort, dann das Hilfsverb, das Subjekt und die Grundform des Verbs.',
     },
     practice: choice('Where ___?', ['you live', 'do you live', 'you do live', 'does you live'], 1),
   },
@@ -34,6 +38,8 @@ export const QUESTION_FORMATION = grammarItems('grammar.question_formation', [
     explanation: {
       en: 'With be, invert subject and verb — no do-support.',
       ru: 'С глаголом be — инверсия подлежащего и глагола, без do.',
+      uk: 'З дієсловом be — інверсія підмета й дієслова, без do.',
+      de: 'Bei be: Inversion von Subjekt und Verb, ohne do.',
     },
     practice: choice('___ ready to go?', ['Do you be', 'Be you', 'Is you', 'Are you'], 3),
   },
@@ -46,6 +52,8 @@ export const QUESTION_FORMATION = grammarItems('grammar.question_formation', [
     explanation: {
       en: 'When the wh-word IS the subject, there is no do-support.',
       ru: 'Если вопросительное слово — подлежащее, do не используется.',
+      uk: 'Якщо питальне слово — підмет, do не вживається.',
+      de: 'Wenn das Fragewort das Subjekt ist, steht kein do.',
     },
     practice: choice(
       'Who ___ you last night?',

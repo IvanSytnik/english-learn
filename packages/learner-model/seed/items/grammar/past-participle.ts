@@ -10,6 +10,8 @@ export const PAST_PARTICIPLE = grammarItems('grammar.past_participle', [
     explanation: {
       en: 'For regular verbs the past participle equals the past simple form.',
       ru: 'У правильных глаголов причастие прошедшего времени совпадает с формой Past Simple.',
+      uk: 'У правильних дієслів V3 збігається з формою Past Simple.',
+      de: 'Bei regelmäßigen Verben ist V3 gleich der Form im Past Simple.',
     },
     practice: cloze('I have ___ here since 2020. (work)', 'worked'),
   },
@@ -22,6 +24,8 @@ export const PAST_PARTICIPLE = grammarItems('grammar.past_participle', [
     explanation: {
       en: 'Many irregular verbs have a third form distinct from V2 — learn triples.',
       ru: 'У многих неправильных глаголов третья форма отличается от V2 — учите тройки.',
+      uk: 'У багатьох неправильних дієслів третя форма відрізняється від V2 — вчіть трійки.',
+      de: 'Viele unregelmäßige Verben haben eine dritte Form, die sich von V2 unterscheidet — lerne die drei Formen zusammen.',
     },
     practice: choice('She has ___ home already.', ['went', 'gone', 'go', 'goed'], 1),
   },
@@ -33,6 +37,8 @@ export const PAST_PARTICIPLE = grammarItems('grammar.past_participle', [
     explanation: {
       en: 'Some verbs keep one form across V1/V2/V3.',
       ru: 'Некоторые глаголы сохраняют одну форму во всех трёх позициях.',
+      uk: 'Деякі дієслова мають одну форму для V1/V2/V3.',
+      de: 'Manche Verben haben für V1/V2/V3 nur eine Form.',
     },
     practice: choice(
       'Have you ___ the milk in the fridge?',
@@ -48,6 +54,8 @@ export const PAST_PARTICIPLE = grammarItems('grammar.past_participle', [
     explanation: {
       en: 'V3 follows have in perfect tenses and be in the passive voice.',
       ru: 'V3 следует за have в перфектных временах и за be в пассивном залоге.',
+      uk: 'V3 іде після have у перфектних часах і після be в пасиві.',
+      de: 'V3 folgt auf have in den Perfektzeiten und auf be im Passiv.',
     },
     practice: choice('The house was ___ in 1990.', ['built', 'build', 'builded', 'building'], 0),
   },

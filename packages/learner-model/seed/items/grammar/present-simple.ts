@@ -11,6 +11,8 @@ export const PRESENT_SIMPLE = grammarItems('grammar.present_simple', [
     explanation: {
       en: 'Third-person singular adds -s in affirmative Present Simple.',
       ru: 'Третье лицо единственного числа получает -s в утвердительной форме Present Simple.',
+      uk: 'Третя особа однини отримує -s у стверджувальній формі Present Simple.',
+      de: 'Die dritte Person Singular bekommt im bejahten Present Simple ein -s.',
     },
     practice: cloze('She ___ in a bank. (work)', 'works'),
   },
@@ -23,6 +25,8 @@ export const PRESENT_SIMPLE = grammarItems('grammar.present_simple', [
     explanation: {
       en: "Negatives use don't/doesn't + base verb — the -s moves to does.",
       ru: "Отрицание: don't/doesn't + начальная форма — окончание -s переходит в does.",
+      uk: "Заперечення: don't/doesn't + початкова форма — закінчення -s переходить у does.",
+      de: "Verneinung: don't/doesn't + Grundform — das -s wandert zu does.",
     },
     practice: choice('He ___ smoke.', ["don't", 'not', "doesn't", "isn't"], 2),
   },
@@ -34,6 +38,8 @@ export const PRESENT_SIMPLE = grammarItems('grammar.present_simple', [
     explanation: {
       en: 'Habits and routines; frequency adverbs go before the main verb.',
       ru: 'Привычки и распорядок; наречия частотности стоят перед смысловым глаголом.',
+      uk: 'Звички та розпорядок; прислівники частотності стоять перед смисловим дієсловом.',
+      de: 'Gewohnheiten und Routinen; Häufigkeitsadverbien stehen vor dem Vollverb.',
     },
     practice: choice(
       'I ___ at 7 every morning.',
@@ -49,6 +55,8 @@ export const PRESENT_SIMPLE = grammarItems('grammar.present_simple', [
     explanation: {
       en: 'Fixed schedules (transport, programmes) use Present Simple even for future.',
       ru: 'Расписания (транспорт, программы) используют Present Simple даже для будущего.',
+      uk: 'Розклади (транспорт, програми) вживаються в Present Simple навіть для майбутнього.',
+      de: 'Fahrpläne und Programme stehen auch für die Zukunft im Present Simple.',
     },
     practice: choice(
       'Hurry up! According to the timetable, the train ___ at 9:15.',

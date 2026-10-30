@@ -1,13 +1,49 @@
 import { hasPracticeQuestion } from '@englishlearn/db/queries/practisable';
-import { PRACTICE_GAP, type Practice, safeParseItemContent } from '@englishlearn/db/schemas';
+import {
+  normalizeClozeAnswer,
+  PRACTICE_GAP,
+  type Practice,
+  safeParseItemContent,
+} from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
+import { SEED_CONCEPTS } from '../../seed';
 import { ALL_ITEMS, ITEM_PRACTICE } from '../../seed/items';
+
+type Localized = Partial<Record<'en' | 'ru' | 'uk' | 'de', string>>;
+
+const practiceOf = (content: unknown) => (content as { practice?: Practice }).practice;
+const localizedOf = (content: unknown) =>
+  (content as { localized?: Record<string, Localized | undefined> }).localized ?? {};
+
+/** Correct-option position counts per concept (choice questions only). */
+function positionsByConcept(): Map<string, number[]> {
+  const by = new Map<string, number[]>();
+  for (const item of ALL_ITEMS) {
+    const p = practiceOf(item.content);
+    if (p?.type !== 'choice') continue;
+    by.set(item.conceptId, [...(by.get(item.conceptId) ?? []), p.correctIndex]);
+  }
+  return by;
+}
 
 describe('seed item practice (U2)', () => {
   it('every seed item validates with its kind schema', () => {
     expect(ALL_ITEMS).toHaveLength(176);
     for (const item of ALL_ITEMS) {
       expect(safeParseItemContent(item.kind, item.content).success, item.id).toBe(true);
+    }
+  });
+
+  it('every A2–B1 grammar concept has at least 10 practisable items (B3.1)', () => {
+    const targets = SEED_CONCEPTS.filter(
+      (c) => c.category === 'GRAMMAR' && (c.cefrLevel === 'A2' || c.cefrLevel === 'B1'),
+    );
+    expect(targets).toHaveLength(14);
+    for (const concept of targets) {
+      const n = ALL_ITEMS.filter(
+        (i) => i.conceptId === concept.id && hasPracticeQuestion(i.content),
+      ).length;
+      expect(n, concept.id).toBeGreaterThanOrEqual(10);
     }
   });
 
@@ -45,17 +81,60 @@ describe('seed item practice (U2)', () => {
     }
   });
 
+  it('every cloze prompt ends with a "(base form)" cue', () => {
+    for (const [id, p] of Object.entries(ITEM_PRACTICE)) {
+      if (p.type === 'cloze') expect(p.prompt, id).toMatch(/\([^()]+\)$/);
+    }
+  });
+
+  it('no prompt appears twice in the bank', () => {
+    const seen = new Map<string, string>();
+    for (const [id, p] of Object.entries(ITEM_PRACTICE)) {
+      const key = normalizeClozeAnswer(p.prompt);
+      expect(seen.get(key), `${id} repeats a prompt`).toBeUndefined();
+      seen.set(key, id);
+    }
+  });
+
+  it('no option (or accepted answer) appears twice in one question', () => {
+    for (const [id, p] of Object.entries(ITEM_PRACTICE)) {
+      const values = p.type === 'choice' ? p.options : p.acceptedAnswers;
+      const normalized = values.map(normalizeClozeAnswer);
+      expect(new Set(normalized).size, id).toBe(values.length);
+    }
+  });
+
+  it('every learner-facing text in all four languages, each one really in its language', () => {
+    const cyrillic = /[а-яёіїєґ]/i;
+    for (const item of ALL_ITEMS) {
+      for (const [field, text] of Object.entries(localizedOf(item.content))) {
+        const where = `${item.id} ${field}`;
+        for (const locale of ['en', 'ru', 'uk', 'de'] as const) {
+          expect(text?.[locale]?.trim(), `${where}.${locale}`).toBeTruthy();
+        }
+        // Not a copy of the English, nor of each other (ru ≠ uk).
+        expect(text?.ru, where).toMatch(cyrillic);
+        expect(text?.uk, where).toMatch(cyrillic);
+        expect(text?.de, where).not.toMatch(cyrillic);
+        expect(text?.de, where).not.toBe(text?.en);
+        expect(text?.uk, where).not.toBe(text?.ru);
+        // Typography (DECISIONS 2026-10-27): ’ in Ukrainian words, «…» vs „…“.
+        expect(text?.uk, where).not.toMatch(/[а-яіїєґ]'[а-яіїєґ]/i);
+        expect(text?.de, where).not.toMatch(/[«»]/);
+        expect(`${text?.ru} ${text?.uk}`, where).not.toMatch(/[„“]/);
+      }
+    }
+  });
+
   it('the H hint never contains the answer, in any language (S3)', () => {
     // hintFor() shows `translation` (vocab word, collocation) or `meaning`
     // (idiom) before the learner answers; the headword in it gives the answer away.
     const word = (answer: string) =>
       new RegExp(`(?<!\\p{L})${answer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\p{L})`, 'iu');
     for (const item of ALL_ITEMS) {
-      const { localized = {}, practice } = item.content as {
-        localized?: Record<string, Record<string, string> | undefined>;
-        practice?: Practice;
-      };
+      const practice = practiceOf(item.content);
       if (!practice) continue;
+      const localized = localizedOf(item.content);
       const answers = (
         practice.type === 'choice'
           ? [practice.options[practice.correctIndex]]
@@ -79,5 +158,16 @@ describe('seed item practice (U2)', () => {
     const total = [...counts.values()].reduce((a, b) => a + b, 0);
     for (const n of counts.values()) expect(n / total).toBeLessThan(0.4);
     expect(counts.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('spreads the correct choice within every concept too', () => {
+    // A global spread can hide a per-topic tell ("in this topic it's always B").
+    for (const [conceptId, positions] of positionsByConcept()) {
+      const counts = new Map<number, number>();
+      for (const i of positions) counts.set(i, (counts.get(i) ?? 0) + 1);
+      for (const n of counts.values()) {
+        expect(n / positions.length, conceptId).toBeLessThanOrEqual(0.4);
+      }
+    }
   });
 });

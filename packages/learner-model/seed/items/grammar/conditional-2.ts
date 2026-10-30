@@ -10,6 +10,8 @@ export const CONDITIONAL_2 = grammarItems('grammar.conditional_2', [
     explanation: {
       en: 'Second conditional: an unreal or unlikely situation now or in the future.',
       ru: 'Второй тип: нереальная или маловероятная ситуация сейчас или в будущем.',
+      uk: 'Second conditional: нереальна або малоймовірна ситуація зараз чи в майбутньому.',
+      de: 'Second Conditional: eine unwirkliche oder unwahrscheinliche Situation jetzt oder in der Zukunft.',
     },
     practice: choice(
       "If they ___ closer to the city, they wouldn't need a car — but they live in the country.",
@@ -25,6 +27,8 @@ export const CONDITIONAL_2 = grammarItems('grammar.conditional_2', [
     explanation: {
       en: 'The result clause takes would (or could/might) + base form.',
       ru: 'В главной части — would (или could/might) + первая форма.',
+      uk: 'У головній частині — would (або could/might) + початкова форма.',
+      de: 'Im Hauptsatz steht would (oder could/might) + Grundform.',
     },
     practice: choice(
       'If I won the lottery, I ___ a house by the sea.',
@@ -40,6 +44,8 @@ export const CONDITIONAL_2 = grammarItems('grammar.conditional_2', [
     explanation: {
       en: 'In the second conditional, were is used for every person, as in "If I were you".',
       ru: 'Во втором типе were употребляется со всеми лицами: «If I were you».',
+      uk: 'У second conditional were вживається з усіма особами: «If I were you».',
+      de: 'Im Second Conditional steht were bei allen Personen: „If I were you“.',
     },
     // No "was": "If I was you" is common in speech.
     practice: choice('If I ___ you, I would take the job.', ['am', 'be', 'will be', 'were'], 3),
@@ -53,6 +59,8 @@ export const CONDITIONAL_2 = grammarItems('grammar.conditional_2', [
     explanation: {
       en: 'The if-clause never takes would.',
       ru: 'В придаточном с if would не бывает.',
+      uk: 'У підрядному з if would не буває.',
+      de: 'Im if-Satz steht nie would.',
     },
     practice: cloze('If I ___ her number, I would call her. (know)', 'knew'),
   },

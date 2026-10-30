@@ -10,6 +10,8 @@ export const PRESENT_CONTINUOUS = grammarItems('grammar.present_continuous', [
     explanation: {
       en: 'Form: be (am/is/are) + present participle.',
       ru: 'Форма: be (am/is/are) + причастие настоящего времени.',
+      uk: 'Форма: be (am/is/are) + V-ing.',
+      de: 'Form: be (am/is/are) + V-ing.',
     },
     practice: cloze('Look outside! It ___. (snow)', 'is snowing'),
   },
@@ -21,6 +23,8 @@ export const PRESENT_CONTINUOUS = grammarItems('grammar.present_continuous', [
     explanation: {
       en: 'Happening at or around the moment of speaking; temporary states.',
       ru: 'Действие в момент речи или около него; временные ситуации.',
+      uk: 'Дія в момент мовлення або приблизно в цей час; тимчасові ситуації.',
+      de: 'Etwas passiert gerade oder in dieser Zeit; vorübergehende Situationen.',
     },
     practice: choice(
       'I ___ with friends this week while my flat is being painted.',
@@ -36,6 +40,8 @@ export const PRESENT_CONTINUOUS = grammarItems('grammar.present_continuous', [
     explanation: {
       en: 'Fixed personal arrangements with a set time use Present Continuous.',
       ru: 'Личные договорённости с назначенным временем — Present Continuous.',
+      uk: 'Особисті домовленості з визначеним часом — Present Continuous.',
+      de: 'Feste persönliche Verabredungen mit Termin stehen im Present Continuous.',
     },
     practice: choice(
       "We ___ Anna on Friday — it's in my calendar.",
@@ -52,6 +58,8 @@ export const PRESENT_CONTINUOUS = grammarItems('grammar.present_continuous', [
     explanation: {
       en: 'know, like, want, believe, need describe states, not actions — no continuous.',
       ru: 'know, like, want, believe, need описывают состояния — континуус не используется.',
+      uk: 'know, like, want, believe, need описують стани, а не дії — Continuous не вживається.',
+      de: 'know, like, want, believe, need beschreiben Zustände, keine Handlungen — kein Continuous.',
     },
     practice: choice(
       'I ___ the answer to this question.',

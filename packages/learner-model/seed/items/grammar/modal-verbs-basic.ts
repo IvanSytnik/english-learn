@@ -11,6 +11,8 @@ export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
     explanation: {
       en: 'Present ability and possibility; bare infinitive follows.',
       ru: 'Способность и возможность в настоящем; далее — инфинитив без to.',
+      uk: 'Здатність і можливість у теперішньому; далі — інфінітив без to.',
+      de: 'Fähigkeit und Möglichkeit in der Gegenwart; danach folgt der Infinitiv ohne to.',
     },
     practice: choice('She ___ swim very well.', ['cans', 'can to', 'is can', 'can'], 3),
   },
@@ -22,6 +24,8 @@ export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
     explanation: {
       en: 'Past ability and polite requests.',
       ru: 'Способность в прошлом и вежливые просьбы.',
+      uk: 'Здатність у минулому та ввічливі прохання.',
+      de: 'Fähigkeit in der Vergangenheit und höfliche Bitten.',
     },
     practice: choice(
       'When I was five, I ___ already read.',
@@ -34,7 +38,12 @@ export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
     level: 'A2',
     pattern: "should/shouldn't + V1 (advice)",
     example: 'You should see a doctor.',
-    explanation: { en: 'Advice and recommendations.', ru: 'Советы и рекомендации.' },
+    explanation: {
+      en: 'Advice and recommendations.',
+      ru: 'Советы и рекомендации.',
+      uk: 'Поради та рекомендації.',
+      de: 'Ratschläge und Empfehlungen.',
+    },
     practice: choice(
       'You look ill. You ___ see a doctor.',
       ['should to', 'should', 'shoulds', 'must to'],
@@ -49,10 +58,14 @@ export const MODAL_VERBS_BASIC = grammarItems('grammar.modal_verbs_basic', [
     explanation: {
       en: "Strong obligation; mustn't = prohibition, not absence of necessity.",
       ru: "Сильное обязательство; mustn't = запрет, а не отсутствие необходимости.",
+      uk: "Сильний обов’язок; mustn't = заборона, а не відсутність необхідності.",
+      de: "Starke Verpflichtung; mustn't = Verbot, nicht „nicht nötig“.",
     },
     usageNote: {
       en: "Don't confuse mustn't (prohibited) with don't have to (not necessary).",
       ru: "Не путайте mustn't (запрещено) с don't have to (не обязательно).",
+      uk: "Не плутайте mustn't (заборонено) з don't have to (не обов’язково).",
+      de: "Verwechsle mustn't (verboten) nicht mit don't have to (nicht nötig) — „muss nicht“ ist don't have to.",
     },
     practice: choice(
       "You ___ smoke here. It's against the rules.",

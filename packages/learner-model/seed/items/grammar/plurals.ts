@@ -10,6 +10,8 @@ export const PLURALS = grammarItems('grammar.plurals', [
     explanation: {
       en: '-es after -s/-sh/-ch/-x; consonant + y → -ies.',
       ru: '-es после -s/-sh/-ch/-x; согласная + y → -ies.',
+      uk: '-es після -s/-sh/-ch/-x; приголосна + y → -ies.',
+      de: '-es nach -s/-sh/-ch/-x; Konsonant + y → -ies.',
     },
     practice: cloze('There are three ___ on the shelf. (box)', 'boxes'),
   },
@@ -21,6 +23,8 @@ export const PLURALS = grammarItems('grammar.plurals', [
     explanation: {
       en: 'High-frequency irregular plurals must be memorized as forms.',
       ru: 'Частотные неправильные формы множественного числа нужно запоминать.',
+      uk: 'Часті неправильні форми множини треба запам’ятати.',
+      de: 'Häufige unregelmäßige Pluralformen muss man auswendig lernen.',
     },
     practice: choice(
       'Two ___ are playing in the garden.',
@@ -37,6 +41,8 @@ export const PLURALS = grammarItems('grammar.plurals', [
     explanation: {
       en: 'Uncountables (information, advice, money) take no plural and no a/an.',
       ru: 'Неисчисляемые (information, advice, money) не имеют множественного числа и не сочетаются с a/an.',
+      uk: 'Необчислювані (information, advice, money) не мають множини й не вживаються з a/an.',
+      de: 'Unzählbare Nomen (information, advice, money) haben keinen Plural und kein a/an.',
     },
     practice: choice(
       'Can you give me some ___ about my CV?',
@@ -52,6 +58,8 @@ export const PLURALS = grammarItems('grammar.plurals', [
     explanation: {
       en: 'Some nouns keep the same form in singular and plural.',
       ru: 'Некоторые существительные не меняют форму во множественном числе.',
+      uk: 'Деякі іменники мають однакову форму в однині та множині.',
+      de: 'Manche Nomen haben im Singular und Plural dieselbe Form.',
     },
     practice: choice('The farmer has twenty ___.', ['sheeps', 'sheepes', 'sheep'], 2),
   },

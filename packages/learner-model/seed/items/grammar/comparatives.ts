@@ -10,6 +10,8 @@ export const COMPARATIVES = grammarItems('grammar.comparatives', [
     explanation: {
       en: 'One-syllable adjectives take -er/-est; final consonant doubles after a short vowel.',
       ru: 'Односложные прилагательные получают -er/-est; конечная согласная удваивается после краткой гласной.',
+      uk: 'Односкладові прикметники отримують -er/-est; кінцевий приголосний подвоюється після короткого голосного.',
+      de: 'Einsilbige Adjektive bekommen -er/-est; nach kurzem Vokal wird der Endkonsonant verdoppelt.',
     },
     practice: cloze('My brother is ___ than me. (tall)', 'taller'),
   },
@@ -22,6 +24,8 @@ export const COMPARATIVES = grammarItems('grammar.comparatives', [
     explanation: {
       en: 'Adjectives of 2+ syllables (mostly) use more/most instead of -er/-est.',
       ru: 'Прилагательные из 2+ слогов (в основном) используют more/most вместо -er/-est.',
+      uk: 'Прикметники з 2+ складів (здебільшого) вживаються з more/most замість -er/-est.',
+      de: 'Adjektive mit 2+ Silben nehmen (meist) more/most statt -er/-est.',
     },
     practice: choice(
       'This hotel is ___ than the one we stayed in last year.',
@@ -37,6 +41,8 @@ export const COMPARATIVES = grammarItems('grammar.comparatives', [
     explanation: {
       en: 'good, bad, far have suppletive comparative forms.',
       ru: 'good, bad, far имеют супплетивные формы сравнения.',
+      uk: 'good, bad, far мають суплетивні форми ступенів порівняння.',
+      de: 'good, bad, far haben unregelmäßige (suppletive) Steigerungsformen.',
     },
     practice: choice(
       "Today's weather is ___ than yesterday's. It's raining again.",
@@ -52,6 +58,8 @@ export const COMPARATIVES = grammarItems('grammar.comparatives', [
     explanation: {
       en: 'than after comparatives; as...as for equality.',
       ru: 'than после сравнительной степени; as...as для равенства.',
+      uk: 'than — після вищого ступеня; as...as — для рівності.',
+      de: 'than nach dem Komparativ; as...as für Gleichheit.',
     },
     practice: choice('He is as tall ___ his father.', ['than', 'like', 'as', 'that'], 2),
   },
