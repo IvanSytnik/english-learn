@@ -7,12 +7,17 @@ import { CreateBetaFeedbackSchema, type VocabFeedbackMetadata } from '@englishle
 import { PAYLOAD_MODE } from '@englishlearn/learner-model';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { withinAuthLimits } from '@/lib/auth/rate-limit';
 import { decryptItemRef } from '@/lib/crypto/item-ref';
 import { decryptVocabRef } from '@/lib/crypto/vocab-ref';
 import type { Result } from '@/lib/result';
 import { getVocabPool } from '@/lib/vocab-pool';
 
-export type FeedbackErrorCode = 'UNAUTHORIZED' | 'VALIDATION_ERROR' | 'INTERNAL_ERROR';
+export type FeedbackErrorCode =
+  | 'UNAUTHORIZED'
+  | 'VALIDATION_ERROR'
+  | 'RATE_LIMITED'
+  | 'INTERNAL_ERROR';
 
 /**
  * A report from a player names its item by the opaque reference it was shown:
@@ -33,8 +38,9 @@ const RefSchema = z
  * concept), never against ids the client names; a reference that is not the
  * user's, expired or forged is refused. A `vocabRef` report also gets the
  * word's context in `metadata` (lexeme, lemma, practice mode), built here —
- * whatever metadata the client sent is dropped. Database errors are logged
- * here and never reach the client.
+ * whatever metadata the client sent is dropped. Reports are throttled per
+ * user (`feedback:user`); only a valid report counts against the budget.
+ * Database errors are logged here and never reach the client.
  */
 export async function submitBetaFeedbackAction(
   input: unknown,
@@ -60,6 +66,9 @@ export async function submitBetaFeedbackAction(
   }
 
   try {
+    if (!(await withinAuthLimits([['feedback:user', userId]]))) {
+      return { ok: false, error: 'RATE_LIMITED' };
+    }
     let data = parsed.data;
     if (refItemId !== null) {
       data = {

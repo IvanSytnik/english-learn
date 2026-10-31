@@ -24,7 +24,7 @@ const KINDS = [
   { value: 'OTHER', label: 'other' },
 ] as const satisfies readonly { value: FeedbackKindValue; label: string }[];
 
-type Status = 'idle' | 'sending' | 'sent' | 'failed';
+type Status = 'idle' | 'sending' | 'sent' | 'failed' | 'limited';
 
 /**
  * Beta feedback form in a native modal <dialog>: focus trap, Esc and focus
@@ -94,7 +94,7 @@ export function FeedbackDialog({
     startTransition(async () => {
       try {
         const res = await submitBetaFeedbackAction(input);
-        setStatus(res.ok ? 'sent' : 'failed');
+        setStatus(res.ok ? 'sent' : res.error === 'RATE_LIMITED' ? 'limited' : 'failed');
       } catch {
         // No reply: the form stays filled in, and Send tries again.
         setStatus('failed');
@@ -184,9 +184,9 @@ export function FeedbackDialog({
                 </p>
               </div>
 
-              {status === 'failed' ? (
+              {status === 'failed' || status === 'limited' ? (
                 <p role="alert" className="text-sm text-ink">
-                  {t('errorMessage')}
+                  {t(status === 'limited' ? 'rateLimited' : 'errorMessage')}
                 </p>
               ) : null}
 

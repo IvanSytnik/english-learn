@@ -128,6 +128,18 @@ describe('FeedbackDialog', () => {
     expect(submitBetaFeedbackAction).toHaveBeenCalledTimes(2);
   });
 
+  it('when throttled: says so, keeps the text, and Send stays available', async () => {
+    submitBetaFeedbackAction.mockResolvedValueOnce({ ok: false, error: 'RATE_LIMITED' });
+    renderButton();
+    openDialog();
+    type('One report too many');
+    fireEvent.click(send());
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.feedback.rateLimited);
+    expect(screen.queryByText(en.feedback.errorMessage)).toBeNull();
+    expect(textarea()).toHaveValue('One report too many');
+    expect(send()).toBeEnabled();
+  });
+
   it('a double submit in the same tick sends once', async () => {
     renderButton();
     openDialog();

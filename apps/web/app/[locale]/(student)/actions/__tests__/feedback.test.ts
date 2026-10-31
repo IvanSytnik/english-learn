@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { auth, createBetaFeedback, getPublishedPracticeItem, getVocabPool } = vi.hoisted(() => ({
-  auth: vi.fn(),
-  createBetaFeedback: vi.fn(),
-  getPublishedPracticeItem: vi.fn(),
-  getVocabPool: vi.fn(),
-}));
+const { auth, createBetaFeedback, getPublishedPracticeItem, getVocabPool, withinAuthLimits } =
+  vi.hoisted(() => ({
+    auth: vi.fn(),
+    createBetaFeedback: vi.fn(),
+    getPublishedPracticeItem: vi.fn(),
+    getVocabPool: vi.fn(),
+    withinAuthLimits: vi.fn(),
+  }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
 vi.mock('@englishlearn/db/queries/feedback', () => ({ createBetaFeedback }));
 vi.mock('@englishlearn/db/queries/exercises', () => ({ getPublishedPracticeItem }));
 vi.mock('@/lib/auth', () => ({ auth }));
+vi.mock('@/lib/auth/rate-limit', () => ({ withinAuthLimits }));
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
@@ -25,6 +28,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   auth.mockResolvedValue({ user: { id: 'user-1', role: 'STUDENT' } });
   createBetaFeedback.mockResolvedValue({ id: 'fb-1' });
+  withinAuthLimits.mockResolvedValue(true);
   getPublishedPracticeItem.mockResolvedValue({
     id: 'item.vocab.travel.luggage',
     concept: { id: 'vocab.travel' },
@@ -70,6 +74,28 @@ describe('submitBetaFeedbackAction', () => {
       { tag: 'prisma' },
       { ...valid, kind: 'CONTENT_ERROR', userId: 'user-1' },
     );
+  });
+
+  it('throttles reports per user before storing anything', async () => {
+    withinAuthLimits.mockResolvedValue(false);
+    expect(await submitBetaFeedbackAction(valid)).toEqual({ ok: false, error: 'RATE_LIMITED' });
+    expect(withinAuthLimits).toHaveBeenCalledWith([['feedback:user', 'user-1']]);
+    expect(createBetaFeedback).not.toHaveBeenCalled();
+  });
+
+  it('an invalid report does not spend the budget', async () => {
+    await submitBetaFeedbackAction({ ...valid, text: 'abc' });
+    auth.mockResolvedValueOnce(null);
+    await submitBetaFeedbackAction(valid);
+    expect(withinAuthLimits).not.toHaveBeenCalled();
+  });
+
+  it('a failing limiter is logged and returns only INTERNAL_ERROR', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    withinAuthLimits.mockRejectedValue(new Error('connection to db.secret-host refused'));
+    expect(await submitBetaFeedbackAction(valid)).toEqual({ ok: false, error: 'INTERNAL_ERROR' });
+    expect(createBetaFeedback).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 
   it('logs a database failure and returns only INTERNAL_ERROR to the client', async () => {

@@ -510,6 +510,7 @@
     "close": "Schließen",
     "successMessage": "Danke! Dein Feedback wurde gesendet.",
     "errorMessage": "Dein Feedback konnte nicht gesendet werden. Bitte versuche es erneut.",
+    "rateLimited": "Du hast in kurzer Zeit viel Feedback gesendet. Bitte versuche es später erneut.",
     "charCount": "{count} / {max} Zeichen"
   },
   "email": {
