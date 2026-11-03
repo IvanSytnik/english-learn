@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { csvRecords } from '../src/vocab/cefr-j-csv';
 import { CollectionKeyValue, collectionKeyOf, sortCollections } from '../src/vocab/collections';
-import { CEFR_J_DATASET_URL } from '../src/vocab/dataset';
+import { CEFR_J_DATASET_URL, formatCefrJDataset } from '../src/vocab/dataset';
 import { CefrJDatasetSchema } from '../src/vocab/normalize';
 
 const NOTE =
@@ -62,20 +62,7 @@ function main(): void {
     source: { ...raw.source, collections: NOTE },
     entries,
   });
-  // The committed layout: one entry per line, `"key": value, …` spacing.
-  const inline = (v: unknown): string =>
-    Array.isArray(v) ? `[${v.map(inline).join(', ')}]` : JSON.stringify(v);
-  const lines = dataset.entries.map(
-    (e) =>
-      `    {${Object.entries(e)
-        .map(([k, v]) => `${JSON.stringify(k)}: ${inline(v)}`)
-        .join(', ')}}`,
-  );
-  const source = JSON.stringify(dataset.source, null, 6).replace(/\n\}$/u, '\n  }');
-  writeFileSync(
-    CEFR_J_DATASET_URL,
-    `{\n  "source": ${source},\n  "entries": [\n${lines.join(',\n')}\n  ]\n}\n`,
-  );
+  writeFileSync(CEFR_J_DATASET_URL, formatCefrJDataset(dataset));
   console.log(`${tagged} of ${entries.length} entries tagged with collections`);
 }
 
