@@ -5,8 +5,11 @@
  *
  * Pure so the input guard is unit-testable: while focus is in a text field
  * only Enter and Esc act — typing "1", "0", "h" or "?" into a cloze answer
- * must type, not trigger shortcuts.
+ * must type, not trigger shortcuts. Digits and letters are physical keys
+ * (`lib/keyboard.ts`), so they work on any layout.
  */
+
+import { digitOf, isChord, isLetter, isQuestionMark, type KeyLike } from '@/lib/keyboard';
 
 export type PlayerPhase = 'theory' | 'answering' | 'submitting' | 'feedback' | 'loading' | 'done';
 
@@ -28,15 +31,8 @@ export type ShortcutContext = {
   hasHint: boolean;
 };
 
-export type KeyLike = {
-  key: string;
-  altKey?: boolean;
-  ctrlKey?: boolean;
-  metaKey?: boolean;
-};
-
 export function resolveShortcut(event: KeyLike, ctx: ShortcutContext): ShortcutAction | null {
-  if (event.altKey || event.ctrlKey || event.metaKey) return null;
+  if (isChord(event)) return null;
   const { key } = event;
 
   if (key === 'Escape') return { type: 'pause' };
@@ -49,14 +45,15 @@ export function resolveShortcut(event: KeyLike, ctx: ShortcutContext): ShortcutA
   if (ctx.inTextField) return null;
 
   if (ctx.phase === 'answering') {
-    if (/^[1-4]$/.test(key)) {
-      const index = Number(key) - 1;
+    const digit = digitOf(event);
+    if (digit !== null && digit >= 1 && digit <= 4) {
+      const index = digit - 1;
       return index < ctx.optionCount ? { type: 'select', index } : null;
     }
-    if (key === '0') return { type: 'dontKnow' };
-    if ((key === 'h' || key === 'H') && ctx.hasHint) return { type: 'toggleHint' };
+    if (digit === 0) return { type: 'dontKnow' };
+    if (isLetter(event, 'H') && ctx.hasHint) return { type: 'toggleHint' };
   }
-  if (ctx.phase === 'feedback' && key === '?') return { type: 'toggleWhy' };
+  if (ctx.phase === 'feedback' && isQuestionMark(event)) return { type: 'toggleWhy' };
   return null;
 }
 

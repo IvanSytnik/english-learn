@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 import en from '../../messages/en.json';
+import { us } from './keys';
 
 const { nextVocabCardAction, startVocabProofAction, submitVocabAttemptAction, push } = vi.hoisted(
   () => ({
@@ -93,7 +94,7 @@ function renderPlayer(conceptId?: string) {
 }
 const key = (k: string, target: Element | Window = window) =>
   act(() => {
-    fireEvent.keyDown(target, { key: k });
+    fireEvent.keyDown(target, us(k));
   });
 
 // Focus moves in an effect after the card commits; once it is there the
@@ -519,7 +520,7 @@ describe('session', () => {
     renderPlayer();
     await onChoiceCard();
     act(() => {
-      fireEvent.keyDown(window, { key: '2', metaKey: true });
+      fireEvent.keyDown(window, { ...us('2'), metaKey: true });
     });
     expect(screen.getByRole('button', { name: /house/ })).toHaveAttribute('aria-pressed', 'false');
   });

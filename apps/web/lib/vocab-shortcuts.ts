@@ -6,8 +6,12 @@
  * Pure so the input guard is unit-testable: while focus is in the answer
  * field only Enter and Esc act — typing "k", "h", "0" or "1" into a recall
  * answer must type, not trigger a shortcut. Modifier chords are never ours.
- * Focus classification is the exercise player's (`focusKind`).
+ * Focus classification is the exercise player's (`focusKind`). Digits and
+ * letters are physical keys (`lib/keyboard.ts`): K is "I know" on a Russian
+ * or Ukrainian layout too, where it types `л`.
  */
+
+import { digitOf, isChord, isLetter, type KeyLike } from '@/lib/keyboard';
 
 export type VocabPlayerPhase = 'loading' | 'answering' | 'submitting' | 'feedback' | 'done';
 
@@ -31,13 +35,11 @@ export type VocabShortcutContext = {
   hasHint: boolean;
 };
 
-export type KeyLike = { key: string; altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean };
-
 export function resolveVocabShortcut(
   event: KeyLike,
   ctx: VocabShortcutContext,
 ): VocabShortcutAction | null {
-  if (event.altKey || event.ctrlKey || event.metaKey) return null;
+  if (isChord(event)) return null;
   const { key } = event;
 
   if (key === 'Escape') return { type: 'pause' };
@@ -47,12 +49,13 @@ export function resolveVocabShortcut(
   }
   if (ctx.inTextField || ctx.phase !== 'answering') return null;
 
-  if (/^[1-4]$/.test(key)) {
-    const index = Number(key) - 1;
+  const digit = digitOf(event);
+  if (digit !== null && digit >= 1 && digit <= 4) {
+    const index = digit - 1;
     return index < ctx.optionCount ? { type: 'select', index } : null;
   }
-  if (key === '0') return { type: 'dontKnow' };
-  if ((key === 'k' || key === 'K') && ctx.canProve) return { type: 'know' };
-  if ((key === 'h' || key === 'H') && ctx.hasHint) return { type: 'toggleHint' };
+  if (digit === 0) return { type: 'dontKnow' };
+  if (isLetter(event, 'K') && ctx.canProve) return { type: 'know' };
+  if (isLetter(event, 'H') && ctx.hasHint) return { type: 'toggleHint' };
   return null;
 }

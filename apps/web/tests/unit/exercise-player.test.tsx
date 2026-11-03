@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExerciseFeedback, ExerciseView } from '@/lib/exercise/view';
 import en from '../../messages/en.json';
+import { us } from './keys';
 
 const { submitExerciseAttempt, nextExercise, weekRhythm, push, submitBetaFeedbackAction } =
   vi.hoisted(() => ({
@@ -85,7 +86,7 @@ function renderPlayer(initial: ExerciseView, sessionLength = 12) {
 }
 const key = (k: string, target: Element | Window = window) =>
   act(() => {
-    fireEvent.keyDown(target, { key: k });
+    fireEvent.keyDown(target, us(k));
   });
 
 /*
@@ -115,7 +116,7 @@ function pressWhenShown(k: string, shown: () => boolean): Promise<void> {
     const observer = new MutationObserver(() => {
       if (!shown()) return;
       observer.disconnect();
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+      window.dispatchEvent(new KeyboardEvent('keydown', us(k)));
       resolve();
     });
     observer.observe(document.body, { subtree: true, childList: true, characterData: true });
@@ -384,7 +385,7 @@ describe('ExercisePlayer — the hint is recorded (§8 #11)', () => {
   it('H pressed in the same tick as the answer still counts', async () => {
     renderPlayer(choiceView);
     key('4');
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h' }));
+    window.dispatchEvent(new KeyboardEvent('keydown', us('h')));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await onFeedback('Correct');
     expect(sent(0)).toBe(true);

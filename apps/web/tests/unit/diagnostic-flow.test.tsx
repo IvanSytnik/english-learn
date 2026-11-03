@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DiagnosticQuestionView } from '@/lib/diagnostic';
 import en from '../../messages/en.json';
 import ru from '../../messages/ru.json';
+import { us } from './keys';
 
 const { saveNativeLanguageAction, startDiagnosticAction, submitDiagnosticAnswerAction } =
   vi.hoisted(() => ({
@@ -56,7 +57,7 @@ function renderFlow(
   );
 }
 
-const key = (k: string) => fireEvent.keyDown(window, { key: k });
+const key = (k: string) => fireEvent.keyDown(window, us(k));
 
 /**
  * Press `k` the instant `shown()` turns true — from a MutationObserver
@@ -68,7 +69,7 @@ function pressWhenShown(k: string, shown: () => boolean): Promise<void> {
     const observer = new MutationObserver(() => {
       if (!shown()) return;
       observer.disconnect();
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+      window.dispatchEvent(new KeyboardEvent('keydown', us(k)));
       resolve();
     });
     observer.observe(document.body, { subtree: true, childList: true, characterData: true });
@@ -106,7 +107,7 @@ describe('DiagnosticFlow', () => {
     renderFlow(asStep(question(0)));
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];
     radios[0]?.focus();
-    fireEvent.keyDown(radios[0] as HTMLElement, { key: '3' });
+    fireEvent.keyDown(radios[0] as HTMLElement, us('3'));
     expect(radios[2]?.checked).toBe(true);
   });
 

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../../messages/en.json';
+import { us } from './keys';
 
 const { submitBetaFeedbackAction } = vi.hoisted(() => ({ submitBetaFeedbackAction: vi.fn() }));
 vi.mock('@/app/[locale]/(student)/actions/feedback', () => ({ submitBetaFeedbackAction }));
@@ -159,7 +160,7 @@ describe('FeedbackDialog', () => {
     renderButton();
     openDialog();
     fireEvent.keyDown(textarea(), { key: 'Escape' });
-    fireEvent.keyDown(textarea(), { key: '1' });
+    fireEvent.keyDown(textarea(), us('1'));
     window.removeEventListener('keydown', onPageKey);
     expect(onPageKey).not.toHaveBeenCalled();
   });

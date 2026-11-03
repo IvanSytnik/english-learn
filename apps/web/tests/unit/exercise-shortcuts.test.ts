@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { focusKind, resolveShortcut, type ShortcutContext } from '@/lib/exercise/shortcuts';
+import { ru, uk, us } from './keys';
 
 const ctx = (over: Partial<ShortcutContext> = {}): ShortcutContext => ({
   phase: 'answering',
@@ -12,60 +13,86 @@ const ctx = (over: Partial<ShortcutContext> = {}): ShortcutContext => ({
 
 describe('resolveShortcut', () => {
   it('maps 1–4, 0, H, Enter and Esc while answering', () => {
-    expect(resolveShortcut({ key: '2' }, ctx())).toEqual({ type: 'select', index: 1 });
-    expect(resolveShortcut({ key: '0' }, ctx())).toEqual({ type: 'dontKnow' });
-    expect(resolveShortcut({ key: 'h' }, ctx())).toEqual({ type: 'toggleHint' });
-    expect(resolveShortcut({ key: 'Enter' }, ctx())).toEqual({ type: 'enter' });
-    expect(resolveShortcut({ key: 'Escape' }, ctx())).toEqual({ type: 'pause' });
+    expect(resolveShortcut(us('2'), ctx())).toEqual({ type: 'select', index: 1 });
+    expect(resolveShortcut(us('0'), ctx())).toEqual({ type: 'dontKnow' });
+    expect(resolveShortcut(us('h'), ctx())).toEqual({ type: 'toggleHint' });
+    expect(resolveShortcut(us('Enter'), ctx())).toEqual({ type: 'enter' });
+    expect(resolveShortcut(us('Escape'), ctx())).toEqual({ type: 'pause' });
   });
 
   it('ignores option keys beyond the number of options and H without a hint', () => {
-    expect(resolveShortcut({ key: '4' }, ctx({ optionCount: 3 }))).toBeNull();
-    expect(resolveShortcut({ key: 'h' }, ctx({ hasHint: false }))).toBeNull();
+    expect(resolveShortcut(us('4'), ctx({ optionCount: 3 }))).toBeNull();
+    expect(resolveShortcut(us('h'), ctx({ hasHint: false }))).toBeNull();
   });
 
   it('input guard: inside a text field only Enter and Esc act', () => {
     const typing = ctx({ inTextField: true });
     for (const key of ['1', '2', '0', 'h', 'H', '?']) {
-      expect(resolveShortcut({ key }, typing), key).toBeNull();
+      expect(resolveShortcut(us(key), typing), key).toBeNull();
     }
-    expect(resolveShortcut({ key: 'Enter' }, typing)).toEqual({ type: 'enter' });
-    expect(resolveShortcut({ key: 'Escape' }, typing)).toEqual({ type: 'pause' });
+    expect(resolveShortcut(us('Enter'), typing)).toEqual({ type: 'enter' });
+    expect(resolveShortcut(us('Escape'), typing)).toEqual({ type: 'pause' });
   });
 
   it('on the rule card only Enter (start) and Esc act', () => {
     const card = ctx({ phase: 'theory' });
-    expect(resolveShortcut({ key: 'Enter' }, card)).toEqual({ type: 'enter' });
-    expect(resolveShortcut({ key: 'Escape' }, card)).toEqual({ type: 'pause' });
+    expect(resolveShortcut(us('Enter'), card)).toEqual({ type: 'enter' });
+    expect(resolveShortcut(us('Escape'), card)).toEqual({ type: 'pause' });
     for (const key of ['1', '4', '0', 'h', '?']) {
-      expect(resolveShortcut({ key }, card), key).toBeNull();
+      expect(resolveShortcut(us(key), card), key).toBeNull();
     }
-    expect(
-      resolveShortcut({ key: 'Enter' }, ctx({ phase: 'theory', onActivatable: true })),
-    ).toBeNull();
+    expect(resolveShortcut(us('Enter'), ctx({ phase: 'theory', onActivatable: true }))).toBeNull();
   });
 
   it('lets a focused button handle its own Enter', () => {
-    expect(resolveShortcut({ key: 'Enter' }, ctx({ onActivatable: true }))).toBeNull();
+    expect(resolveShortcut(us('Enter'), ctx({ onActivatable: true }))).toBeNull();
   });
 
   it('? toggles the why only after answering; choice keys do nothing then', () => {
-    expect(resolveShortcut({ key: '?' }, ctx({ phase: 'feedback' }))).toEqual({
+    expect(resolveShortcut(us('?'), ctx({ phase: 'feedback' }))).toEqual({
       type: 'toggleWhy',
     });
-    expect(resolveShortcut({ key: '1' }, ctx({ phase: 'feedback' }))).toBeNull();
-    expect(resolveShortcut({ key: 'Enter' }, ctx({ phase: 'submitting' }))).toBeNull();
+    expect(resolveShortcut(us('1'), ctx({ phase: 'feedback' }))).toBeNull();
+    expect(resolveShortcut(us('Enter'), ctx({ phase: 'submitting' }))).toBeNull();
   });
 
   it('H opens the hint only while answering — never on an answer already sent', () => {
     for (const phase of ['submitting', 'feedback', 'loading', 'done'] as const) {
-      expect(resolveShortcut({ key: 'h' }, ctx({ phase })), phase).toBeNull();
+      expect(resolveShortcut(us('h'), ctx({ phase })), phase).toBeNull();
     }
   });
 
   it('never fires with modifier keys (browser shortcuts stay intact)', () => {
-    expect(resolveShortcut({ key: '1', metaKey: true }, ctx())).toBeNull();
-    expect(resolveShortcut({ key: 'h', ctrlKey: true }, ctx())).toBeNull();
+    expect(resolveShortcut({ ...us('1'), metaKey: true }, ctx())).toBeNull();
+    expect(resolveShortcut({ ...us('h'), ctrlKey: true }, ctx())).toBeNull();
+  });
+});
+
+describe('resolveShortcut on other layouts', () => {
+  it('H, digits and ? are physical keys: Russian, Ukrainian, AZERTY, numpad', () => {
+    expect(resolveShortcut(ru('KeyH'), ctx())).toEqual({ type: 'toggleHint' });
+    expect(resolveShortcut(uk('KeyH'), ctx())).toEqual({ type: 'toggleHint' });
+    expect(resolveShortcut({ key: 'é', code: 'Digit2' }, ctx())).toEqual({
+      type: 'select',
+      index: 1,
+    });
+    expect(resolveShortcut({ key: '0', code: 'Numpad0' }, ctx())).toEqual({ type: 'dontKnow' });
+    // ЙЦУКЕН: Shift + the US slash key types «,»; Shift+7 types «?».
+    expect(resolveShortcut(ru('Slash', true), ctx({ phase: 'feedback' }))).toEqual({
+      type: 'toggleWhy',
+    });
+    expect(
+      resolveShortcut({ key: '?', code: 'Digit7', shiftKey: true }, ctx({ phase: 'feedback' })),
+    ).toEqual({
+      type: 'toggleWhy',
+    });
+  });
+
+  it('a character typed by another physical key is no shortcut; guards still apply', () => {
+    expect(resolveShortcut({ key: 'h', code: 'KeyJ' }, ctx())).toBeNull();
+    expect(resolveShortcut(ru('Slash'), ctx({ phase: 'feedback' }))).toBeNull();
+    expect(resolveShortcut(ru('KeyH'), ctx({ inTextField: true }))).toBeNull();
+    expect(resolveShortcut({ ...ru('KeyH'), metaKey: true }, ctx())).toBeNull();
   });
 });
 
