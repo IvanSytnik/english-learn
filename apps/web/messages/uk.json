@@ -348,6 +348,8 @@
         "proofInstruction": "Доведіть: напишіть англійське слово. Першу літеру підказано.",
         "proofBadge": "Перевірка знайомого слова",
         "pos": "{pos, select, NOUN {іменник} VERB {дієслово} ADJECTIVE {прикметник} ADVERB {прислівник} PRONOUN {займенник} PREPOSITION {прийменник} CONJUNCTION {сполучник} PHRASAL_VERB {фразове дієслово} IDIOM {ідіома} INTERJECTION {вигук} OTHER {інше} other {інше}}",
+        "ipaRegion": "США",
+        "ipaLabel": "вимова (США)",
         "answerLabel": "Ваша відповідь",
         "know": "Я знаю це слово",
         "synonym": "Це слово означає те саме, але ми чекаємо інше. Спробуйте ще раз.",

@@ -36,7 +36,7 @@ const word = (lemma: string, ru: string, extra: Partial<{ variants: string[] }> 
   pos: 'NOUN' as const,
   cefrLevel: 'A1' as const,
   conceptId: CONCEPT,
-  ipa: `/${lemma}/`,
+  ipa: lemma,
   definitions: { en: `a kind of ${lemma}` },
   translations: { ru, uk: `${ru}-uk`, de: `${ru}-de` },
   examples: [
@@ -135,7 +135,7 @@ describe('loadNextVocabCard', () => {
   it('serves a client-safe card in the learner’s language with a sealed ref', async () => {
     const card = await served();
     expect(card).toMatchObject({ status: 'card', canProve: true, isProof: false, remainingNew: 7 });
-    expect(card.card).toMatchObject({ mode: 'en_to_l1', word: 'apple', ipa: '/apple/' });
+    expect(card.card).toMatchObject({ mode: 'en_to_l1', word: 'apple', ipa: 'apple' });
     if (card.card.mode !== 'en_to_l1') throw new Error('mode');
     expect(card.card.options).toHaveLength(4);
     expect(card.card.options).toContain('яблоко');
@@ -253,7 +253,7 @@ describe('submitVocabAttempt', () => {
         chosenIndex: index,
         word: {
           lemma: 'apple',
-          ipa: '/apple/',
+          ipa: 'apple',
           gloss: 'яблоко',
           definition: 'a kind of apple',
           example: { sentence: 'I like the apple a lot.', translation: 'пример яблоко' },

@@ -76,7 +76,7 @@ const answered = (over: Partial<VocabFeedback> = {}) => ({
     chosenIndex: 1,
     word: {
       lemma: 'house',
-      ipa: '/haʊs/',
+      ipa: 'haʊs',
       gloss: 'дом',
       definition: 'a building for people to live in',
       example: { sentence: 'Their house is old.', translation: 'Их дом старый.' },
@@ -184,6 +184,8 @@ describe('choice modes', () => {
     expect(verdict).toHaveTextContent('Correct');
     expect(verdict?.querySelector('svg')).not.toBeNull();
     expect(screen.getByText('a building for people to live in')).toBeInTheDocument();
+    // The feedback shows the word's US IPA with its tag (B6.4a).
+    expect(screen.getByText('/haʊs/').closest('[data-ipa]')).toHaveTextContent('US/haʊs/');
     expect(screen.getByText('Their house is old.')).toBeInTheDocument();
     expect(screen.getByText('Их дом старый.')).toBeInTheDocument();
     expect(screen.getByText('Back in 3 days')).toBeInTheDocument();
@@ -228,19 +230,23 @@ describe('choice modes', () => {
     );
   });
 
-  it('en_to_l1 shows the word, its part of speech and IPA', async () => {
+  it('en_to_l1 shows the word, its part of speech and the US IPA (B6.4a)', async () => {
     nextVocabCardAction.mockResolvedValueOnce(
       served({
         ...base,
         vocabRef: 'ref-1',
-        card: { mode: 'en_to_l1', word: 'house', ipa: '/haʊs/', options: ['a', 'b', 'c', 'd'] },
+        card: { mode: 'en_to_l1', word: 'house', ipa: 'haʊs', options: ['a', 'b', 'c', 'd'] },
       }),
     );
     renderPlayer();
     await onChoiceCard();
     expect(screen.getByText('house')).toBeInTheDocument();
     expect(screen.getByText('noun')).toBeInTheDocument();
-    expect(screen.getByText('/haʊs/')).toBeInTheDocument();
+    const ipa = screen.getByText('/haʊs/');
+    expect(ipa).toHaveAttribute('lang', 'en');
+    const tag = ipa.closest('[data-ipa]') as HTMLElement;
+    expect(tag).toHaveTextContent('US pronunciationUS/haʊs/');
+    expect(screen.getByText('US pronunciation')).toHaveClass('sr-only');
   });
 
   it('cloze shows only the English sentence with an empty gap before the answer', async () => {

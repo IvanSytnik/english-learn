@@ -348,6 +348,8 @@
         "proofInstruction": "Beweis es: Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
         "proofBadge": "Bekanntes Wort prüfen",
         "pos": "{pos, select, NOUN {Nomen} VERB {Verb} ADJECTIVE {Adjektiv} ADVERB {Adverb} PRONOUN {Pronomen} PREPOSITION {Präposition} CONJUNCTION {Konjunktion} PHRASAL_VERB {Phrasal Verb} IDIOM {Redewendung} INTERJECTION {Interjektion} OTHER {Sonstiges} other {Sonstiges}}",
+        "ipaRegion": "US",
+        "ipaLabel": "US-Aussprache",
         "answerLabel": "Deine Antwort",
         "know": "Ich kenne dieses Wort",
         "synonym": "Dieses Wort bedeutet dasselbe, aber wir suchen ein anderes. Versuch es noch einmal.",

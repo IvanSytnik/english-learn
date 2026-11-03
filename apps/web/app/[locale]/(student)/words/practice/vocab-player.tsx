@@ -27,7 +27,7 @@ import {
   startVocabProofAction,
   submitVocabAttemptAction,
 } from '../../actions/vocab';
-import { VocabCardAnswer, VocabCardPrompt } from './vocab-renderers';
+import { IpaTag, VocabCardAnswer, VocabCardPrompt } from './vocab-renderers';
 import { VocabSessionSummary } from './vocab-session-summary';
 
 /** Cards per session (client-enforced, like the exercise player's length). */
@@ -567,11 +567,7 @@ function WordFeedback({
         <span lang="en" className="font-content text-2xl text-ink" data-lemma="">
           {word.lemma}
         </span>
-        {word.ipa ? (
-          <span lang="en" className="font-mono text-sm text-ink-muted">
-            {word.ipa}
-          </span>
-        ) : null}
+        {word.ipa ? <IpaTag ipa={word.ipa} className="text-sm text-ink-muted" /> : null}
       </p>
       <p className="text-ink">{word.gloss}</p>
       {word.definition !== word.gloss ? (

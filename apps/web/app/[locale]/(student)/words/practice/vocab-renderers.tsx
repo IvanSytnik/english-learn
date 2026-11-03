@@ -80,6 +80,25 @@ export const VOCAB_RENDERERS: { readonly [M in VocabMode]: VocabRenderer<M> } = 
   },
 };
 
+/**
+ * A CMUdict transcription (General American, B6.4a) with its region tag:
+ * "US /ˈæpəl/". Screen readers hear "US pronunciation" instead of the tag.
+ */
+export function IpaTag({ ipa, className }: { ipa: string; className?: string }) {
+  const t = useTranslations('student.words.player');
+  return (
+    <span className={className} data-ipa="">
+      <span className="sr-only">{t('ipaLabel')}</span>
+      <span aria-hidden="true" className="mr-1 text-xs font-medium tracking-wide">
+        {t('ipaRegion')}
+      </span>
+      <span lang="en" className="font-mono">
+        /{ipa}/
+      </span>
+    </span>
+  );
+}
+
 function EnToL1Prompt({ view, card }: PromptProps<'en_to_l1'>) {
   const t = useTranslations('student.words.player');
   return (
@@ -89,11 +108,7 @@ function EnToL1Prompt({ view, card }: PromptProps<'en_to_l1'>) {
       </p>
       <p className="text-sm text-ink-muted">
         <span>{t('pos', { pos: card.pos })}</span>
-        {view.ipa ? (
-          <span lang="en" className="ml-2 font-mono">
-            {view.ipa}
-          </span>
-        ) : null}
+        {view.ipa ? <IpaTag ipa={view.ipa} className="ml-2" /> : null}
       </p>
     </>
   );

@@ -348,6 +348,8 @@
         "proofInstruction": "Докажите: напишите английское слово. Первая буква подсказана.",
         "proofBadge": "Проверка знакомого слова",
         "pos": "{pos, select, NOUN {существительное} VERB {глагол} ADJECTIVE {прилагательное} ADVERB {наречие} PRONOUN {местоимение} PREPOSITION {предлог} CONJUNCTION {союз} PHRASAL_VERB {фразовый глагол} IDIOM {идиома} INTERJECTION {междометие} OTHER {другое} other {другое}}",
+        "ipaRegion": "США",
+        "ipaLabel": "произношение (США)",
         "answerLabel": "Ваш ответ",
         "know": "Я знаю это слово",
         "synonym": "Это слово значит то же самое, но мы ждём другое. Попробуйте ещё раз.",
