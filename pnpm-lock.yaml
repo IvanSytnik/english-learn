@@ -164,9 +164,6 @@ importers:
       '@auth/prisma-adapter':
         specifier: 'catalog:'
         version: 2.11.2(@prisma/client@6.16.2(prisma@6.16.2(typescript@6.0.3))(typescript@6.0.3))
-      '@englishlearn/ai':
-        specifier: workspace:*
-        version: link:../../packages/ai
       '@englishlearn/db':
         specifier: workspace:*
         version: link:../../packages/db

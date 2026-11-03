@@ -391,9 +391,10 @@ enum MasteryStage {
 
 /// Per-user BKT+ snapshot for a single concept.
 ///
-/// Source of truth on Day 7 will be LearnerEvent (append-only); this row
-/// is then a materialized projection rebuilt by replay. Until then it is
-/// updated directly by the LearnerService.
+/// A materialized projection of LearnerEvent (append-only, the source of
+/// truth): written only by the shared event fold — LearnerService
+/// (recordOutcome / recordVocabOutcome, bootstrap) and replay, which rebuilds
+/// it. Never updated directly from anywhere else.
 model ConceptMastery {
   id        String   @id @default(cuid())
 
@@ -544,9 +545,10 @@ model Lexeme {
 
 /// Per-user FSRS memory state for a single Item.
 ///
-/// Like ConceptMastery, this is a snapshot that will become a materialized
-/// projection of LearnerEvent once event sourcing lands (Day 7). Until then
-/// the LearnerService updates it directly.
+/// Like ConceptMastery, a materialized projection of LearnerEvent: written
+/// only by the shared event fold (LearnerService and replay, which deletes
+/// and recreates the rows — so never read learner history from createdAt).
+/// Never updated directly from anywhere else.
 model ItemReviewState {
   id     String @id @default(cuid())
 

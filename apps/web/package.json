@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "catalog:",
-    "@englishlearn/ai": "workspace:*",
     "@englishlearn/db": "workspace:*",
     "@englishlearn/learner-model": "workspace:*",
     "@englishlearn/ui": "workspace:*",

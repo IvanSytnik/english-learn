@@ -11,7 +11,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
-  transpilePackages: ['@englishlearn/ai', '@englishlearn/learner-model', '@englishlearn/ui'],
+  transpilePackages: ['@englishlearn/learner-model', '@englishlearn/ui'],
   // Monorepo root, so file tracing doesn't stop at apps/web
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
   // No outputFileTracingIncludes for Prisma: the prisma-client generator imports

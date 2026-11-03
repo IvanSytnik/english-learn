@@ -1,12 +1,13 @@
 /**
- * AI orchestration layer.
- * All Claude/OpenAI calls go through here for:
- *  - centralized prompt templates
- *  - structured output validation
- *  - logging of prompt + response + cost (for evals)
+ * AI orchestration layer: every Claude/OpenAI call goes through this package
+ * (centralized prompts, structured-output validation, token usage reporting).
  *
- * Real provider clients and their prompt schemas will be added in a later
- * phase (MVP-2). Nothing is exported yet.
+ * The root entry exports nothing. What exists today is offline only:
+ *   - `@englishlearn/ai/localization` — the B2.4 vocabulary localization
+ *     pipeline (Anthropic SDK, structured output, validation gate), run by
+ *     `pnpm --filter @englishlearn/ai vocab:localize`.
+ * No runtime (request-path) LLM call exists yet; the web app does not depend
+ * on this package until one does (C3).
  */
 
 export {};
