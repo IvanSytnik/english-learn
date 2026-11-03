@@ -12,8 +12,10 @@ import type { PrismaClient } from '../generated/client/client';
  *   a frequency, ties broken by lemmaKey ASC: 1, 2, 3 … with no gaps; the
  *   lexemes of one lemmaKey (`march` noun / verb) share a rank because they
  *   share a zipf. Not PUBLISHED or no frequency → null.
- * - Idempotent: only rows whose values differ are written, in chunks of one
- *   transaction each, like vocab:publish.
+ * - Idempotent: only rows whose values differ are written — one
+ *   `UPDATE … FROM unnest(…)` statement per chunk (atomic on its own, one
+ *   round trip: per-row updates in a transaction over the Neon pooler ran
+ *   past Prisma's 5 s transaction timeout, pitfall 190).
  */
 
 export const FrequencyDatasetSchema = z
@@ -80,7 +82,7 @@ export function planFrequency(
   }));
 }
 
-export const FREQUENCY_CHUNK_SIZE = 200;
+export const FREQUENCY_CHUNK_SIZE = 1000;
 
 export type SyncFrequencyReport = {
   lexemes: number;
@@ -92,7 +94,7 @@ export type SyncFrequencyReport = {
 };
 
 export async function syncFrequency(
-  db: Pick<PrismaClient, 'lexeme' | '$transaction'>,
+  db: Pick<PrismaClient, 'lexeme' | '$executeRaw'>,
   dataset: FrequencyDataset,
   options: { dryRun?: boolean; lemmaKeyPrefix?: string; chunkSize?: number } = {},
 ): Promise<SyncFrequencyReport> {
@@ -117,11 +119,16 @@ export async function syncFrequency(
   if (options.dryRun) return report;
   const size = options.chunkSize ?? FREQUENCY_CHUNK_SIZE;
   for (let i = 0; i < changed.length; i += size) {
-    await db.$transaction(
-      changed
-        .slice(i, i + size)
-        .map(({ id, ...data }) => db.lexeme.update({ where: { id }, data })),
-    );
+    const chunk = changed.slice(i, i + size);
+    await db.$executeRaw`
+      UPDATE "public"."Lexeme" AS l
+      SET "frequencyZipf" = v.zipf, "frequencyRank" = v.rank
+      FROM unnest(
+        ${chunk.map((c) => c.id)}::text[],
+        ${chunk.map((c) => c.frequencyZipf)}::double precision[],
+        ${chunk.map((c) => c.frequencyRank)}::integer[]
+      ) AS v(id, zipf, rank)
+      WHERE l."id" = v.id`;
     report.chunks += 1;
   }
   return report;
