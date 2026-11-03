@@ -6,6 +6,7 @@ import { syncExamples } from '../examples-snapshot';
 import type { FrequencyDataset } from '../frequency';
 import { syncFrequency } from '../frequency';
 import { importCefrJ } from '../import';
+import { syncIpa } from '../ipa-data';
 import { type CefrJEntry, normalizeDataset } from '../normalize';
 import { publishVocab } from '../publish';
 import { syncCollections } from '../sync-collections';
@@ -339,5 +340,48 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
       select: { examples: true },
     });
     expect(row?.examples).toEqual(edited);
+  });
+
+  it('ipa: by lemmaKey, by part of speech where it differs; unknown lexemes untouched; idempotent', async () => {
+    await db.lexeme.updateMany({ where: { lemmaKey: k('chef') }, data: { ipa: 'ʃɛf' } });
+    await db.lexeme.updateMany({ where: { lemmaKey: k('bake') }, data: { ipa: 'old' } });
+    const data = {
+      entries: { [k('apple')]: 'ˈæpəl', [k('bake')]: null },
+      byPos: { [k('go')]: { VERB: 'ɡoʊ' } },
+    };
+    const ipa = async () =>
+      (
+        await db.lexeme.findMany({
+          where: ours,
+          select: { lemmaKey: true, pos: true, ipa: true },
+          orderBy: [{ lemmaKey: 'asc' }, { pos: 'asc' }],
+        })
+      ).map((l) => [l.lemmaKey.slice(RUN.length + 1), l.pos, l.ipa]);
+
+    expect(await syncIpa(db, data, { lemmaKeyPrefix: RUN, dryRun: true })).toMatchObject({
+      lexemes: 8,
+      inFile: 3,
+      withIpa: 2,
+      changed: 3,
+      chunks: 0,
+    });
+    expect(await syncIpa(db, data, { lemmaKeyPrefix: RUN, chunkSize: 2 })).toMatchObject({
+      changed: 3,
+      chunks: 2,
+    });
+    expect(await ipa()).toEqual([
+      ['apple', 'NOUN', 'ˈæpəl'],
+      ['bake', 'VERB', null], // null in the file writes null
+      ['bread', 'NOUN', null],
+      ['chef', 'NOUN', 'ʃɛf'], // not in the file: untouched
+      ['draft', 'NOUN', null],
+      ['go', 'NOUN', null], // byPos has no NOUN: untouched
+      ['go', 'VERB', 'ɡoʊ'],
+      ['of', 'PREPOSITION', null],
+    ]);
+    expect(await syncIpa(db, data, { lemmaKeyPrefix: RUN })).toMatchObject({
+      changed: 0,
+      chunks: 0,
+    });
   });
 });

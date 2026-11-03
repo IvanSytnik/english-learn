@@ -31,7 +31,8 @@
     "vocab:publish": "tsx --env-file-if-exists=.env scripts/publish-vocab.ts",
     "vocab:sync-frequency": "tsx --env-file-if-exists=.env scripts/sync-vocab-frequency.ts",
     "vocab:sync-collections": "tsx --env-file-if-exists=.env scripts/sync-vocab-collections.ts",
-    "vocab:sync-examples": "tsx --env-file-if-exists=.env scripts/sync-vocab-examples.ts"
+    "vocab:sync-examples": "tsx --env-file-if-exists=.env scripts/sync-vocab-examples.ts",
+    "vocab:sync-ipa": "tsx --env-file-if-exists=.env scripts/sync-vocab-ipa.ts"
   },
   "prisma": {
     "seed": "tsx --env-file-if-exists=.env src/seed.ts"
