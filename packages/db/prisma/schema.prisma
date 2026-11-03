@@ -532,7 +532,15 @@ model Lexeme {
   examples     Json     @default("[]")
   collocations String[] @default([])
 
+  /// Dense rank by frequencyZipf DESC over PUBLISHED lexemes (1 = most
+  /// frequent; ties by lemmaKey); null = no frequency. vocab:sync-frequency.
   frequencyRank Int?
+  /// wordfreq Zipf frequency of the lemma (CC BY-SA 4.0 data, B6.2); null =
+  /// unknown. Kept as its own column so SA-licensed values stay identifiable.
+  frequencyZipf Float?
+  /// Browsing tags, e.g. "work_jobs" (CEFR-J CoreInventory, B6.2). Never a
+  /// learner concept: Item.conceptId does not change with them.
+  collections   String[]      @default([])
   status        ContentStatus @default(DRAFT)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
