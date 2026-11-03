@@ -34,6 +34,14 @@ const ENTRIES: CefrJEntry[] = [
     collections: ['food_drink'],
   },
   { lemma: k('bake'), pos: 'verb', cefrJLevel: 'A2', topic: 'food_drink' },
+  // Same tag set as apple: one statement must write both.
+  {
+    lemma: k('bread'),
+    pos: 'noun',
+    cefrJLevel: 'A1',
+    topic: 'food_drink',
+    collections: ['food_drink'],
+  },
   {
     lemma: k('chef'),
     pos: 'noun',
@@ -114,7 +122,7 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
 
   it('frequency: zipf on every lexeme, a dense rank on the PUBLISHED ones; a re-run writes nothing', async () => {
     const dry = await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN, dryRun: true });
-    expect(dry).toMatchObject({ lexemes: 4, withFrequency: 4, ranked: 3, changed: 4, chunks: 0 });
+    expect(dry).toMatchObject({ lexemes: 5, withFrequency: 4, ranked: 3, changed: 4, chunks: 0 });
     expect((await lexemes()).every((l) => l.frequencyZipf === null)).toBe(true);
 
     expect(await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN, chunkSize: 3 })).toMatchObject({
@@ -124,6 +132,7 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
     expect((await lexemes()).map((l) => [l.lemmaKey, l.frequencyZipf, l.frequencyRank])).toEqual([
       [k('apple'), 4.5, 1], // tie with chef at 4.5, apple < chef
       [k('bake'), 3.9, 3],
+      [k('bread'), null, null], // not in the frequency data, DRAFT
       [k('chef'), 4.5, 2],
       [k('draft'), 5.1, null], // most frequent, but DRAFT: no rank
     ]);
@@ -147,20 +156,23 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
 
     expect(await syncCollections(db, DATASET, { lemmaKeyPrefix: RUN, dryRun: true })).toMatchObject(
       {
-        inDataset: 4,
-        tagged: 2,
-        changed: 2,
+        inDataset: 5,
+        tagged: 3,
+        changed: 3,
         chunks: 0,
       },
     );
     expect((await lexemes()).every((l) => l.collections.length === 0)).toBe(true);
 
+    // Two tag sets (apple + bread share one) → two statements.
     expect(await syncCollections(db, DATASET, { lemmaKeyPrefix: RUN })).toMatchObject({
-      changed: 2,
+      changed: 3,
+      chunks: 2,
     });
     expect((await lexemes()).map((l) => [l.lemmaKey, l.collections])).toEqual([
       [k('apple'), ['food_drink']],
       [k('bake'), []],
+      [k('bread'), ['food_drink']],
       [k('chef'), ['work_jobs', 'food_drink']],
       [k('draft'), []],
     ]);
