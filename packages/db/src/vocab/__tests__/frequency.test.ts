@@ -4,6 +4,8 @@ import type { PartOfSpeechValue } from '../../schemas/lexeme';
 import {
   CLOSED_CLASS_POS,
   type FrequencyRow,
+  FUNCTION_ADVERBS,
+  isClosedClass,
   loadFrequencyDataset,
   PRIMARY_POS_ORDER,
   planFrequency,
@@ -131,6 +133,54 @@ describe('planFrequency', () => {
       'PRONOUN',
     ]);
   });
+
+  it('B6.2b: a function adverb ranks with the closed classes; a content adverb and an interjection do not', () => {
+    const z = { not: 6.7, just: 6.4, really: 6.0, please: 5.7, rice: 4.8, of: 7.4 };
+    const plan = planFrequency(
+      [
+        row('not', 'not', 'PUBLISHED', { pos: 'ADVERB' }),
+        row('just', 'just', 'PUBLISHED', { pos: 'ADVERB' }),
+        row('really', 'really', 'PUBLISHED', { pos: 'ADVERB' }),
+        row('please', 'please', 'PUBLISHED', { pos: 'INTERJECTION' }),
+        row('rice', 'rice'),
+        row('of', 'of', 'PUBLISHED', { pos: 'PREPOSITION' }),
+      ],
+      z,
+    );
+    expect(Object.fromEntries(plan.map((p) => [p.id, p.frequencyRank]))).toEqual({
+      really: 1,
+      please: 2,
+      rice: 3,
+      of: 4, // closed class by zipf: of 7.4, not 6.7, just 6.4
+      not: 5,
+      just: 6,
+    });
+  });
+
+  it('FUNCTION_ADVERBS: a closed list, lemmaKeys only, and the spec examples are in it', () => {
+    expect(FUNCTION_ADVERBS.size).toBeGreaterThanOrEqual(30);
+    expect(FUNCTION_ADVERBS.size).toBeLessThanOrEqual(40);
+    for (const w of FUNCTION_ADVERBS) expect(w).toBe(w.trim().toLowerCase());
+    for (const w of [
+      'not',
+      'just',
+      'now',
+      'then',
+      'also',
+      'very',
+      'so',
+      'too',
+      'here',
+      'there',
+      'only',
+      'still',
+    ])
+      expect(FUNCTION_ADVERBS.has(w)).toBe(true);
+    for (const w of ['always', 'often', 'well', 'really', 'today', 'please'])
+      expect(FUNCTION_ADVERBS.has(w)).toBe(false);
+    // only as an adverb: `so` the conjunction is closed by its POS, `just` the adjective is content
+    expect(isClosedClass({ pos: 'ADJECTIVE', lemmaKey: 'just' })).toBe(false);
+  });
 });
 
 const POS: PartOfSpeechValue[] = [...PRIMARY_POS_ORDER];
@@ -138,7 +188,7 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const;
 const rowsArb = fc
   .array(
     fc.record({
-      key: fc.constantFrom('a', 'b', 'c', 'd', 'e', 'f'),
+      key: fc.constantFrom('a', 'b', 'c', 'd', 'e', 'f', 'not'),
       pos: fc.constantFrom(...POS),
       sense: fc.constantFrom('', 'x'),
       cefrLevel: fc.constantFrom(...LEVELS),
@@ -159,6 +209,7 @@ const zipfArb = fc.record({
   d: fc.constantFrom(4, 5),
   e: fc.constantFrom(4, 5),
   f: fc.constant(0),
+  not: fc.double({ min: 1, max: 7, noNaN: true }),
 });
 
 describe('planFrequency properties (B6.2a)', () => {
@@ -174,8 +225,8 @@ describe('planFrequency properties (B6.2a)', () => {
     fc.assert(
       fc.property(rowsArb, zipfArb, (rows, z) => {
         const out = ranked(rows, z);
-        const content = out.filter((x) => !CLOSED_CLASS_POS.has(x.r.pos));
-        const closed = out.filter((x) => CLOSED_CLASS_POS.has(x.r.pos));
+        const content = out.filter((x) => !isClosedClass(x.r));
+        const closed = out.filter((x) => isClosedClass(x.r));
         for (const c of closed) for (const w of content) expect(c.rank).toBeGreaterThan(w.rank);
       }),
     );
@@ -202,7 +253,7 @@ describe('planFrequency properties (B6.2a)', () => {
         const primary = primarySenseIds(rows);
         const out = ranked(rows, z);
         for (const closed of [true, false]) {
-          const cls = out.filter((x) => CLOSED_CLASS_POS.has(x.r.pos) === closed);
+          const cls = out.filter((x) => isClosedClass(x.r) === closed);
           for (const s of cls.filter((x) => !primary.has(x.r.id)))
             for (const p of cls.filter((x) => primary.has(x.r.id)))
               expect(s.rank).toBeGreaterThan(p.rank);

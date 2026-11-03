@@ -14,9 +14,10 @@ import type { PartOfSpeechValue } from '../schemas/lexeme';
  *   by the key `[closedClass ASC, secondarySense ASC, zipf DESC, lemmaKey
  *   ASC]` (B6.2a rank amendment): 1, 2, 3 … with no gaps. wordfreq counts a
  *   form, not a sense, so a rare sense of a frequent form (`go` noun B1) and
- *   function words (`to`, `of`) would otherwise lead the NEW tier. Content
- *   words come first, then the second senses of a form, then closed-class
- *   words. Not PUBLISHED or no frequency → null.
+ *   function words (`to`, `of`, `not`) would otherwise lead the NEW tier.
+ *   Content words come first, then the second senses of a form, then
+ *   closed-class words (closed POS or FUNCTION_ADVERBS, B6.2b). Not
+ *   PUBLISHED or no frequency → null.
  * - Idempotent: only rows whose values differ are written — one
  *   `UPDATE … FROM unnest(…)` statement per chunk (atomic on its own, one
  *   round trip: per-row updates in a transaction over the Neon pooler ran
@@ -60,6 +61,69 @@ export const CLOSED_CLASS_POS: ReadonlySet<PartOfSpeechValue> = new Set<PartOfSp
   'PRONOUN',
   'OTHER',
 ]);
+
+/**
+ * Function adverbs (B6.2b), ranked with the closed classes when tagged
+ * ADVERB. Criterion: a grammatical or discourse adverb with no translatable
+ * content meaning of its own — negation, degree, focus, deictic time/place
+ * pro-forms, wh-adverbs, connectives and the adverbial particles of phrasal
+ * verbs. Content adverbs (`always`, `often`, `well`, `really`, `today`,
+ * `together`) are not here. A closed list by lemmaKey; the CEFR-J catalogue
+ * tags all of these `adverb`.
+ */
+export const FUNCTION_ADVERBS: ReadonlySet<string> = new Set([
+  // negation
+  'not',
+  'no',
+  // degree
+  'very',
+  'so',
+  'too',
+  'quite',
+  'rather',
+  'much',
+  'more',
+  'most',
+  'less',
+  'least',
+  // focus
+  'just',
+  'only',
+  'even',
+  'also',
+  'either',
+  'else',
+  // deictic and aspectual time / place pro-forms
+  'now',
+  'then',
+  'here',
+  'there',
+  'still',
+  'already',
+  'yet',
+  'ever',
+  // wh-adverbs
+  'how',
+  'when',
+  'where',
+  'why',
+  // connectives
+  'however',
+  'instead',
+  // adverbial particles (phrasal verbs)
+  'in',
+  'on',
+  'up',
+  'out',
+  'off',
+  'down',
+  'over',
+  'about',
+]);
+
+/** Closed class in the rank key: a closed POS, or a function adverb. */
+export const isClosedClass = (r: { pos: PartOfSpeechValue; lemmaKey: string }): boolean =>
+  CLOSED_CLASS_POS.has(r.pos) || (r.pos === 'ADVERB' && FUNCTION_ADVERBS.has(r.lemmaKey));
 
 /**
  * Which sense of a form is primary when two PUBLISHED lexemes of one
@@ -142,7 +206,7 @@ export function planFrequency(
   const primary = primarySenseIds(rows);
   type Key = readonly [closed: number, secondary: number, zipf: number, lemmaKey: string];
   const keyOf = (r: FrequencyRow): Key => [
-    CLOSED_CLASS_POS.has(r.pos) ? 1 : 0,
+    isClosedClass(r) ? 1 : 0,
     primary.has(r.id) ? 0 : 1,
     zipfOf(r.lemmaKey) as number,
     r.lemmaKey,
