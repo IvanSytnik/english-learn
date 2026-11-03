@@ -96,7 +96,9 @@ function outputs(): Record<string, { count: number; sha256: string; cards: strin
 }
 
 describe('vocabulary card output is pinned (B6.3)', () => {
-  it('matches the pre-registry snapshot byte for byte', () => {
+  // ~3 s alone (4 000 cards, 20 000 grades); far past the 5 s default when
+  // the whole suite runs on a loaded machine.
+  it('matches the pre-registry snapshot byte for byte', { timeout: 60_000 }, () => {
     const now = outputs();
     if (process.env.UPDATE_CARD_SNAPSHOT === '1' || !existsSync(SNAPSHOT)) {
       const hashes = Object.fromEntries(
