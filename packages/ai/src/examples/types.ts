@@ -22,6 +22,10 @@ export const ExamplesRequestItemSchema = z.object({
   existing: z.array(z.string().min(1)).min(1),
   /** examples[0].clozeTarget — the form already practised. */
   existingForm: z.string().min(1),
+  /** Where examples[0] has the word: start (first word) / middle / end (last word). */
+  existingPlace: z.enum(['start', 'middle', 'end']),
+  /** The word inflects (INFLECTING_POS): one new sentence must vary form or place. */
+  vary: z.boolean(),
 });
 export type ExamplesRequestItem = z.infer<typeof ExamplesRequestItemSchema>;
 

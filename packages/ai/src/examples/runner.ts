@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { CefrLevelValue, LexemeExample, PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { lexemeIdentity } from '@englishlearn/db/vocab/dataset';
+import { INFLECTING_POS, targetPosition } from '@englishlearn/db/vocab/example-checks';
 import type { ExamplesSnapshotEntry } from '@englishlearn/db/vocab/examples-snapshot';
 import {
   callParsed,
@@ -43,7 +44,7 @@ export type ExamplesSource = {
   examples: readonly LexemeExample[];
 };
 
-export const DEFAULT_EXAMPLES_BATCH_SIZE = 20;
+export const DEFAULT_EXAMPLES_BATCH_SIZE = 15;
 
 /** The chunks a run would send: sources not yet in the snapshot, by level, capped at `limit`. */
 export function planExamples(
@@ -76,6 +77,8 @@ export function planExamples(
           meaning: s.meaning,
           existing: s.examples.map((ex) => ex.sentence),
           existingForm: first.clozeTarget,
+          existingPlace: targetPosition(first.sentence, first.clozeTarget) ?? 'middle',
+          vary: INFLECTING_POS.has(s.pos),
           base: first.sentence,
         };
       }),

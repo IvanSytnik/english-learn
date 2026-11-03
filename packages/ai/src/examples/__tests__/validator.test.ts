@@ -19,6 +19,8 @@ const pending = (over: Partial<PendingExamples> = {}): PendingExamples => ({
   meaning: 'to move fast on foot',
   existing: ['I run in the park every day.'],
   existingForm: 'run',
+  existingPlace: 'middle',
+  vary: true,
   base: 'I run in the park every day.',
   ...over,
 });
@@ -98,6 +100,7 @@ describe('validateExamplesBatch (B6.4a)', () => {
       pos: 'PREPOSITION',
       existing: ['The cat is under the bed.'],
       existingForm: 'under',
+      vary: false,
       base: 'The cat is under the bed.',
     });
     expect(

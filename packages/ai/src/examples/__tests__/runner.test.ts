@@ -37,9 +37,30 @@ describe('planExamples', () => {
     expect(plan.chunks[0]?.[0]).toMatchObject({
       existing: ['A in b.'],
       existingForm: 'in',
+      existingPlace: 'middle',
+      vary: false,
       base: 'A in b.',
     });
     expect(planExamples(sources, { done: new Set(), limit: 2 }).selected).toBe(2);
+  });
+
+  it('tells the model where examples[0] has the word and whether it must vary', () => {
+    const verb = (sentence: string, clozeTarget: string): ExamplesSource => ({
+      ...source('run'),
+      pos: 'VERB',
+      examples: [{ sentence, clozeTarget, translation: T }],
+    });
+    const items = [
+      verb('Run to the door now.', 'Run'),
+      verb('I like to run.', 'run'),
+      verb('I run every day.', 'run'),
+    ].map((s) => planExamples([s], { done: new Set() }).chunks[0]?.[0]);
+    expect(items.map((i) => [i?.existingPlace, i?.vary])).toEqual([
+      ['start', true],
+      ['end', true],
+      ['middle', true],
+    ]);
+    expect(planExamples([source('in')], { done: new Set() }).chunks[0]?.[0]?.vary).toBe(false);
   });
 });
 
@@ -109,7 +130,10 @@ describe('the examples request', () => {
     ]);
     expect(EXAMPLES_SYSTEM_PROMPT).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     expect(req.messages).toEqual([
-      { role: 'user', content: expect.stringContaining('"existingForm":"in"') },
+      {
+        role: 'user',
+        content: expect.stringContaining('"existingForm":"in","existingPlace":"middle","vary":false'),
+      },
     ]);
   });
 

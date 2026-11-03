@@ -11,7 +11,7 @@ import { type ExamplesRequestItem, WireExamplesResponseSchema } from './types';
  * it.
  */
 
-export const EXAMPLES_PROMPT_VERSION = 'v1';
+export const EXAMPLES_PROMPT_VERSION = 'v2';
 
 export const EXAMPLES_SYSTEM_PROMPT = `You write example sentences for an English course for learners whose native language is Russian, Ukrainian or German.
 
@@ -20,7 +20,8 @@ For each English word you receive, return one item with the same "key" and "lemm
 - clozeTarget: the exact form of the word as it appears in the sentence (e.g. "ran" for "run", "children" for "child"). It must appear in the sentence exactly once, as a whole word, and nowhere else in another form.
 - translation: the whole sentence translated naturally into ru (Russian), uk (Ukrainian — never Russian) and de (German).
 
-The two new sentences must differ from each other and from every sentence in "existing" — a different situation, not a reworded copy. When the word changes its form (plural, past tense, -ing, third person, comparative), at least one of the two uses a form other than "existingForm" or puts the word in another place in the sentence (beginning, middle, end) than in the first existing sentence. Answer every item; never skip, merge or add items.`;
+The two new sentences must differ from each other and from every sentence in "existing" — a different situation, not a reworded copy.
+When "vary" is true, at least one of the two new sentences must EITHER use a form of the word other than "existingForm" (plural "abilities", past "went", "-ing", third person "-s", comparative "-er") OR put the word in another place than "existingPlace": when "existingPlace" is "middle", make the word the very first or the very last word of that sentence (punctuation aside); when it is "start" or "end", put it anywhere else. Answer every item; never skip, merge or add items.`;
 
 export function buildExamplesUserPrompt(items: readonly ExamplesRequestItem[]): string {
   const lines = items.map((item) =>
@@ -34,6 +35,8 @@ export function buildExamplesUserPrompt(items: readonly ExamplesRequestItem[]): 
       topic: item.topic,
       existing: item.existing,
       existingForm: item.existingForm,
+      existingPlace: item.existingPlace,
+      vary: item.vary,
     }),
   );
   return `Words:\n${lines.join('\n')}`;
