@@ -1,6 +1,6 @@
 import { localDayStartMs } from '../vocab/day';
 import { summarizeVocab, type VocabSummary } from '../vocab/overview';
-import { selectVocab, type VocabSelection } from '../vocab/select';
+import { selectVocab, type VocabScope, type VocabSelection } from '../vocab/select';
 import type { VocabSessionDb } from './db-port';
 
 /**
@@ -19,13 +19,18 @@ export type NextVocabInput = {
   timeZone: unknown;
   /** "now" as Unix ms. Tests pass it; prod omits -> Date.now(). */
   nowMs?: number;
-  /** Words just shown, so a just-failed word is not served straight back. */
+  /**
+   * Words just shown, oldest first (the decrypted recent refs): a just-failed
+   * word is not served straight back, and their concepts drive the concept
+   * spread of NEW words.
+   */
   excludeItemIds?: readonly string[];
   /**
-   * A topic session: only this concept's words are served. The daily
-   * new-word limit stays the learner's, across topics.
+   * A topic or collection session. Filters NEW words only: due reviews and
+   * learning steps of every topic are still served first (B6-SPEC V2-5). The
+   * daily new-word limit stays the learner's, across scopes.
    */
-  conceptId?: string;
+  scope?: VocabScope;
 };
 
 /** The `/words` overview: the summary plus today's new-word allowance. */
@@ -34,6 +39,8 @@ export type VocabOverview = VocabSummary & {
   dailyLimit: number;
   remainingNew: number;
 };
+
+const NO_ITEMS: ReadonlySet<string> = new Set();
 
 export function createVocabSessionService(db: VocabSessionDb) {
   return {
@@ -64,13 +71,16 @@ export function createVocabSessionService(db: VocabSessionDb) {
     async nextVocab(input: NextVocabInput): Promise<VocabSelection> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [all, newToday, profile] = await Promise.all([
+      const [candidates, newToday, profile] = await Promise.all([
         db.getVocabCandidates(input.userId),
         db.countNewVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
       ]);
-      const candidates =
-        input.conceptId === undefined ? all : all.filter((c) => c.conceptId === input.conceptId);
+      const conceptOf = new Map(candidates.map((c) => [c.itemId, c.conceptId]));
+      const recentConceptIds = (input.excludeItemIds ?? []).flatMap((id) => {
+        const conceptId = conceptOf.get(id);
+        return conceptId === undefined ? [] : [conceptId];
+      });
       return selectVocab({
         candidates,
         nowMs,
@@ -79,6 +89,11 @@ export function createVocabSessionService(db: VocabSessionDb) {
         targetLevel: profile.assessedLevel,
         seed: `${input.userId}:${dayStart}`,
         excludeItemIds: input.excludeItemIds,
+        scope: input.scope,
+        // Learner preferences arrive with B6.6 (StudentLexemePreference).
+        priorityItemIds: NO_ITEMS,
+        hiddenItemIds: NO_ITEMS,
+        recentConceptIds,
       });
     },
   };

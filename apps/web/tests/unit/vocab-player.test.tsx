@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RECENT_EXCLUDE } from '@/lib/recent-refs';
+import type { ClientVocabScope } from '@/lib/vocab-scope';
 import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 import en from '../../messages/en.json';
 import { us } from './keys';
@@ -86,10 +87,10 @@ const answered = (over: Partial<VocabFeedback> = {}) => ({
   } satisfies VocabFeedback,
 });
 
-function renderPlayer(conceptId?: string) {
+function renderPlayer(scope?: ClientVocabScope) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <VocabPlayer conceptId={conceptId} />
+      <VocabPlayer scope={scope} />
     </NextIntlClientProvider>,
   );
 }
@@ -125,11 +126,11 @@ beforeEach(() => {
 describe('loading', () => {
   it('asks for the first card in the browser’s zone, for the chosen concept', async () => {
     nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('ref-1')));
-    renderPlayer('vocab.travel.a1');
+    renderPlayer({ kind: 'concept', conceptId: 'vocab.travel.a1' });
     await onChoiceCard();
     expect(nextVocabCardAction).toHaveBeenCalledExactlyOnceWith({
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      conceptId: 'vocab.travel.a1',
+      scope: { kind: 'concept', conceptId: 'vocab.travel.a1' },
       recentVocabRefs: [],
     });
     expect(screen.getByText('дом')).toBeInTheDocument();

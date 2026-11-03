@@ -5,24 +5,42 @@ import { vocabModeFor } from './ladder';
 import type { VocabMode } from './types';
 
 /**
- * The vocabulary session's next word (B2.5). Pure, deterministic, its own
- * pool — never the grammar candidates. Priority:
+ * The vocabulary session's next word (B2.5, selector v2 B6.2). Pure,
+ * deterministic, its own pool — never the grammar candidates. Priority:
  *
  *   1. REVIEW_DUE — a word in review whose FSRS due moment has come, the
- *      most overdue first;
- *   2. LEARNING   — a word in (re)learning whose short step is due;
+ *      most overdue first. **Global**: a scope never hides a due review;
+ *   2. LEARNING   — a word in (re)learning whose short step is due. Global;
  *   3. NEW        — a never-answered word, while today's new words are under
- *      the learner's dailyVocabLimit. Words at the learner's assessed level
- *      first (then the nearest levels, lower before higher; A1 first without
- *      a level), in a per-day order: `seedFromString(seed:itemId)`.
+ *      the learner's dailyVocabLimit. Only here do the scope, the hidden set
+ *      and the priority set apply (B6-SPEC V2-5). Sort key:
+ *      `[prioritized ? 0 : 1, |rank − target|, rank, frequencyRank ASC NULLS
+ *      LAST, seedFromString(seed:itemId), itemId]` — the learner's level
+ *      first (then the nearest levels, lower before higher; A1 without a
+ *      level), frequent words first within a level, the day seed last.
+ *      **Concept spread:** of the first CONCEPT_SPREAD_WINDOW by that key,
+ *      the first whose concept is not among the last CONCEPT_SPREAD_RECENT
+ *      served; none → the first.
  *
- * Otherwise NOTHING_DUE with the next due moment. `excludeItemIds` (the words
- * just shown) is ignored when it would leave nothing to serve.
+ * Otherwise NOTHING_DUE with the next due moment over the **global** set.
+ * `excludeItemIds` (the words just shown) is ignored when it would leave
+ * nothing to serve.
  */
+
+/** NEW candidates the concept spread looks at. */
+export const CONCEPT_SPREAD_WINDOW = 20;
+/** How many of the latest served concepts the spread avoids. */
+export const CONCEPT_SPREAD_RECENT = 3;
 
 export type VocabCandidate = {
   itemId: string;
+  /** Topic concept of the word (`vocab.<topic>.<level>`). */
+  conceptId: string;
   cefrLevel: CEFRLevel;
+  /** Lexeme.frequencyRank (1 = most frequent); null = unknown, sorts last. */
+  frequencyRank: number | null;
+  /** Lexeme.collections — browsing tags, never a concept. */
+  collections: readonly string[];
   /** The learner's ItemReviewState; null = never answered. */
   review: {
     dueAt: bigint;
@@ -31,6 +49,15 @@ export type VocabCandidate = {
     lastReviewAt: bigint | null;
   } | null;
 };
+
+/**
+ * What a session is about. Filters the NEW tier only. A word list
+ * (`{ kind: 'list' }`, B6.6) joins this union; `inScope` is exhaustive, so
+ * the compiler points at the one place to extend.
+ */
+export type VocabScope =
+  | { kind: 'concept'; conceptId: string }
+  | { kind: 'collection'; key: string };
 
 export type VocabSelectionReason = 'REVIEW_DUE' | 'LEARNING' | 'NEW';
 
@@ -61,6 +88,14 @@ export type VocabSelectInput = {
   /** Fixes the order of new words — the service passes `userId:dayStart`. */
   seed: string;
   excludeItemIds?: readonly string[];
+  /** Restricts NEW words; reviews and learning steps stay global. */
+  scope?: VocabScope;
+  /** NEW words the learner put first (B6.6; empty until then). */
+  priorityItemIds: ReadonlySet<string>;
+  /** Words the learner hid: never introduced as NEW (B6.6; empty until then). */
+  hiddenItemIds: ReadonlySet<string>;
+  /** Concepts of the words served last, oldest first (the concept spread). */
+  recentConceptIds: readonly string[];
 };
 
 export function selectVocab(input: VocabSelectInput): VocabSelection {
@@ -107,13 +142,42 @@ function pick(
   const target = CEFR_RANK[input.targetLevel ?? 'A1'];
   const order = (c: VocabCandidate) => {
     const rank = CEFR_RANK[c.cefrLevel];
-    return [Math.abs(rank - target), rank, seedFromString(`${input.seed}:${c.itemId}`)] as const;
+    return [
+      input.priorityItemIds.has(c.itemId) ? 0 : 1,
+      Math.abs(rank - target),
+      rank,
+      c.frequencyRank ?? Number.POSITIVE_INFINITY,
+      seedFromString(`${input.seed}:${c.itemId}`),
+    ] as const;
   };
-  const fresh = pool
-    .filter((c) => c.review === null || c.review.cardStatus === 'NEW')
+  const ranked = pool
+    .filter(
+      (c) =>
+        (c.review === null || c.review.cardStatus === 'NEW') &&
+        !input.hiddenItemIds.has(c.itemId) &&
+        inScope(c, input.scope),
+    )
     .map((c) => ({ c, key: order(c) }))
-    .sort((a, b) => compareKeys(a.key, b.key) || (a.c.itemId < b.c.itemId ? -1 : 1))[0];
-  return fresh ? found(fresh.c, 'NEW') : null;
+    .sort((a, b) => compareKeys(a.key, b.key) || (a.c.itemId < b.c.itemId ? -1 : 1))
+    .slice(0, CONCEPT_SPREAD_WINDOW)
+    .map(({ c }) => c);
+  const recent = new Set(input.recentConceptIds.slice(-CONCEPT_SPREAD_RECENT));
+  const fresh = ranked.find((c) => !recent.has(c.conceptId)) ?? ranked[0];
+  return fresh ? found(fresh, 'NEW') : null;
+}
+
+function inScope(c: VocabCandidate, scope: VocabScope | undefined): boolean {
+  if (scope === undefined) return true;
+  switch (scope.kind) {
+    case 'concept':
+      return c.conceptId === scope.conceptId;
+    case 'collection':
+      return c.collections.includes(scope.key);
+    default: {
+      const never: never = scope;
+      throw new Error(`Unknown vocabulary scope: ${JSON.stringify(never)}`);
+    }
+  }
 }
 
 function byDueAt(a: VocabCandidate, b: VocabCandidate): number {
@@ -125,8 +189,9 @@ function byDueAt(a: VocabCandidate, b: VocabCandidate): number {
 
 function compareKeys(a: readonly number[], b: readonly number[]): number {
   for (let i = 0; i < a.length; i++) {
-    const d = (a[i] ?? 0) - (b[i] ?? 0);
-    if (d !== 0) return d;
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x !== y) return x < y ? -1 : 1;
   }
   return 0;
 }

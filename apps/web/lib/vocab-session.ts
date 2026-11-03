@@ -15,6 +15,7 @@ import {
   type VocabCardView,
   type VocabGradingKey,
   type VocabLocale,
+  type VocabScope,
 } from '@englishlearn/learner-model';
 import type { VocabAttemptAnalytics } from '@englishlearn/learner-model/service';
 import { decryptVocabRef, encryptVocabRef, type VocabRef } from '@/lib/crypto/vocab-ref';
@@ -139,7 +140,7 @@ export async function loadNextVocabCard(args: {
   userId: string;
   uiLocale: Locale;
   timeZone: unknown;
-  conceptId?: string;
+  scope?: VocabScope;
   excludeItemIds?: readonly string[];
 }): Promise<Result<NextVocabCard, VocabSessionError>> {
   const { userId } = args;
@@ -147,7 +148,7 @@ export async function loadNextVocabCard(args: {
     vocabSessionService.nextVocab({
       userId,
       timeZone: args.timeZone,
-      conceptId: args.conceptId,
+      scope: args.scope,
       excludeItemIds: args.excludeItemIds,
     }),
     learnerLocale(userId, args.uiLocale),

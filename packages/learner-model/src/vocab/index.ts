@@ -22,12 +22,16 @@ export {
   type VocabConceptProgress,
   type VocabSummary,
   WORD_STAGES,
+  type VocabCollectionProgress,
   type WordStage,
   wordStage,
 } from './overview';
 export {
+  CONCEPT_SPREAD_RECENT,
+  CONCEPT_SPREAD_WINDOW,
   selectVocab,
   type VocabCandidate,
+  type VocabScope,
   type VocabSelectInput,
   type VocabSelection,
   type VocabSelectionReason,

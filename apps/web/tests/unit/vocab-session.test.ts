@@ -201,9 +201,10 @@ describe('loadNextVocabCard', () => {
   });
 
   it('passes a topic and the words just shown to selection', async () => {
-    await load({ conceptId: CONCEPT, excludeItemIds: ['item-bread'] });
+    const scope = { kind: 'concept', conceptId: CONCEPT } as const;
+    await load({ scope, excludeItemIds: ['item-bread'] });
     expect(nextVocab).toHaveBeenCalledWith(
-      expect.objectContaining({ conceptId: CONCEPT, excludeItemIds: ['item-bread'] }),
+      expect.objectContaining({ scope, excludeItemIds: ['item-bread'] }),
     );
   });
 

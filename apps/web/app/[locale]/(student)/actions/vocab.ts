@@ -3,7 +3,6 @@
 import { prisma } from '@englishlearn/db';
 import { setDailyVocabLimit } from '@englishlearn/db/queries/vocab-session';
 import { DailyVocabLimitSchema, isLocale } from '@englishlearn/db/schemas';
-import { parseVocabConceptId } from '@englishlearn/db/vocab/topics';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { authorizeAction } from '@/lib/authz';
@@ -11,6 +10,7 @@ import { decryptVocabRef } from '@/lib/crypto/vocab-ref';
 import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { Result } from '@/lib/result';
 import { loadVocabOverview, type VocabOverviewView } from '@/lib/vocab-overview';
+import { VocabScopeSchema } from '@/lib/vocab-scope';
 import {
   loadNextVocabCard,
   type NextVocabCard,
@@ -42,12 +42,8 @@ const VocabRefSchema = z.string().min(1).max(1024);
 const TimeZoneSchema = z.string().max(64).optional();
 
 const NextSchema = z.object({
-  /** A topic session: one topic concept (`vocab.<topic>.<level>`). */
-  conceptId: z
-    .string()
-    .max(100)
-    .refine((id) => parseVocabConceptId(id) !== null)
-    .optional(),
+  /** A topic or collection session; filters new words only. */
+  scope: VocabScopeSchema.optional(),
   /** Cards just shown, so a just-failed word is not served straight back. */
   recentVocabRefs: z.array(VocabRefSchema).max(20).optional(),
   timeZone: TimeZoneSchema,
@@ -101,7 +97,7 @@ export async function nextVocabCardAction(
   const userId = user.value.id;
   const parsed = NextSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  const { conceptId, recentVocabRefs = [], timeZone } = parsed.data;
+  const { scope, recentVocabRefs = [], timeZone } = parsed.data;
 
   return guarded('nextVocabCard', async () => {
     // The recent list only steers selection: a ref that does not decrypt for
@@ -113,7 +109,8 @@ export async function nextVocabCardAction(
       userId,
       uiLocale: await currentLocale(),
       timeZone,
-      conceptId,
+      scope,
+      // Oldest first: also the concept spread's "last served" (B6.2).
       excludeItemIds: recent.flatMap((r) => (r.ok ? [r.value.itemId] : [])),
     });
   });

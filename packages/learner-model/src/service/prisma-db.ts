@@ -415,7 +415,12 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
               lexemeId: { not: null },
               lexeme: { status: 'PUBLISHED' },
             },
-            select: { id: true, conceptId: true, cefrLevel: true },
+            select: {
+              id: true,
+              conceptId: true,
+              cefrLevel: true,
+              lexeme: { select: { frequencyRank: true, collections: true } },
+            },
           }),
         ),
         prisma.itemReviewState.findMany({
@@ -434,6 +439,8 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
         itemId: item.id,
         conceptId: item.conceptId,
         cefrLevel: item.cefrLevel,
+        frequencyRank: item.lexeme?.frequencyRank ?? null,
+        collections: item.lexeme?.collections ?? [],
         review: reviewByItem.get(item.id) ?? null,
       }));
     },

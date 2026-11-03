@@ -40,7 +40,12 @@ describe('/words/practice page', () => {
 
   it('narrows the session to a real topic concept', async () => {
     const page = await open({ concept: 'vocab.travel.a2' });
-    expect(page.props).toEqual({ conceptId: 'vocab.travel.a2' });
+    expect(page.props).toEqual({ scope: { kind: 'concept', conceptId: 'vocab.travel.a2' } });
+  });
+
+  it('or to a known collection (B6.2)', async () => {
+    const page = await open({ collection: 'work_jobs' });
+    expect(page.props).toEqual({ scope: { kind: 'collection', key: 'work_jobs' } });
   });
 
   it.each([
@@ -48,8 +53,11 @@ describe('/words/practice page', () => {
     ['an unknown concept', { concept: 'vocab.nowhere.a2' }],
     ['a grammar concept', { concept: 'grammar.past_simple' }],
     ['a repeated parameter', { concept: ['vocab.travel.a1', 'vocab.travel.a2'] }],
+    ['an unknown collection', { collection: 'Work and Jobs' }],
+    ['a repeated collection', { collection: ['work_jobs', 'media'] }],
+    ['both a concept and a collection', { concept: 'vocab.travel.a2', collection: 'work_jobs' }],
   ])('%s is the whole pool', async (_, searchParams) => {
     const page = await open(searchParams);
-    expect(page.props).toEqual({ conceptId: undefined });
+    expect(page.props).toEqual({ scope: undefined });
   });
 });

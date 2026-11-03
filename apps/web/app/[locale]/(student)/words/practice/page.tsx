@@ -1,11 +1,13 @@
-import { parseVocabConceptId } from '@englishlearn/db/vocab/topics';
 import { getLocale } from 'next-intl/server';
 import { redirect } from '@/i18n/navigation';
 import { auth } from '@/lib/auth';
+import { scopeFromSearchParams } from '@/lib/vocab-scope';
 import { VocabPlayer } from './vocab-player';
 
 /**
- * A vocabulary session: the whole pool, or one topic level (`?concept=`).
+ * A vocabulary session: the whole pool, one topic level (`?concept=`) or one
+ * collection (`?collection=`) — the scope narrows new words; due reviews of
+ * every topic still come first.
  * The first card is loaded by the player in the browser's time zone — the
  * daily new-word allowance counts from the learner's local midnight.
  */
@@ -20,11 +22,5 @@ export default async function WordsPracticePage({
   // Vocabulary lives in the learner model, which only students have.
   if (session.user.role !== 'STUDENT') return redirect({ href: '/dashboard', locale });
 
-  // Only a real topic concept narrows the session; anything else (unknown,
-  // repeated) is the whole pool.
-  const concept = (await searchParams).concept;
-  const conceptId =
-    typeof concept === 'string' && parseVocabConceptId(concept) !== null ? concept : undefined;
-
-  return <VocabPlayer conceptId={conceptId} />;
+  return <VocabPlayer scope={scopeFromSearchParams(await searchParams)} />;
 }

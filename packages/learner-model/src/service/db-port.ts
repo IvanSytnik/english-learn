@@ -215,6 +215,10 @@ export type VocabCandidateRow = {
   /** Topic concept of the word (`vocab.<topic>.<level>`). */
   conceptId: string;
   cefrLevel: CefrLevelRow;
+  /** Lexeme.frequencyRank (B6.2); null = no frequency. */
+  frequencyRank: number | null;
+  /** Lexeme.collections (B6.2) — browsing tags. */
+  collections: string[];
   review: {
     dueAt: bigint;
     cardStatus: FsrsCardStatus;

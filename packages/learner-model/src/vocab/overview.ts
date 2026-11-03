@@ -42,12 +42,17 @@ export type VocabConceptProgress = {
   stages: StageCounts;
 };
 
+/** A browsing collection (B6.2): words tagged with its key, across concepts. */
+export type VocabCollectionProgress = { key: string; total: number; started: number };
+
 export type VocabSummary = {
   /** Words in (re)learning or review whose due moment has come. */
   dueNow: number;
   stages: StageCounts;
   /** One row per topic concept, sorted by concept id. */
   concepts: VocabConceptProgress[];
+  /** One row per collection key present, sorted by key. */
+  collections: VocabCollectionProgress[];
 };
 
 const emptyStages = (): StageCounts => ({
@@ -65,6 +70,7 @@ export function summarizeVocab(
   const now = BigInt(Math.floor(nowMs));
   const stages = emptyStages();
   const byConcept = new Map<string, VocabConceptProgress>();
+  const byCollection = new Map<string, VocabCollectionProgress>();
   let dueNow = 0;
 
   for (const c of candidates) {
@@ -80,10 +86,20 @@ export function summarizeVocab(
     row.total += 1;
     if (stage !== 'new') row.started += 1;
     row.stages[stage] += 1;
+
+    for (const key of c.collections) {
+      const tag = byCollection.get(key) ?? { key, total: 0, started: 0 };
+      tag.total += 1;
+      if (stage !== 'new') tag.started += 1;
+      byCollection.set(key, tag);
+    }
   }
 
   const concepts = [...byConcept.values()].sort((a, b) =>
     a.conceptId < b.conceptId ? -1 : a.conceptId > b.conceptId ? 1 : 0,
   );
-  return { dueNow, stages, concepts };
+  const collections = [...byCollection.values()].sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+  );
+  return { dueNow, stages, concepts, collections };
 }

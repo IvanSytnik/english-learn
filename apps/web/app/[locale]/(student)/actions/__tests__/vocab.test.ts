@@ -171,8 +171,11 @@ describe('only learners (S5)', () => {
 
 describe('input validation', () => {
   it.each([
-    ['a non-topic conceptId', { conceptId: 'grammar.past_simple' }],
-    ['an unknown topic', { conceptId: 'vocab.cooking.a1' }],
+    ['a non-topic concept', { scope: { kind: 'concept', conceptId: 'grammar.past_simple' } }],
+    ['an unknown topic', { scope: { kind: 'concept', conceptId: 'vocab.cooking.a1' } }],
+    ['an unknown collection', { scope: { kind: 'collection', key: 'Work and Jobs' } }],
+    ['an unknown scope kind', { scope: { kind: 'list', listId: 'l1' } }],
+    ['an extra scope field', { scope: { kind: 'collection', key: 'work_jobs', conceptId: 'x' } }],
     ['too many recent refs', { recentVocabRefs: Array(21).fill('x') }],
     ['an oversized ref', { recentVocabRefs: ['x'.repeat(1025)] }],
     ['a non-string time zone', { timeZone: 42 }],
@@ -222,7 +225,7 @@ describe('nextVocabCardAction', () => {
       optionItemIds: null,
     });
     const out = await nextVocabCardAction({
-      conceptId: CONCEPT,
+      scope: { kind: 'concept', conceptId: CONCEPT },
       recentVocabRefs: [foreign, 'garbage', recent],
       timeZone: 'Europe/Berlin',
     });
@@ -232,9 +235,16 @@ describe('nextVocabCardAction', () => {
     expect(nextVocab).toHaveBeenLastCalledWith({
       userId: USER,
       timeZone: 'Europe/Berlin',
-      conceptId: CONCEPT,
+      scope: { kind: 'concept', conceptId: CONCEPT },
       excludeItemIds: ['item-bread'],
     });
+  });
+
+  it('serves a collection session (B6.2)', async () => {
+    await nextVocabCardAction({ scope: { kind: 'collection', key: 'work_jobs' } });
+    expect(nextVocab).toHaveBeenLastCalledWith(
+      expect.objectContaining({ scope: { kind: 'collection', key: 'work_jobs' } }),
+    );
   });
 
   it('an unexpected failure is UNAVAILABLE, logged on the server', async () => {
@@ -347,6 +357,7 @@ describe('vocabOverviewAction', () => {
           stages: { ...EMPTY, new: 2, learning: 1 },
         },
       ],
+      collections: [],
     });
     const out = await vocabOverviewAction({ timeZone: 'Europe/Kyiv' });
     expect(overview).toHaveBeenCalledWith({ userId: USER, timeZone: 'Europe/Kyiv' });

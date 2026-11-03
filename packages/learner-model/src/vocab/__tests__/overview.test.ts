@@ -13,10 +13,17 @@ const review = (stability: number, dueOffset: bigint, cardStatus: FsrsCardStatus
   stability,
   lastReviewAt: BigInt(NOW) - 100n * MIN,
 });
-const word = (itemId: string, conceptId: string, r: ReturnType<typeof review> | null) => ({
+const word = (
+  itemId: string,
+  conceptId: string,
+  r: ReturnType<typeof review> | null,
+  collections: string[] = [],
+) => ({
   itemId,
   conceptId,
   cefrLevel: 'A1' as const,
+  frequencyRank: null,
+  collections,
   review: r,
 });
 
@@ -87,6 +94,23 @@ describe('summarizeVocab', () => {
       dueNow: 0,
       stages: { new: 0, learning: 0, familiar: 0, known: 0, mastered: 0 },
       concepts: [],
+      collections: [],
     });
+  });
+
+  it('counts collections across concepts (B6.2)', () => {
+    const out = summarizeVocab(
+      [
+        word('a', 'vocab.food_drink.a1', null, ['food_drink']),
+        word('b', 'vocab.education.b1', review(30, 5n * MIN), ['work_jobs', 'food_drink']),
+        word('c', 'vocab.travel.a1', review(1, 5n * MIN, 'LEARNING'), ['work_jobs']),
+        word('d', 'vocab.travel.a1', null),
+      ],
+      NOW,
+    );
+    expect(out.collections).toEqual([
+      { key: 'food_drink', total: 2, started: 1 },
+      { key: 'work_jobs', total: 2, started: 2 },
+    ]);
   });
 });

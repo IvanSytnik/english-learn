@@ -28,6 +28,7 @@ if (!url && process.env.CI) {
 const RUN = `test-vsession-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const CONCEPT = `${RUN}.vocab`;
 const GRAMMAR = `${RUN}.grammar`;
+const COLLECTION = `${RUN.replaceAll('-', '_')}_jobs`;
 const TZ = 'Europe/Berlin';
 // 2026-10-29 14:00 in Berlin (CET, UTC+1); the local day began 2026-10-28T23:00Z.
 const NOW = Date.parse('2026-10-29T13:00:00Z');
@@ -77,6 +78,9 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
           cefrJLevel: 'A1',
           definitions: { en: 'x' },
           translations: { ru: 'x' },
+          // B6.2: w4 is the most frequent word, w5 the only one in the collection.
+          frequencyRank: i === 4 ? 1 : null,
+          collections: i === 5 ? [COLLECTION] : [],
           // The last word is back in REVIEW: its item must never be served.
           status: i === 6 ? 'REVIEW' : 'PUBLISHED',
         },
@@ -188,32 +192,50 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     expect(later).toMatchObject({ ok: true, reason: 'REVIEW_DUE' });
   });
 
-  it('a topic session serves only its concept; the choice carries lastReviewAt', async () => {
+  // B6.2 contract (intentional change from B2.5): a scope filters NEW words
+  // only — a due learning step or review of any topic is still served first.
+  it('a scoped session filters new words only; due words come from every topic', async () => {
+    const empty = { kind: 'concept', conceptId: GRAMMAR } as const;
+    await expect(
+      session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, scope: empty }),
+    ).resolves.toMatchObject({
+      ok: false,
+      reason: 'NOTHING_DUE',
+      nextDueAt: null,
+      remainingNew: 2,
+    });
+
     const [w0] = words as [string];
     await answer(w0, NOW - 30 * MIN);
     const recorded = await prisma.itemReviewState.findUniqueOrThrow({
       where: { userId_itemId: { userId, itemId: w0 } },
       select: { lastReviewAt: true },
     });
-    const out = await session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, conceptId: CONCEPT });
+    // A scope with no words of its own still gets w0's due learning step.
+    const out = await session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, scope: empty });
     expect(out).toMatchObject({ ok: true, reason: 'LEARNING', itemId: w0 });
     if (!out.ok) throw new Error('expected a word');
     expect(out.lastReviewAt).toBe(recorded.lastReviewAt);
 
+    // NEW inside the concept: the most frequent word first (w4, rank 1).
     const fresh = await session().nextVocab({
       userId,
       timeZone: TZ,
       nowMs: NOW,
-      conceptId: CONCEPT,
+      scope: { kind: 'concept', conceptId: CONCEPT },
       excludeItemIds: [w0],
     });
-    expect(fresh).toMatchObject({ ok: true, reason: 'NEW', lastReviewAt: null });
-    if (!fresh.ok) throw new Error('expected a word');
-    expect(words).toContain(fresh.itemId);
+    expect(fresh).toMatchObject({ ok: true, reason: 'NEW', itemId: words[4], lastReviewAt: null });
 
-    await expect(
-      session().nextVocab({ userId, timeZone: TZ, nowMs: NOW, conceptId: GRAMMAR }),
-    ).resolves.toMatchObject({ ok: false, reason: 'NOTHING_DUE', nextDueAt: null });
+    // A collection scope: only its tagged word.
+    const tagged = await session().nextVocab({
+      userId,
+      timeZone: TZ,
+      nowMs: NOW,
+      scope: { kind: 'collection', key: COLLECTION },
+      excludeItemIds: [w0],
+    });
+    expect(tagged).toMatchObject({ ok: true, reason: 'NEW', itemId: words[5] });
   });
 
   it('overview: today’s allowance, due words and this concept’s progress', async () => {
@@ -247,6 +269,12 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     for (const r of rows.filter((c) => words.includes(c.itemId))) {
       expect(r.conceptId).toBe(CONCEPT);
     }
+    const byId = new Map(rows.map((r) => [r.itemId, r]));
+    expect(byId.get(words[4] as string)).toMatchObject({ frequencyRank: 1, collections: [] });
+    expect(byId.get(words[5] as string)).toMatchObject({
+      frequencyRank: null,
+      collections: [COLLECTION],
+    });
     expect(ids.has(unpublishedItem)).toBe(false);
     expect(ids.has(grammarItem)).toBe(false);
   });

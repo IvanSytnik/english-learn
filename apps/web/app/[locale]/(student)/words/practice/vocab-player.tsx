@@ -17,6 +17,7 @@ import { useRouter } from '@/i18n/navigation';
 import { focusKind } from '@/lib/exercise/shortcuts';
 import type { Verdict } from '@/lib/exercise/view';
 import { RECENT_EXCLUDE } from '@/lib/recent-refs';
+import type { ClientVocabScope } from '@/lib/vocab-scope';
 import type { VocabCardPayload, VocabFeedback, VocabSubmission } from '@/lib/vocab-session';
 import { resolveVocabShortcut, type VocabPlayerPhase } from '@/lib/vocab-shortcuts';
 import { summarizeVocabSession, type VocabSessionEntry } from '@/lib/vocab-summary';
@@ -51,7 +52,7 @@ const quietButton =
  * request at a time (`busy`, set before the call). Keys: one window listener,
  * attached once (`useEffectEvent`), silent while typing in the answer field.
  */
-export function VocabPlayer({ conceptId }: { conceptId?: string }) {
+export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   const t = useTranslations('student.words.player');
   const tl = useTranslations('learning');
   const tf = useTranslations('feedback');
@@ -138,7 +139,7 @@ export function VocabPlayer({ conceptId }: { conceptId?: string }) {
         try {
           res = await nextVocabCardAction({
             timeZone: browserTimeZone(),
-            conceptId,
+            scope,
             recentVocabRefs: recentRefs,
           });
         } catch {
@@ -163,7 +164,7 @@ export function VocabPlayer({ conceptId }: { conceptId?: string }) {
         show(next);
       });
     },
-    [conceptId, show],
+    [scope, show],
   );
 
   // The first card, in the browser's time zone.
