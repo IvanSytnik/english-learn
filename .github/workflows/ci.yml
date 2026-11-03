@@ -110,12 +110,15 @@ jobs:
       - run: pnpm --filter @englishlearn/learner-model seed:diagnostic
       # Vocabulary for the /words e2e, the way prod got it: CEFR-J import,
       # localization from the committed snapshot (no API calls), publish,
-      # then the B6.2 frequency (rank needs PUBLISHED) and collections.
+      # then the B6.2 frequency (rank needs PUBLISHED) and collections, and the
+      # B6.4a examples and IPA from their committed snapshots.
       - run: pnpm --filter @englishlearn/db vocab:import
       - run: pnpm --filter @englishlearn/db vocab:sync-localization
       - run: pnpm --filter @englishlearn/db vocab:publish
       - run: pnpm --filter @englishlearn/db vocab:sync-frequency
       - run: pnpm --filter @englishlearn/db vocab:sync-collections
+      - run: pnpm --filter @englishlearn/db vocab:sync-examples
+      - run: pnpm --filter @englishlearn/db vocab:sync-ipa
 
       - name: Install Playwright browsers
         run: pnpm --filter @englishlearn/web exec playwright install --with-deps chromium
