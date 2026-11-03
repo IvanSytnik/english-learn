@@ -1,4 +1,10 @@
-import type { PartOfSpeechValue, PracticeModeValue } from '@englishlearn/db/schemas';
+import {
+  type PartOfSpeechValue,
+  type PracticeModeValue,
+  VOCAB_VARIANT_MODE,
+  type VocabLocaleValue,
+  VocabVariantValue,
+} from '@englishlearn/db/schemas';
 import type { CEFRLevel } from '../core/graph/types';
 
 /**
@@ -36,17 +42,14 @@ export type VocabExample = {
  * the learner whose native language is `other` (or unknown) — there is no
  * English gloss, so the English definition stands in.
  */
-export type VocabLocale = 'ru' | 'uk' | 'de' | 'en';
+export type VocabLocale = VocabLocaleValue;
 
-/** The five practice modes of the word ladder (B2.1 / B2.5). */
-export const VOCAB_MODES = ['en_to_l1', 'l1_to_en', 'cloze', 'cued_recall', 'full_recall'] as const;
-export type VocabMode = (typeof VOCAB_MODES)[number];
+/**
+ * The five practice modes of the word ladder (B2.1 / B2.5). Defined once in
+ * @englishlearn/db (the payload's `variant` enum), never duplicated here.
+ */
+export const VOCAB_MODES = VocabVariantValue.options;
+export type VocabMode = VocabVariantValue;
 
 /** The event payload's coarser mode (LearnerEvent `mode`). */
-export const PAYLOAD_MODE: Readonly<Record<VocabMode, PracticeModeValue>> = Object.freeze({
-  en_to_l1: 'recognition',
-  l1_to_en: 'recognition',
-  cloze: 'cloze',
-  cued_recall: 'recall',
-  full_recall: 'recall',
-});
+export const PAYLOAD_MODE: Readonly<Record<VocabMode, PracticeModeValue>> = VOCAB_VARIANT_MODE;

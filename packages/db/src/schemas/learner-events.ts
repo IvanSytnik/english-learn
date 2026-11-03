@@ -37,6 +37,46 @@ export const PracticeModeSchema = z.enum(['recognition', 'recall', 'cloze']);
 export type PracticeModeValue = z.infer<typeof PracticeModeSchema>;
 
 /**
+ * The exact vocabulary card shown (B6.1) — the five rungs of the word ladder
+ * (B2.5). Canonical here; learner-model's VOCAB_MODES is this enum. `mode`
+ * stays the coarse view of it (VOCAB_VARIANT_MODE).
+ */
+export const VocabVariantValue = z.enum([
+  'en_to_l1',
+  'l1_to_en',
+  'cloze',
+  'cued_recall',
+  'full_recall',
+]);
+export type VocabVariantValue = z.infer<typeof VocabVariantValue>;
+
+/** The coarse practice mode of each vocabulary variant. */
+export const VOCAB_VARIANT_MODE: Readonly<Record<VocabVariantValue, PracticeModeValue>> =
+  Object.freeze({
+    en_to_l1: 'recognition',
+    l1_to_en: 'recognition',
+    cloze: 'cloze',
+    cued_recall: 'recall',
+    full_recall: 'recall',
+  });
+
+/** Variants answered by choosing one of four options. */
+export const CHOICE_VOCAB_VARIANTS: readonly VocabVariantValue[] = Object.freeze([
+  'en_to_l1',
+  'l1_to_en',
+  'cloze',
+]);
+
+export const isChoiceVocabVariant = (v: VocabVariantValue) => CHOICE_VOCAB_VARIANTS.includes(v);
+
+/** Language of a vocabulary card's gloss (`en` = the English definition). */
+export const VocabLocaleValue = z.enum(['ru', 'uk', 'de', 'en']);
+export type VocabLocaleValue = z.infer<typeof VocabLocaleValue>;
+
+/** Longest typed answer kept in a payload; writers truncate to it. */
+export const ANSWER_TEXT_MAX = 64;
+
+/**
  * Payload for LearnerEventType.ITEM_ATTEMPTED.
  *
  * conceptId is denormalized from Item so replay never joins; if an Item is
@@ -81,6 +121,26 @@ export const ItemAttemptedPayloadSchema = z
      * toward the daily new-word limit.
      */
     proof: z.literal(true).optional(),
+    /*
+     * Vocabulary analytics (B6.1). Optional and never folded: every earlier
+     * event has none of them, and replay of a stream with or without them
+     * yields the same projections.
+     */
+    /** The exact vocabulary card shown (after the cloze → l1_to_en fallback). */
+    variant: VocabVariantValue.optional(),
+    /**
+     * A wrong choice: the Item id of the distractor the learner picked (the
+     * confusion). Choice variants only, never on a correct or don't-know
+     * answer.
+     */
+    chosenItemId: z.string().min(1).optional(),
+    /**
+     * A typed answer as graded (vocab normalizeAnswer), truncated to
+     * ANSWER_TEXT_MAX. Typed variants only, never on don't-know.
+     */
+    answerText: z.string().min(1).max(ANSWER_TEXT_MAX).optional(),
+    /** Language of the card's gloss. */
+    locale: VocabLocaleValue.optional(),
   })
   .strict()
   .refine((p) => !(p.dontKnow && p.correct), {
@@ -90,6 +150,30 @@ export const ItemAttemptedPayloadSchema = z
   .refine(
     (p) => !p.proof || (p.correct && p.rating === 'EASY' && p.mode === 'recall' && !p.hinted),
     { message: 'a proof is a correct, unhinted recall answer rated EASY', path: ['proof'] },
+  )
+  .refine((p) => p.variant === undefined || p.mode === VOCAB_VARIANT_MODE[p.variant], {
+    message: 'a variant needs the coarse mode it maps to',
+    path: ['mode'],
+  })
+  .refine((p) => !p.proof || p.variant === undefined || p.variant === 'cued_recall', {
+    message: 'a proof is a cued recall card',
+    path: ['variant'],
+  })
+  .refine(
+    (p) =>
+      p.chosenItemId === undefined ||
+      (p.variant !== undefined && isChoiceVocabVariant(p.variant) && !p.correct && !p.dontKnow),
+    { message: 'chosenItemId is a wrong pick on a choice card', path: ['chosenItemId'] },
+  )
+  .refine((p) => p.chosenItemId === undefined || p.chosenItemId !== p.itemId, {
+    message: 'the chosen distractor is another item',
+    path: ['chosenItemId'],
+  })
+  .refine(
+    (p) =>
+      p.answerText === undefined ||
+      (p.variant !== undefined && !isChoiceVocabVariant(p.variant) && !p.dontKnow),
+    { message: 'answerText belongs to a typed answer', path: ['answerText'] },
   );
 export type ItemAttemptedPayload = z.infer<typeof ItemAttemptedPayloadSchema>;
 

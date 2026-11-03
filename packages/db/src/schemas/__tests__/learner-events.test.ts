@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ANSWER_TEXT_MAX,
   ItemAttemptedPayloadSchema,
   LearnerBootstrappedPayloadSchema,
   PracticeModeSchema,
+  VOCAB_VARIANT_MODE,
+  VocabVariantValue,
 } from '../learner-events';
 
 const base = {
@@ -117,6 +120,114 @@ describe('ItemAttemptedPayloadSchema — proof (B2.5)', () => {
     const res = ItemAttemptedPayloadSchema.safeParse({ ...proof, ...patch });
     expect(res.success).toBe(false);
     expect(res.error?.issues[0]?.path).toEqual(['proof']);
+  });
+});
+
+describe('ItemAttemptedPayloadSchema — vocabulary analytics (B6.1)', () => {
+  const vocab = {
+    itemId: 'item.vocab.apple',
+    conceptId: 'vocab.food_drink.a1',
+    correct: false,
+    timeMs: 2100,
+    rating: 'AGAIN',
+    irt: { a: 1, b: 0 },
+  } as const;
+  const wrongChoice = {
+    ...vocab,
+    mode: 'recognition',
+    variant: 'l1_to_en',
+    chosenItemId: 'item.vocab.pear',
+    locale: 'ru',
+  } as const;
+  const typed = {
+    ...vocab,
+    mode: 'recall',
+    variant: 'full_recall',
+    answerText: 'appel',
+    locale: 'de',
+  } as const;
+  const issuePath = (p: unknown) => ItemAttemptedPayloadSchema.safeParse(p).error?.issues[0]?.path;
+
+  it('every payload shape written before B6.1 still parses, unchanged', () => {
+    const before = [
+      base,
+      { ...base, dontKnow: true },
+      { ...base, correct: true, rating: 'HARD', hinted: true },
+      { ...vocab, mode: 'recognition' },
+      { ...vocab, mode: 'cloze', dontKnow: true },
+      { ...vocab, correct: true, rating: 'EASY', mode: 'recall', proof: true },
+    ];
+    for (const payload of before) {
+      expect(ItemAttemptedPayloadSchema.parse(payload)).toEqual(payload);
+    }
+  });
+
+  it('accepts a wrong choice with its distractor and a typed answer with its text', () => {
+    expect(ItemAttemptedPayloadSchema.parse(wrongChoice)).toEqual(wrongChoice);
+    expect(ItemAttemptedPayloadSchema.parse(typed)).toEqual(typed);
+    const proof = {
+      ...vocab,
+      correct: true,
+      rating: 'EASY',
+      mode: 'recall',
+      proof: true,
+      variant: 'cued_recall',
+      answerText: 'apple',
+      locale: 'uk',
+    };
+    expect(ItemAttemptedPayloadSchema.parse(proof)).toEqual(proof);
+  });
+
+  it('variant needs its coarse mode — present and matching', () => {
+    for (const variant of VocabVariantValue.options) {
+      const mode = VOCAB_VARIANT_MODE[variant];
+      expect(ItemAttemptedPayloadSchema.safeParse({ ...vocab, mode, variant }).success).toBe(true);
+    }
+    expect(issuePath({ ...vocab, variant: 'cloze' })).toEqual(['mode']);
+    expect(issuePath({ ...vocab, mode: 'recall', variant: 'cloze' })).toEqual(['mode']);
+    expect(issuePath({ ...vocab, mode: 'recognition', variant: 'full_recall' })).toEqual(['mode']);
+    expect(
+      ItemAttemptedPayloadSchema.safeParse({ ...vocab, mode: 'recall', variant: 'x' }).success,
+    ).toBe(false);
+  });
+
+  it('a proof is a cued recall card', () => {
+    const proof = { ...vocab, correct: true, rating: 'EASY', mode: 'recall', proof: true };
+    expect(issuePath({ ...proof, variant: 'full_recall' })).toEqual(['variant']);
+  });
+
+  it('chosenItemId: only a wrong pick on a choice card, never the item itself', () => {
+    expect(issuePath({ ...wrongChoice, correct: true, rating: 'GOOD' })).toEqual(['chosenItemId']);
+    expect(issuePath({ ...wrongChoice, dontKnow: true })).toEqual(['chosenItemId']);
+    expect(issuePath({ ...typed, chosenItemId: 'item.vocab.pear' })).toEqual(['chosenItemId']);
+    const { variant: _, ...noVariant } = wrongChoice;
+    expect(issuePath(noVariant)).toEqual(['chosenItemId']);
+    expect(issuePath({ ...wrongChoice, chosenItemId: vocab.itemId })).toEqual(['chosenItemId']);
+    expect(issuePath({ ...wrongChoice, chosenItemId: '' })).toEqual(['chosenItemId']);
+  });
+
+  it('answerText: typed cards only, never on don’t-know, at most ANSWER_TEXT_MAX', () => {
+    expect(issuePath({ ...wrongChoice, chosenItemId: undefined, answerText: 'pear' })).toEqual([
+      'answerText',
+    ]);
+    expect(issuePath({ ...typed, dontKnow: true })).toEqual(['answerText']);
+    const { variant: _, ...noVariant } = typed;
+    expect(issuePath(noVariant)).toEqual(['answerText']);
+    expect(issuePath({ ...typed, answerText: '' })).toEqual(['answerText']);
+    expect(ANSWER_TEXT_MAX).toBe(64);
+    expect(
+      ItemAttemptedPayloadSchema.safeParse({ ...typed, answerText: 'a'.repeat(64) }).success,
+    ).toBe(true);
+    expect(issuePath({ ...typed, answerText: 'a'.repeat(65) })).toEqual(['answerText']);
+  });
+
+  it('locale is one of ru / uk / de / en', () => {
+    expect(issuePath({ ...typed, locale: 'fr' })).toEqual(['locale']);
+  });
+
+  it('grammar payloads are unaffected (no vocabulary field needed or added)', () => {
+    const grammar = { ...base, correct: true, rating: 'GOOD', mode: 'cloze' } as const;
+    expect(ItemAttemptedPayloadSchema.parse(grammar)).toEqual(grammar);
   });
 });
 
