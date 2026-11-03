@@ -532,8 +532,9 @@ model Lexeme {
   examples     Json     @default("[]")
   collocations String[] @default([])
 
-  /// Dense rank by frequencyZipf DESC over PUBLISHED lexemes (1 = most
-  /// frequent; ties by lemmaKey); null = no frequency. vocab:sync-frequency.
+  /// Dense rank over PUBLISHED lexemes by [closed class, secondary sense,
+  /// frequencyZipf DESC, lemmaKey] (1 = first; B6.2a); null = no frequency.
+  /// vocab:sync-frequency.
   frequencyRank Int?
   /// wordfreq Zipf frequency of the lemma (CC BY-SA 4.0 data, B6.2); null =
   /// unknown. Kept as its own column so SA-licensed values stay identifiable.

@@ -50,6 +50,10 @@ const ENTRIES: CefrJEntry[] = [
     collections: ['work_jobs', 'food_drink'],
   },
   { lemma: k('draft'), pos: 'noun', cefrJLevel: 'B1', topic: 'food_drink' },
+  // B6.2a: a homograph (go verb A1 primary, go noun B1 secondary) and a closed-class word.
+  { lemma: k('go'), pos: 'verb', cefrJLevel: 'A1', topic: 'food_drink' },
+  { lemma: k('go'), pos: 'noun', cefrJLevel: 'B1', topic: 'food_drink' },
+  { lemma: k('of'), pos: 'preposition', cefrJLevel: 'A1', topic: 'food_drink' },
 ];
 const DATASET = normalizeDataset({
   source: {
@@ -65,7 +69,14 @@ const DATASET = normalizeDataset({
 }).lexemes;
 const FREQ: FrequencyDataset = {
   source: { name: 'wordfreq', version: 'test', licence: 'CC BY-SA 4.0', attribution: 'a' },
-  entries: { [k('apple')]: 4.5, [k('bake')]: 3.9, [k('chef')]: 4.5, [k('draft')]: 5.1 },
+  entries: {
+    [k('apple')]: 4.5,
+    [k('bake')]: 3.9,
+    [k('chef')]: 4.5,
+    [k('draft')]: 5.1,
+    [k('go')]: 6,
+    [k('of')]: 7,
+  },
 };
 const ours = { lemmaKey: { startsWith: RUN } };
 
@@ -81,7 +92,7 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
         collections: true,
         updatedAt: true,
       },
-      orderBy: { lemmaKey: 'asc' },
+      orderBy: [{ lemmaKey: 'asc' }, { pos: 'asc' }],
     });
 
   beforeAll(async () => {
@@ -93,9 +104,9 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
     await db.lexeme.deleteMany({ where: ours });
     await db.concept.deleteMany({ where: { id: { startsWith: `${RUN}.` } } });
     await importCefrJ(db, DATASET, { conceptPrefix: RUN });
-    // Three words reviewed and published; `draft` stays DRAFT.
+    // Six lexemes reviewed and published; `draft` and `bread` stay DRAFT.
     await db.lexeme.updateMany({
-      where: { lemmaKey: { in: [k('apple'), k('bake'), k('chef')] } },
+      where: { lemmaKey: { in: [k('apple'), k('bake'), k('chef'), k('go'), k('of')] } },
       data: {
         status: 'REVIEW',
         definitions: { en: 'a thing' },
@@ -120,21 +131,24 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
     await db.$disconnect();
   });
 
-  it('frequency: zipf on every lexeme, a dense rank on the PUBLISHED ones; a re-run writes nothing', async () => {
+  it('frequency: zipf on every lexeme, the B6.2a dense rank on the PUBLISHED ones; a re-run writes nothing', async () => {
     const dry = await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN, dryRun: true });
-    expect(dry).toMatchObject({ lexemes: 5, withFrequency: 4, ranked: 3, changed: 4, chunks: 0 });
+    expect(dry).toMatchObject({ lexemes: 8, withFrequency: 7, ranked: 6, changed: 7, chunks: 0 });
     expect((await lexemes()).every((l) => l.frequencyZipf === null)).toBe(true);
 
     expect(await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN, chunkSize: 3 })).toMatchObject({
-      changed: 4,
-      chunks: 2,
+      changed: 7,
+      chunks: 3,
     });
     expect((await lexemes()).map((l) => [l.lemmaKey, l.frequencyZipf, l.frequencyRank])).toEqual([
-      [k('apple'), 4.5, 1], // tie with chef at 4.5, apple < chef
-      [k('bake'), 3.9, 3],
+      [k('apple'), 4.5, 2], // tie with chef at 4.5, apple < chef
+      [k('bake'), 3.9, 4],
       [k('bread'), null, null], // not in the frequency data, DRAFT
-      [k('chef'), 4.5, 2],
-      [k('draft'), 5.1, null], // most frequent, but DRAFT: no rank
+      [k('chef'), 4.5, 3],
+      [k('draft'), 5.1, null], // DRAFT: no rank
+      [k('go'), 6, 5], // noun B1: a second sense of go, after every primary content word
+      [k('go'), 6, 1], // verb A1: the primary sense
+      [k('of'), 7, 6], // the most frequent, but closed class: last
     ]);
     const before = await lexemes();
     expect(await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN })).toMatchObject({
@@ -152,11 +166,11 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
         orderBy: { id: 'asc' },
       });
     const itemsBefore = await items();
-    expect(itemsBefore).toHaveLength(3);
+    expect(itemsBefore).toHaveLength(6);
 
     expect(await syncCollections(db, DATASET, { lemmaKeyPrefix: RUN, dryRun: true })).toMatchObject(
       {
-        inDataset: 5,
+        inDataset: 8,
         tagged: 3,
         changed: 3,
         chunks: 0,
@@ -175,6 +189,9 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
       [k('bread'), ['food_drink']],
       [k('chef'), ['work_jobs', 'food_drink']],
       [k('draft'), []],
+      [k('go'), []],
+      [k('go'), []],
+      [k('of'), []],
     ]);
     expect(await items()).toEqual(itemsBefore);
     expect(await syncCollections(db, DATASET, { lemmaKeyPrefix: RUN })).toMatchObject({
