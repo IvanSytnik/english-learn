@@ -19,16 +19,17 @@ export { LADDER_THRESHOLDS, PROOF_MODE, vocabModeFor } from './ladder';
 export {
   type StageCounts,
   summarizeVocab,
+  type VocabCollectionProgress,
   type VocabConceptProgress,
   type VocabSummary,
   WORD_STAGES,
-  type VocabCollectionProgress,
   type WordStage,
   wordStage,
 } from './overview';
 export {
   CONCEPT_SPREAD_RECENT,
   CONCEPT_SPREAD_WINDOW,
+  MAX_CONCEPT_RUN,
   selectVocab,
   type VocabCandidate,
   type VocabScope,

@@ -174,6 +174,27 @@ describe('selectVocab v2 properties', () => {
     );
   });
 
+  it('a session never serves 3 new words in a row from one concept while another has one', () => {
+    fc.assert(
+      fc.property(poolArb, (start) => {
+        let pool = start.map((c) => ({ ...c, review: null }));
+        const served: string[] = [];
+        while (pool.length > 0) {
+          const out = selectVocab(input(pool, { recentConceptIds: served.slice(-3) }));
+          if (!out.ok) break;
+          const c = pool.find((x) => x.itemId === out.itemId) as VocabCandidate;
+          const run = served.slice(-2);
+          if (run.length === 2 && run.every((id) => id === c.conceptId)) {
+            expect(pool.every((x) => x.conceptId === c.conceptId)).toBe(true);
+          }
+          served.push(c.conceptId);
+          pool = pool.filter((x) => x.itemId !== c.itemId);
+        }
+      }),
+      { numRuns: 60 },
+    );
+  });
+
   it('is deterministic: the same input picks the same word', () => {
     fc.assert(
       fc.property(poolArb, scopeArb, fc.string(), (pool, scope, seed) => {

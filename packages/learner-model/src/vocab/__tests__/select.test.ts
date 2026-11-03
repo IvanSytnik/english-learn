@@ -210,5 +210,11 @@ describe('selectVocab', () => {
       fresh('far', 'A1', { conceptId: 'y', frequencyRank: 99 }),
     ];
     expect(select(crowded, { recentConceptIds: ['x'] })).toMatchObject({ itemId: 'x0' });
+    // …but never a third word in a row from one concept while another has one.
+    expect(select(crowded, { recentConceptIds: ['x', 'x'] })).toMatchObject({ itemId: 'far' });
+    expect(select(crowded, { recentConceptIds: ['y', 'x', 'x'] })).toMatchObject({ itemId: 'far' });
+    expect(select(crowded.slice(0, 20), { recentConceptIds: ['x', 'x'] })).toMatchObject({
+      itemId: 'x0',
+    });
   });
 });

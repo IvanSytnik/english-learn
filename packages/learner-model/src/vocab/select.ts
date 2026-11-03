@@ -20,7 +20,8 @@ import type { VocabMode } from './types';
  *      level), frequent words first within a level, the day seed last.
  *      **Concept spread:** of the first CONCEPT_SPREAD_WINDOW by that key,
  *      the first whose concept is not among the last CONCEPT_SPREAD_RECENT
- *      served; none → the first.
+ *      served; none → the first. Never more than MAX_CONCEPT_RUN in a row
+ *      from one concept while another concept has a NEW word.
  *
  * Otherwise NOTHING_DUE with the next due moment over the **global** set.
  * `excludeItemIds` (the words just shown) is ignored when it would leave
@@ -31,6 +32,13 @@ import type { VocabMode } from './types';
 export const CONCEPT_SPREAD_WINDOW = 20;
 /** How many of the latest served concepts the spread avoids. */
 export const CONCEPT_SPREAD_RECENT = 3;
+/**
+ * Hard cap on NEW words in a row from one concept. The window alone cannot
+ * spread a frequency-ordered start: 89 of the 100 most frequent A1 words are
+ * function words of `vocab.general.a1` (simulation 2026-11-03), so a third
+ * one in a row is replaced by the first word of any other concept.
+ */
+export const MAX_CONCEPT_RUN = 2;
 
 export type VocabCandidate = {
   itemId: string;
@@ -150,7 +158,7 @@ function pick(
       seedFromString(`${input.seed}:${c.itemId}`),
     ] as const;
   };
-  const ranked = pool
+  const sorted = pool
     .filter(
       (c) =>
         (c.review === null || c.review.cardStatus === 'NEW') &&
@@ -159,11 +167,16 @@ function pick(
     )
     .map((c) => ({ c, key: order(c) }))
     .sort((a, b) => compareKeys(a.key, b.key) || (a.c.itemId < b.c.itemId ? -1 : 1))
-    .slice(0, CONCEPT_SPREAD_WINDOW)
     .map(({ c }) => c);
+  const window = sorted.slice(0, CONCEPT_SPREAD_WINDOW);
   const recent = new Set(input.recentConceptIds.slice(-CONCEPT_SPREAD_RECENT));
-  const fresh = ranked.find((c) => !recent.has(c.conceptId)) ?? ranked[0];
-  return fresh ? found(fresh, 'NEW') : null;
+  const spread = window.find((c) => !recent.has(c.conceptId)) ?? window[0];
+  const run = input.recentConceptIds.slice(-MAX_CONCEPT_RUN);
+  const capped =
+    spread && run.length === MAX_CONCEPT_RUN && run.every((id) => id === spread.conceptId)
+      ? (sorted.find((c) => c.conceptId !== spread.conceptId) ?? spread)
+      : spread;
+  return capped ? found(capped, 'NEW') : null;
 }
 
 function inScope(c: VocabCandidate, scope: VocabScope | undefined): boolean {
