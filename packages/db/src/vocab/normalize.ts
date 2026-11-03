@@ -7,7 +7,7 @@ import {
   lexemeKey,
   type PartOfSpeechValue,
 } from '../schemas/lexeme';
-import { sortCollections, VocabCollectionValue } from './collections';
+import { CollectionKeyValue, sortCollections } from './collections';
 import { resolveVocabTopic, type VocabTopicId } from './topics';
 
 /**
@@ -30,7 +30,7 @@ export const CefrJEntrySchema = z
     topic: z.string().min(1).optional(),
     topicSource: z.enum(['threshold', 'threshold-sibling', 'llm']).optional(),
     /** CEFR-J CoreInventory 1 / 2 as browsing tags (B6.2, ./collections.ts). */
-    collections: z.array(VocabCollectionValue).min(1).optional(),
+    collections: z.array(CollectionKeyValue).min(1).optional(),
   })
   .strict();
 export type CefrJEntry = z.infer<typeof CefrJEntrySchema>;
@@ -65,7 +65,7 @@ export type NormalizedLexemeEntry = {
   topic: VocabTopicId;
   variants: string[];
   /** Browsing tags, canonical order; never a concept (B6-SPEC V2-6). */
-  collections: VocabCollectionValue[];
+  collections: CollectionKeyValue[];
 };
 
 /** Letters, digits, and the joiners the wordlist uses (`brand-new`, `a.m.`, `o'clock`). */

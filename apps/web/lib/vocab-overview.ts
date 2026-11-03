@@ -1,7 +1,6 @@
 import 'server-only';
 import { type CefrLevelValue, type Locale, localized } from '@englishlearn/db/schemas';
 import {
-  MIN_COLLECTION_WORDS,
   VOCAB_COLLECTION_TITLES,
   VOCAB_COLLECTIONS,
   type VocabCollectionValue,
@@ -65,8 +64,8 @@ export type VocabOverviewView = {
   /** In the taxonomy's order; topics without published words are left out. */
   topics: VocabTopicProgress[];
   /**
-   * In the taxonomy's order; only collections with at least
-   * MIN_COLLECTION_WORDS published words (smaller ones stay tags).
+   * The curated VOCAB_COLLECTIONS (B6.2a), in that order; a collection with
+   * no published word is left out. Other data keys are never shown.
    */
   collections: VocabCollectionView[];
 };
@@ -119,7 +118,7 @@ export function collectionCards(
   const byKey = new Map(collections.map((c) => [c.key, c]));
   return VOCAB_COLLECTIONS.flatMap((key) => {
     const c = byKey.get(key);
-    if (!c || c.total < MIN_COLLECTION_WORDS) return [];
+    if (!c) return [];
     return [
       {
         key,

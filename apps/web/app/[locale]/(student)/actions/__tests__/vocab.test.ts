@@ -174,6 +174,7 @@ describe('input validation', () => {
     ['a non-topic concept', { scope: { kind: 'concept', conceptId: 'grammar.past_simple' } }],
     ['an unknown topic', { scope: { kind: 'concept', conceptId: 'vocab.cooking.a1' } }],
     ['an unknown collection', { scope: { kind: 'collection', key: 'Work and Jobs' } }],
+    ['a data key outside the allowlist', { scope: { kind: 'collection', key: 'food_drink' } }],
     ['an unknown scope kind', { scope: { kind: 'list', listId: 'l1' } }],
     ['an extra scope field', { scope: { kind: 'collection', key: 'work_jobs', conceptId: 'x' } }],
     ['too many recent refs', { recentVocabRefs: Array(21).fill('x') }],

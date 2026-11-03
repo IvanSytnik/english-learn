@@ -39,8 +39,8 @@ beforeEach(() => {
     ],
     // Sorted by key, as the service returns them.
     collections: [
-      { key: 'food_drink', total: 12, started: 3 },
-      { key: 'holidays', total: 5, started: 0 },
+      { key: 'clothes', total: 3, started: 0 },
+      { key: 'food_drink', total: 96, started: 3 },
       { key: 'unknown_key', total: 40, started: 0 },
       { key: 'work_jobs', total: 10, started: 10 },
     ],
@@ -48,11 +48,11 @@ beforeEach(() => {
 });
 
 describe('loadVocabOverview', () => {
-  it('collection cards (B6.2): taxonomy order, UI-locale titles, tiny and unknown ones left out', async () => {
+  it('collection cards (B6.2a): the curated allowlist in its order, UI-locale titles, any size; other keys never shown', async () => {
     const out = await loadVocabOverview({ userId: 'u1', uiLocale: 'de', timeZone: 'UTC' });
     expect(out.collections).toEqual([
       { key: 'work_jobs', title: 'Arbeit und Berufe', total: 10, started: 10 },
-      { key: 'food_drink', title: 'Essen und Trinken', total: 12, started: 3 },
+      { key: 'clothes', title: 'Kleidung', total: 3, started: 0 },
     ]);
   });
 

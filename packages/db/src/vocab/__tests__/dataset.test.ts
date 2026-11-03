@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CreateDraftLexemeInputSchema } from '../../schemas/lexeme';
-import { VOCAB_COLLECTIONS } from '../collections';
+import { COLLECTION_KEYS } from '../collections';
 import { normalizeDataset } from '../normalize';
 
 /**
@@ -54,7 +54,7 @@ describe('CEFR-J dataset v1.5', () => {
   it('tags 1285 words with CoreInventory collections, every canonical key in use (B6.2)', () => {
     const tagged = lexemes.filter((l) => l.collections.length > 0);
     expect(tagged).toHaveLength(1285);
-    expect(new Set(tagged.flatMap((l) => l.collections))).toEqual(new Set(VOCAB_COLLECTIONS));
+    expect(new Set(tagged.flatMap((l) => l.collections))).toEqual(new Set(COLLECTION_KEYS));
     expect(lexemes.find((l) => l.lemmaKey === 'accent')?.collections).toEqual(['education']);
   });
 

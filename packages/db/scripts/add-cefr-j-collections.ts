@@ -12,7 +12,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { csvRecords } from '../src/vocab/cefr-j-csv';
-import { collectionKeyOf, sortCollections, VocabCollectionValue } from '../src/vocab/collections';
+import { CollectionKeyValue, collectionKeyOf, sortCollections } from '../src/vocab/collections';
 import { CEFR_J_DATASET_URL } from '../src/vocab/dataset';
 import { CefrJDatasetSchema } from '../src/vocab/normalize';
 
@@ -52,7 +52,7 @@ function main(): void {
     const labels = [row['CoreInventory 1'], row['CoreInventory 2']]
       .map((l) => (l ?? '').trim())
       .filter((l) => l !== '');
-    const keys = sortCollections(labels.map((l) => VocabCollectionValue.parse(collectionKeyOf(l))));
+    const keys = sortCollections(labels.map((l) => CollectionKeyValue.parse(collectionKeyOf(l))));
     if (keys.length === 0) return rest;
     tagged += 1;
     return { ...rest, collections: keys };

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { csvRecords, parseCsv } from '../cefr-j-csv';
-import { collectionKeyOf, sortCollections, VOCAB_COLLECTIONS } from '../collections';
+import {
+  COLLECTION_KEYS,
+  collectionKeyOf,
+  sortCollections,
+  VOCAB_COLLECTION_TITLES,
+  VOCAB_COLLECTIONS,
+  VocabCollectionValue,
+} from '../collections';
 
 describe('collectionKeyOf', () => {
   it.each([
@@ -26,10 +33,29 @@ describe('collectionKeyOf', () => {
   });
 
   it('every canonical key is snake_case and its own key', () => {
-    for (const key of VOCAB_COLLECTIONS) {
+    for (const key of COLLECTION_KEYS) {
       expect(key).toMatch(/^[a-z0-9]+(?:_[a-z0-9]+)*$/);
       expect(collectionKeyOf(key.replaceAll('_', ' '))).toBe(key);
     }
+  });
+
+  it('B6.2a: the curated allowlist — six data keys, titled in four locales; nothing else is a scope', () => {
+    expect([...VOCAB_COLLECTIONS]).toEqual([
+      'work_jobs',
+      'news_lifestyles_current_affairs',
+      'media',
+      'clothes',
+      'nationalities_countries',
+      'books_literature',
+    ]);
+    for (const key of VOCAB_COLLECTIONS) {
+      expect(COLLECTION_KEYS).toContain(key);
+      const t = VOCAB_COLLECTION_TITLES[key];
+      for (const locale of ['en', 'ru', 'uk', 'de'] as const) expect(t[locale]).toBeTruthy();
+    }
+    expect(Object.keys(VOCAB_COLLECTION_TITLES).sort()).toEqual([...VOCAB_COLLECTIONS].sort());
+    for (const hidden of ['collocation', 'idiomatic_expressions', 'food_drink', 'education'])
+      expect(VocabCollectionValue.safeParse(hidden).success).toBe(false);
   });
 
   it('sortCollections dedupes into the canonical order', () => {

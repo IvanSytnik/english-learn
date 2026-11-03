@@ -54,6 +54,7 @@ describe('/words/practice page', () => {
     ['a grammar concept', { concept: 'grammar.past_simple' }],
     ['a repeated parameter', { concept: ['vocab.travel.a1', 'vocab.travel.a2'] }],
     ['an unknown collection', { collection: 'Work and Jobs' }],
+    ['a data key outside the allowlist', { collection: 'collocation' }],
     ['a repeated collection', { collection: ['work_jobs', 'media'] }],
     ['both a concept and a collection', { concept: 'vocab.travel.a2', collection: 'work_jobs' }],
   ])('%s is the whole pool', async (_, searchParams) => {
