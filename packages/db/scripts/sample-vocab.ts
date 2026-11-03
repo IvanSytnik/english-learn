@@ -7,6 +7,10 @@
 // Usage (from packages/db; DATABASE_URL from .env):
 //   pnpm vocab:sample                                  # 20 REVIEW lexemes
 //   pnpm vocab:sample --level A1 --topic food_drink --status REVIEW --count 30 --seed 2026-10-29
+//   pnpm vocab:sample --examples [--count 20] [--seed b6.4a]
+//     Offline (no database): the B6.4a examples review — `count` words per
+//     level from the committed localization + examples snapshots, secondary
+//     senses drawn ×2; examples[0] as `ex`, the generated ones as `ex+`.
 
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
@@ -14,7 +18,10 @@ import { createPrismaClient } from '../src/create-client';
 import { CefrLevelValue } from '../src/schemas/learner-events';
 import { ContentStatusSchema } from '../src/schemas/lexeme';
 import { lexemeIdentity, loadCefrJDataset, topicIndex } from '../src/vocab/dataset';
-import { formatLexemeSample, pickSample } from '../src/vocab/sample';
+import { loadExamplesSnapshot } from '../src/vocab/examples-snapshot';
+import { primarySenseIds } from '../src/vocab/frequency';
+import { loadLocalizationSnapshot } from '../src/vocab/localization-snapshot';
+import { formatLexemeSample, pickSample, pickWeightedPerLevel } from '../src/vocab/sample';
 import { VOCAB_TOPIC_IDS } from '../src/vocab/topics';
 
 const ArgsSchema = z.object({
@@ -26,7 +33,50 @@ const ArgsSchema = z.object({
     .string()
     .min(1)
     .default(() => String(Date.now())),
+  examples: z.boolean().default(false),
 });
+
+/** The examples review, offline and deterministic (default seed `b6.4a`). */
+function sampleExamples(count: number, seed: string): void {
+  const dataset = new Map(loadCefrJDataset().lexemes.map((l) => [lexemeIdentity(l), l]));
+  const generated = new Map(loadExamplesSnapshot().entries.map((e) => [lexemeIdentity(e), e]));
+  const rows = loadLocalizationSnapshot().entries.map((e) => {
+    const id = lexemeIdentity(e);
+    const entry = dataset.get(id);
+    if (!entry) throw new Error(`${e.lemmaKey} ${e.pos} is not in the dataset`);
+    return { ...e, id, pos: entry.pos, lemma: entry.lemma, status: 'PUBLISHED' };
+  });
+  const primary = primarySenseIds(
+    rows.map((r) => ({ ...r, frequencyZipf: null, frequencyRank: null })),
+  );
+  const withNew = rows.filter((r) => generated.has(r.id));
+  const sample = pickWeightedPerLevel(withNew, {
+    perLevel: count,
+    seed,
+    weight: (r) => (primary.has(r.id) ? 1 : 2),
+  });
+  const secondary = sample.filter((r) => !primary.has(r.id)).length;
+  console.log(
+    `examples snapshot · ${generated.size} of ${rows.length} lexemes have new examples · ` +
+      `${sample.length} shown (${count} per level, ${secondary} secondary senses) · seed ${seed}\n`,
+  );
+  const color = process.stdout.isTTY;
+  console.log(
+    sample
+      .map((r) =>
+        formatLexemeSample(
+          {
+            ...r,
+            id: r.id.replaceAll('\u0000', ' ').trim(),
+            status: primary.has(r.id) ? 'primary' : 'secondary sense',
+            examples: [...r.examples, ...(generated.get(r.id)?.examples ?? [])],
+          },
+          { color, newFrom: r.examples.length },
+        ),
+      )
+      .join('\n\n'),
+  );
+}
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -36,8 +86,14 @@ async function main(): Promise<void> {
       status: { type: 'string' },
       count: { type: 'string' },
       seed: { type: 'string' },
+      examples: { type: 'boolean' },
     },
   });
+  if (values.examples) {
+    const args = ArgsSchema.parse({ seed: 'b6.4a', ...values });
+    sampleExamples(args.count, args.seed);
+    return;
+  }
   const args = ArgsSchema.parse(values);
 
   const url = process.env.DATABASE_URL;

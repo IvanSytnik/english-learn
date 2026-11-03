@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatLexemeSample, highlightCloze, pickSample, type SampleLexeme } from '../sample';
+import {
+  formatLexemeSample,
+  highlightCloze,
+  pickSample,
+  pickWeightedPerLevel,
+  type SampleLexeme,
+} from '../sample';
 
 const lexeme = (extra: Partial<SampleLexeme> = {}): SampleLexeme => ({
   id: 'lx1',
@@ -87,5 +93,53 @@ describe('formatLexemeSample', () => {
       '  ru  —  |  uk  —  |  de  —',
       '  ex  —',
     ]);
+  });
+});
+
+describe('pickWeightedPerLevel', () => {
+  const rows = ['A1', 'A2', 'B1'].flatMap((cefrLevel) =>
+    Array.from({ length: 200 }, (_, i) => ({
+      id: `${cefrLevel}-${i}`,
+      cefrLevel,
+      secondary: i < 40,
+    })),
+  );
+  const weight = (r: { secondary: boolean }) => (r.secondary ? 2 : 1);
+
+  it('takes perLevel distinct rows of every level, reproducibly', () => {
+    const a = pickWeightedPerLevel(rows, { perLevel: 20, seed: 's', weight });
+    expect(a).toEqual(pickWeightedPerLevel(rows, { perLevel: 20, seed: 's', weight }));
+    expect(a).not.toEqual(pickWeightedPerLevel(rows, { perLevel: 20, seed: 't', weight }));
+    expect(new Set(a.map((r) => r.id)).size).toBe(60);
+    for (const level of ['A1', 'A2', 'B1']) {
+      expect(a.filter((r) => r.cefrLevel === level)).toHaveLength(20);
+    }
+  });
+
+  it('draws a weight-2 row about twice as often as a weight-1 row', () => {
+    let secondary = 0;
+    let total = 0;
+    for (let s = 0; s < 200; s++) {
+      const sample = pickWeightedPerLevel(rows, { perLevel: 10, seed: String(s), weight });
+      secondary += sample.filter((r) => r.secondary).length;
+      total += sample.length;
+    }
+    // 40 of 200 rows have weight 2: about 2·40 / (2·40 + 160) = 1/3 of the draws, not 1/5.
+    expect(secondary / total).toBeGreaterThan(0.28);
+    expect(secondary / total).toBeLessThan(0.4);
+  });
+});
+
+describe('formatLexemeSample newFrom', () => {
+  it('tags the examples from newFrom on as new', () => {
+    const two = lexeme({
+      examples: [
+        { sentence: 'She ran to the bus.', clozeTarget: 'ran', translation: {} },
+        { sentence: 'We run every day.', clozeTarget: 'run', translation: {} },
+      ],
+    });
+    const out = formatLexemeSample(two, { newFrom: 1 }).split('\n');
+    expect(out).toContain('  ex  She [ran] to the bus.');
+    expect(out).toContain('  ex+ We [run] every day.');
   });
 });

@@ -41,6 +41,42 @@ export function pickSample<T extends { id: string }>(
     .map(({ row }) => row);
 }
 
+/** murmur3 fmix32: FNV-1a alone is not uniform enough for u^(1/w) on short similar ids. */
+function mix(h: number): number {
+  let x = h;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x85ebca6b);
+  x ^= x >>> 13;
+  x = Math.imul(x, 0xc2b2ae35);
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+/**
+ * The examples review sample (B6.4a, `vocab:sample --examples`): `perLevel`
+ * rows of every CEFR level, seed-determined, with weighted sampling without
+ * replacement (Efraimidis–Spirakis: the largest `u^(1/w)` win) so a row of
+ * weight 2 — a secondary sense — is drawn about twice as often as a primary.
+ */
+export function pickWeightedPerLevel<T extends { id: string; cefrLevel: string }>(
+  rows: readonly T[],
+  options: { perLevel: number; seed: string; weight: (row: T) => number },
+): T[] {
+  const byLevel = new Map<string, { row: T; key: number }[]>();
+  for (const row of rows) {
+    const u = (mix(hash(`${options.seed}:${row.id}`)) + 1) / 2 ** 32;
+    const list = byLevel.get(row.cefrLevel) ?? [];
+    list.push({ row, key: u ** (1 / options.weight(row)) });
+    byLevel.set(row.cefrLevel, list);
+  }
+  return [...byLevel.keys()].sort().flatMap((level) =>
+    (byLevel.get(level) ?? [])
+      .sort((a, b) => b.key - a.key || a.row.id.localeCompare(b.row.id))
+      .slice(0, options.perLevel)
+      .map(({ row }) => row),
+  );
+}
+
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The sentence with the cloze target marked: `[ran]`, or inverse video when `color`. */
@@ -58,7 +94,7 @@ const text = (value: unknown) => (typeof value === 'string' && value ? value : '
 
 export function formatLexemeSample(
   lexeme: SampleLexeme,
-  options: { color?: boolean } = {},
+  options: { color?: boolean; newFrom?: number } = {},
 ): string {
   const sense = lexeme.sense ? ` (${lexeme.sense})` : '';
   const t = record(lexeme.translations);
@@ -68,8 +104,11 @@ export function formatLexemeSample(
     `  ru  ${text(t.ru)}  |  uk  ${text(t.uk)}  |  de  ${text(t.de)}`,
   ];
   const examples = Array.isArray(lexeme.examples) ? lexeme.examples : [];
-  for (const ex of examples.map(record)) {
-    lines.push(`  ex  ${highlightCloze(text(ex.sentence), text(ex.clozeTarget), options.color)}`);
+  for (const [i, ex] of examples.map(record).entries()) {
+    const tag = options.newFrom !== undefined && i >= options.newFrom ? 'ex+' : 'ex ';
+    lines.push(
+      `  ${tag} ${highlightCloze(text(ex.sentence), text(ex.clozeTarget), options.color)}`,
+    );
     const tr = record(ex.translation);
     lines.push(`      ru ${text(tr.ru)}  |  uk ${text(tr.uk)}  |  de ${text(tr.de)}`);
   }
