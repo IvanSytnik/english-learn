@@ -214,6 +214,8 @@ export type VocabCandidateRow = {
   itemId: string;
   /** Topic concept of the word (`vocab.<topic>.<level>`). */
   conceptId: string;
+  /** Lexeme.lemmaKey (B6.2a homograph spread); server-side only. */
+  lemmaKey: string;
   cefrLevel: CefrLevelRow;
   /** Lexeme.frequencyRank (B6.2); null = no frequency. */
   frequencyRank: number | null;

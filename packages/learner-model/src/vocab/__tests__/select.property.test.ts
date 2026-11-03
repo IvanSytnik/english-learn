@@ -19,11 +19,13 @@ const NOW = 1_800_000_000_000;
 const LEVELS: CEFRLevel[] = ['A1', 'A2', 'B1'];
 const CONCEPTS = ['c0', 'c1', 'c2', 'c3', 'c4'];
 const COLLECTIONS = ['k0', 'k1'];
+const LEMMAS = ['go', 'name', 'like', 'please', 'run', 'set', 'back', 'well'];
 
 const candidateArb = (i: number) =>
   fc
     .record({
       conceptId: fc.constantFrom(...CONCEPTS),
+      lemmaKey: fc.constantFrom(...LEMMAS),
       cefrLevel: fc.constantFrom(...LEVELS),
       frequencyRank: fc.option(fc.integer({ min: 1, max: 5000 }), { nil: null }),
       collections: fc.subarray(COLLECTIONS),
@@ -71,6 +73,8 @@ const input = (
   priorityItemIds: new Set(),
   hiddenItemIds: new Set(),
   recentConceptIds: [],
+  todayNewLemmaKeys: new Set(),
+  recentLemmaKeys: [],
   ...over,
 });
 
@@ -195,12 +199,49 @@ describe('selectVocab v2 properties', () => {
     );
   });
 
+  it('never a NEW word whose lemmaKey was met today or just shown while another is left', () => {
+    fc.assert(
+      fc.property(
+        poolArb,
+        fc.subarray(LEMMAS),
+        fc.subarray(LEMMAS, { maxLength: 3 }),
+        scopeArb,
+        fc.constantFrom(...CONCEPTS).map((c) => [c, c]),
+        (start, today, recent, scope, recentConceptIds) => {
+          // New words only: a due review would win the pick (about 97 % of pools).
+          const pool = start.map((c) => ({ ...c, review: null }));
+          const out = selectVocab(
+            input(pool, {
+              todayNewLemmaKeys: new Set(today),
+              recentLemmaKeys: recent,
+              scope,
+              recentConceptIds,
+            }),
+          );
+          if (!(out.ok && out.reason === 'NEW')) return;
+          const seen = new Set([...today, ...recent]);
+          const chosen = pool.find((c) => c.itemId === out.itemId) as VocabCandidate;
+          const eligible = pool.filter(
+            (c) =>
+              isNew(c) &&
+              (scope === undefined ||
+                (scope.kind === 'concept'
+                  ? c.conceptId === scope.conceptId
+                  : c.collections.includes(scope.key))),
+          );
+          if (eligible.some((c) => !seen.has(c.lemmaKey)))
+            expect(seen.has(chosen.lemmaKey)).toBe(false);
+        },
+      ),
+      { numRuns: 400 },
+    );
+  });
+
   it('is deterministic: the same input picks the same word', () => {
     fc.assert(
-      fc.property(poolArb, scopeArb, fc.string(), (pool, scope, seed) => {
-        expect(selectVocab(input(pool, { scope, seed }))).toEqual(
-          selectVocab(input(pool, { scope, seed })),
-        );
+      fc.property(poolArb, scopeArb, fc.string(), fc.subarray(LEMMAS), (pool, scope, seed, t) => {
+        const over = { scope, seed, todayNewLemmaKeys: new Set(t), recentLemmaKeys: t.slice(0, 2) };
+        expect(selectVocab(input(pool, over))).toEqual(selectVocab(input(pool, over)));
       }),
     );
   });

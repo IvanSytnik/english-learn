@@ -76,10 +76,10 @@ export function createVocabSessionService(db: VocabSessionDb) {
         db.countNewVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
       ]);
-      const conceptOf = new Map(candidates.map((c) => [c.itemId, c.conceptId]));
-      const recentConceptIds = (input.excludeItemIds ?? []).flatMap((id) => {
-        const conceptId = conceptOf.get(id);
-        return conceptId === undefined ? [] : [conceptId];
+      const byId = new Map(candidates.map((c) => [c.itemId, c]));
+      const recent = (input.excludeItemIds ?? []).flatMap((id) => {
+        const c = byId.get(id);
+        return c === undefined ? [] : [c];
       });
       return selectVocab({
         candidates,
@@ -93,7 +93,9 @@ export function createVocabSessionService(db: VocabSessionDb) {
         // Learner preferences arrive with B6.6 (StudentLexemePreference).
         priorityItemIds: NO_ITEMS,
         hiddenItemIds: NO_ITEMS,
-        recentConceptIds,
+        recentConceptIds: recent.map((c) => c.conceptId),
+        recentLemmaKeys: recent.map((c) => c.lemmaKey),
+        todayNewLemmaKeys: NO_ITEMS,
       });
     },
   };

@@ -22,6 +22,9 @@ import type { VocabMode } from './types';
  *      the first whose concept is not among the last CONCEPT_SPREAD_RECENT
  *      served; none → the first. Never more than MAX_CONCEPT_RUN in a row
  *      from one concept while another concept has a NEW word.
+ *      **Homograph spread** (B6.2a): a NEW word whose lemmaKey was first
+ *      met today or is among the words just shown is skipped (`go` verb
+ *      today → not `go` noun) — unless that leaves nothing to pick.
  *
  * Otherwise NOTHING_DUE with the next due moment over the **global** set.
  * `excludeItemIds` (the words just shown) is ignored when it would leave
@@ -44,6 +47,8 @@ export type VocabCandidate = {
   itemId: string;
   /** Topic concept of the word (`vocab.<topic>.<level>`). */
   conceptId: string;
+  /** Lexeme.lemmaKey — the homograph spread. Server-side only, never in a view. */
+  lemmaKey: string;
   cefrLevel: CEFRLevel;
   /** Lexeme.frequencyRank (1 = most frequent); null = unknown, sorts last. */
   frequencyRank: number | null;
@@ -104,6 +109,10 @@ export type VocabSelectInput = {
   hiddenItemIds: ReadonlySet<string>;
   /** Concepts of the words served last, oldest first (the concept spread). */
   recentConceptIds: readonly string[];
+  /** lemmaKeys of the words first attempted today (the homograph spread). */
+  todayNewLemmaKeys: ReadonlySet<string>;
+  /** lemmaKeys of the words served last (the homograph spread). */
+  recentLemmaKeys: readonly string[];
 };
 
 export function selectVocab(input: VocabSelectInput): VocabSelection {
@@ -168,13 +177,16 @@ function pick(
     .map((c) => ({ c, key: order(c) }))
     .sort((a, b) => compareKeys(a.key, b.key) || (a.c.itemId < b.c.itemId ? -1 : 1))
     .map(({ c }) => c);
-  const window = sorted.slice(0, CONCEPT_SPREAD_WINDOW);
+  const seen = new Set([...input.todayNewLemmaKeys, ...input.recentLemmaKeys]);
+  const unseen = sorted.filter((c) => !seen.has(c.lemmaKey));
+  const fresh = unseen.length > 0 ? unseen : sorted;
+  const window = fresh.slice(0, CONCEPT_SPREAD_WINDOW);
   const recent = new Set(input.recentConceptIds.slice(-CONCEPT_SPREAD_RECENT));
   const spread = window.find((c) => !recent.has(c.conceptId)) ?? window[0];
   const run = input.recentConceptIds.slice(-MAX_CONCEPT_RUN);
   const capped =
     spread && run.length === MAX_CONCEPT_RUN && run.every((id) => id === spread.conceptId)
-      ? (sorted.find((c) => c.conceptId !== spread.conceptId) ?? spread)
+      ? (fresh.find((c) => c.conceptId !== spread.conceptId) ?? spread)
       : spread;
   return capped ? found(capped, 'NEW') : null;
 }

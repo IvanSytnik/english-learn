@@ -13,6 +13,7 @@ const NOW = Date.parse('2026-11-03T10:00:00Z');
 const word = (itemId: string, conceptId: string, frequencyRank: number): VocabCandidateRow => ({
   itemId,
   conceptId,
+  lemmaKey: itemId,
   cefrLevel: 'A1',
   frequencyRank,
   collections: [],
@@ -46,6 +47,18 @@ describe('nextVocab', () => {
     expect(await next([])).toMatchObject({ itemId: 'food-1' });
     expect(await next(['food-1'])).toMatchObject({ itemId: 'trip-1' });
     expect(await next(['food-1', 'trip-1'])).toMatchObject({ itemId: 'home-1' });
+  });
+
+  it('B6.2a: skips a homograph of a word just shown', async () => {
+    const homographs = [
+      { ...word('go-v', 'vocab.travel.a1', 1), lemmaKey: 'go' },
+      { ...word('go-n', 'vocab.food_drink.a1', 2), lemmaKey: 'go' },
+      word('home-1', 'vocab.house_home.a1', 3),
+    ];
+    const svc = createVocabSessionService(db(homographs));
+    expect(
+      await svc.nextVocab({ userId: 'u1', timeZone: 'UTC', nowMs: NOW, excludeItemIds: ['go-v'] }),
+    ).toMatchObject({ itemId: 'home-1' });
   });
 
   it('ignores a recent word it does not know', async () => {

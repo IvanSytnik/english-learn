@@ -14,6 +14,7 @@ const fresh = (
 ): VocabCandidate => ({
   itemId,
   conceptId: `vocab.c.${cefrLevel.toLowerCase()}`,
+  lemmaKey: itemId,
   cefrLevel,
   frequencyRank: null,
   collections: [],
@@ -28,6 +29,7 @@ const reviewed = (
 ): VocabCandidate => ({
   itemId,
   conceptId: 'vocab.c.a1',
+  lemmaKey: itemId,
   cefrLevel: 'A1',
   frequencyRank: null,
   collections: [],
@@ -45,6 +47,8 @@ const select = (candidates: VocabCandidate[], over: Partial<VocabSelectInput> = 
     priorityItemIds: new Set(),
     hiddenItemIds: new Set(),
     recentConceptIds: [],
+    todayNewLemmaKeys: new Set(),
+    recentLemmaKeys: [],
     ...over,
   });
 
@@ -216,5 +220,39 @@ describe('selectVocab', () => {
     expect(select(crowded.slice(0, 20), { recentConceptIds: ['x', 'x'] })).toMatchObject({
       itemId: 'x0',
     });
+  });
+
+  it('B6.2a homograph spread: skips a lemmaKey met today or just shown, unless nothing else is left', () => {
+    const pool = [
+      fresh('go-n', 'A1', { lemmaKey: 'go', conceptId: 'x', frequencyRank: 1 }),
+      fresh('name-v', 'A1', { lemmaKey: 'name', conceptId: 'x', frequencyRank: 2 }),
+      fresh('rice', 'A1', { lemmaKey: 'rice', conceptId: 'y', frequencyRank: 30 }),
+    ];
+    expect(select(pool)).toMatchObject({ itemId: 'go-n' });
+    expect(select(pool, { todayNewLemmaKeys: new Set(['go']) })).toMatchObject({
+      itemId: 'name-v',
+    });
+    expect(select(pool, { recentLemmaKeys: ['go'] })).toMatchObject({ itemId: 'name-v' });
+    expect(
+      select(pool, { todayNewLemmaKeys: new Set(['go']), recentLemmaKeys: ['name'] }),
+    ).toMatchObject({ itemId: 'rice' });
+    // Beyond the top window too: a homograph-free word at #25 beats 24 seen ones.
+    const crowded = [
+      ...Array.from({ length: 24 }, (_, i) =>
+        fresh(`go${i}`, 'A1', { lemmaKey: 'go', conceptId: `c${i}`, frequencyRank: i + 1 }),
+      ),
+      fresh('far', 'A1', { lemmaKey: 'far', conceptId: 'z', frequencyRank: 99 }),
+    ];
+    expect(select(crowded, { todayNewLemmaKeys: new Set(['go']) })).toMatchObject({
+      itemId: 'far',
+    });
+    // Nothing unseen left → the normal pick.
+    expect(select(pool, { todayNewLemmaKeys: new Set(['go', 'name', 'rice']) })).toMatchObject({
+      itemId: 'go-n',
+    });
+    // The run cap does not bring a seen lemmaKey back.
+    expect(
+      select(pool, { todayNewLemmaKeys: new Set(['rice']), recentConceptIds: ['x', 'x'] }),
+    ).toMatchObject({ itemId: 'go-n' });
   });
 });

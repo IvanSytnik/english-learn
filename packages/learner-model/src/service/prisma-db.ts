@@ -419,7 +419,7 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
               id: true,
               conceptId: true,
               cefrLevel: true,
-              lexeme: { select: { frequencyRank: true, collections: true } },
+              lexeme: { select: { lemmaKey: true, frequencyRank: true, collections: true } },
             },
           }),
         ),
@@ -438,6 +438,8 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
       return catalogue.map((item) => ({
         itemId: item.id,
         conceptId: item.conceptId,
+        // lexemeId is non-null in the query; '' never matches a real key.
+        lemmaKey: item.lexeme?.lemmaKey ?? '',
         cefrLevel: item.cefrLevel,
         frequencyRank: item.lexeme?.frequencyRank ?? null,
         collections: item.lexeme?.collections ?? [],

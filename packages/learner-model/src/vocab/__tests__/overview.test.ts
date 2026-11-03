@@ -21,6 +21,7 @@ const word = (
 ) => ({
   itemId,
   conceptId,
+  lemmaKey: itemId,
   cefrLevel: 'A1' as const,
   frequencyRank: null,
   collections,
