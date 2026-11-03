@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { arpabetToIpa, ipaFor, parseCmudict, stressNeutral } from '../ipa';
+import {
+  arpabetToIpa,
+  ipaFor,
+  parseCmudict,
+  pronunciationShape,
+  reducedVowelCount,
+  strongestVariant,
+} from '../ipa';
 import { buildIpaEntries, ipaOf, loadIpaData } from '../ipa-data';
 import { IPA_HETERONYMS } from '../ipa-heteronyms';
 
@@ -43,6 +50,15 @@ const DICT = parseCmudict(
     'part-time P AA1 R T T AY1 M',
     'part P AA1 R T',
     'time T AY1 M',
+    'and AH0 N D',
+    'and(2) AE1 N D',
+    'to T UW1',
+    'to(2) T IH0',
+    'to(3) T AH0',
+    'use Y UW1 S',
+    'use(2) Y UW1 Z',
+    'either IY1 DH ER0',
+    'either(2) AY1 DH ER0',
   ].join('\n'),
 );
 
@@ -52,25 +68,40 @@ describe('parseCmudict and the variant rule', () => {
     expect(DICT.get('first')).toEqual([p('F ER1 S T')]);
   });
 
-  it('stress-neutral: stress only, or a vowel against an unstressed one', () => {
-    expect(stressNeutral(p('DH AH0'), p('DH AH1'))).toBe(true);
-    expect(stressNeutral(p('DH AH0'), p('DH IY0'))).toBe(true);
-    expect(stressNeutral(p('D EY1 T AH0'), p('D AE1 T AH0'))).toBe(false);
-    expect(stressNeutral(p('R AH0 K AO1 R D'), p('R EH1 K ER0 D'))).toBe(false);
-    expect(stressNeutral(p('K L OW1 S'), p('K L OW1 Z'))).toBe(false);
-    expect(stressNeutral(p('M AY0 N UW1 T'), p('M AY0 N Y UW1 T'))).toBe(false);
+  it('shape: syllable count and the primary-stress syllable; one syllable is always 0', () => {
+    expect(pronunciationShape(p('DH AH0'))).toEqual({ syllables: 1, primary: 0 });
+    expect(pronunciationShape(p('DH AH1'))).toEqual({ syllables: 1, primary: 0 });
+    expect(pronunciationShape(p('R AH0 K AO1 R D'))).toEqual({ syllables: 2, primary: 1 });
+    expect(pronunciationShape(p('R EH1 K ER0 D'))).toEqual({ syllables: 2, primary: 0 });
+    expect(pronunciationShape(p('AH2 N D ER0'))).toEqual({ syllables: 2, primary: -1 });
   });
 
-  it('ipaFor: the first of stress-neutral variants; a table row per part of speech; else null', () => {
+  it('reduced vowels are AH0, IH0, ER0; the strong form has the fewest, the first on a tie', () => {
+    expect(reducedVowelCount(p('B AH0 N AE1 N AH0'))).toBe(2);
+    expect(reducedVowelCount(p('HH AE1 P IY0'))).toBe(0); // IY0 is not reduced
+    expect(strongestVariant([p('T UW1'), p('T IH0'), p('T AH0')])).toEqual(p('T UW1'));
+    expect(strongestVariant([p('AH0 N D'), p('AE1 N D')])).toEqual(p('AE1 N D'));
+    expect(strongestVariant([p('T IH0'), p('T UW1')])).toEqual(p('T UW1'));
+    expect(strongestVariant([p('F ER0'), p('F AO1 R')])).toEqual(p('F AO1 R'));
+    expect(strongestVariant([p('DH AH0'), p('DH AH1'), p('DH IY0')])).toEqual(p('DH AH1'));
+  });
+
+  it('ipaFor (B6.2b): a table row wins; another shape and no row → null; else the strong form', () => {
     const table = [
       ['record', 'NOUN', 2],
       ['record', 'VERB', 3],
+      ['use', 'VERB', 2],
     ] as const;
-    expect(ipaFor('the', 'OTHER', DICT, table)).toEqual({ ipa: 'ðə' });
+    expect(ipaFor('the', 'OTHER', DICT, table)).toEqual({ ipa: 'ðʌ' });
+    expect(ipaFor('and', 'CONJUNCTION', DICT, table)).toEqual({ ipa: 'ænd' });
+    expect(ipaFor('to', 'PREPOSITION', DICT, table)).toEqual({ ipa: 'tu' });
+    expect(ipaFor('either', 'ADVERB', DICT, table)).toEqual({ ipa: 'ˈiðɚ' }); // tie → first
+    expect(ipaFor('data', 'NOUN', DICT, table)).toEqual({ ipa: 'ˈdeɪtə' });
+    expect(ipaFor('use', 'VERB', DICT, table)).toEqual({ ipa: 'juz' }); // one shape, the row wins
+    expect(ipaFor('use', 'NOUN', DICT, table)).toEqual({ ipa: 'jus' });
     expect(ipaFor('record', 'NOUN', DICT, table)).toEqual({ ipa: 'ˈrɛkɚd' });
     expect(ipaFor('record', 'VERB', DICT, table)).toEqual({ ipa: 'rɪˈkɔrd' });
     expect(ipaFor('record', 'ADJECTIVE', DICT, table)).toEqual({ ipa: null, reason: 'ambiguous' });
-    expect(ipaFor('data', 'NOUN', DICT, table)).toEqual({ ipa: null, reason: 'ambiguous' });
     expect(ipaFor('nowhere', 'NOUN', DICT, table)).toEqual({ ipa: null, reason: 'not_found' });
   });
 
@@ -79,7 +110,8 @@ describe('parseCmudict and the variant rule', () => {
     expect(ipaFor('first name', 'NOUN', DICT, [])).toEqual({ ipa: 'fɝst neɪm' });
     expect(ipaFor('first-time', 'ADJECTIVE', DICT, [])).toEqual({ ipa: 'fɝst taɪm' });
     expect(ipaFor('first zork', 'NOUN', DICT, [])).toEqual({ ipa: null, reason: 'not_found' });
-    expect(ipaFor('the data', 'NOUN', DICT, [])).toEqual({ ipa: null, reason: 'ambiguous' });
+    expect(ipaFor('the data', 'NOUN', DICT, [])).toEqual({ ipa: 'ðʌ ˈdeɪtə' });
+    expect(ipaFor('the record', 'NOUN', DICT, [])).toEqual({ ipa: null, reason: 'ambiguous' });
   });
 
   it('entries: one IPA per lemmaKey, by part of speech only where they differ', () => {
@@ -99,12 +131,12 @@ describe('parseCmudict and the variant rule', () => {
       table,
     );
     expect(data).toEqual({
-      entries: { data: null, name: 'neɪm' },
+      entries: { data: 'ˈdeɪtə', name: 'neɪm' },
       byPos: { record: { NOUN: 'ˈrɛkɚd', VERB: 'rɪˈkɔrd' } },
     });
     expect(ipaOf(data, { lemmaKey: 'record', pos: 'VERB' })).toBe('rɪˈkɔrd');
     expect(ipaOf(data, { lemmaKey: 'record', pos: 'ADJECTIVE' })).toBeUndefined();
-    expect(ipaOf(data, { lemmaKey: 'data', pos: 'NOUN' })).toBeNull();
+    expect(ipaOf(data, { lemmaKey: 'data', pos: 'NOUN' })).toBe('ˈdeɪtə');
     expect(ipaOf(data, { lemmaKey: 'unknown', pos: 'NOUN' })).toBeUndefined();
   });
 });
@@ -127,6 +159,13 @@ describe('the heteronym table and the committed file', () => {
     expect(ipaOf(data, { lemmaKey: 'read', pos: 'VERB' })).toBe('rid');
     expect(ipaOf(data, { lemmaKey: 'computer', pos: 'NOUN' })).toBe('kəmˈpjutɚ');
     expect(ipaOf(data, { lemmaKey: 'apple', pos: 'NOUN' })).toBe('ˈæpəl');
+    // B6.2b: strong forms of one shape, table rows for another shape, else null
+    expect(ipaOf(data, { lemmaKey: 'and', pos: 'CONJUNCTION' })).toBe('ænd');
+    expect(ipaOf(data, { lemmaKey: 'to', pos: 'PREPOSITION' })).toBe('tu');
+    expect(ipaOf(data, { lemmaKey: 'for', pos: 'PREPOSITION' })).toBe('fɔr');
+    expect(ipaOf(data, { lemmaKey: 'appropriate', pos: 'ADJECTIVE' })).toBe('əˈproʊpriət');
+    expect(ipaOf(data, { lemmaKey: 'subject', pos: 'NOUN' })).toBe('ˈsʌbdʒɪkt');
+    expect(ipaOf(data, { lemmaKey: 'object', pos: 'NOUN' })).toBeNull();
     const values = [
       ...Object.values(data.entries),
       ...Object.values(data.byPos).flatMap((m) => Object.values(m)),

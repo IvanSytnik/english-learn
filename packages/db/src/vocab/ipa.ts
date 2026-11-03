@@ -7,12 +7,14 @@ import type { PartOfSpeechValue } from '../schemas/lexeme';
  * scripts/build-ipa-cmudict.ts applies it to the catalogue and commits only
  * the derived `{ lemmaKey: ipa }` file.
  *
- * A word with several CMUdict pronunciations takes the first one when the
- * others are only stress-neutral variants (equal after dropping stress, or
- * differing only in vowels of which one is unstressed: `the` ðə / ðʌ / ði).
- * Otherwise it is a heteronym or a free variant (`record`, `data`): the
- * hand-written IPA_HETERONYMS table picks the pronunciation for the
- * lexeme's part of speech; not in the table → null, never a guess.
+ * A word with several CMUdict pronunciations (B6.2b, Ivan's decision 3.a):
+ * 1. a row of the hand-written IPA_HETERONYMS table for [lemmaKey, pos]
+ *    wins — heteronyms of one shape (`use` jus / juz, `live`) need it;
+ * 2. variants of different shape — another syllable count or another
+ *    primary-stress syllable (`record` ˈrɛkɚd / rɪˈkɔrd) — and no row → null,
+ *    never a guess;
+ * 3. otherwise the strong form: the variant with the fewest reduced vowels
+ *    (AH0, IH0, ER0), the first on a tie — `and` ænd, not ənd; `to` tu.
  */
 
 export type Arpabet = readonly string[];
@@ -179,17 +181,31 @@ export function parseCmudict(text: string): Map<string, Arpabet[]> {
 }
 
 /**
- * Stress-neutral variants: the same phones once stress is dropped, or the
- * same length with every difference a vowel pair where one side is
- * unstressed (vowel reduction).
+ * The shape of a pronunciation: its syllable count and the syllable of
+ * primary stress (a one-syllable word: 0, stressed or not; none: -1).
  */
-export function stressNeutral(a: Arpabet, b: Arpabet): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((pa, i) => {
-    const pb = b[i] as string;
-    if (base(pa) === base(pb)) return true;
-    return isVowel(pa) && isVowel(pb) && (stress(pa) === 0 || stress(pb) === 0);
-  });
+export function pronunciationShape(phones: Arpabet): { syllables: number; primary: number } {
+  const vowels = phones.filter(isVowel);
+  if (vowels.length === 1) return { syllables: 1, primary: 0 };
+  return { syllables: vowels.length, primary: vowels.findIndex((v) => stress(v) === 1) };
+}
+
+const sameShape = (a: Arpabet, b: Arpabet) => {
+  const [x, y] = [pronunciationShape(a), pronunciationShape(b)];
+  return x.syllables === y.syllables && x.primary === y.primary;
+};
+
+/** Reduced vowels: schwa `AH0`, `IH0` and `ER0` (all unstressed by their digit). */
+const REDUCED_VOWELS: ReadonlySet<string> = new Set(['AH0', 'IH0', 'ER0']);
+
+export const reducedVowelCount = (phones: Arpabet): number =>
+  phones.filter((p) => REDUCED_VOWELS.has(p)).length;
+
+/** The strong form among variants: the fewest reduced vowels, the first on a tie. */
+export function strongestVariant(prons: readonly Arpabet[]): Arpabet {
+  let best = prons[0] as Arpabet;
+  for (const p of prons.slice(1)) if (reducedVowelCount(p) < reducedVowelCount(best)) best = p;
+  return best;
 }
 
 /**
@@ -201,7 +217,7 @@ export type HeteronymRow = readonly [lemmaKey: string, pos: PartOfSpeechValue, v
 export type IpaLookup = {
   /** The IPA, or null. */
   ipa: string | null;
-  /** Why null: not in CMUdict, or several pronunciations and no table row. */
+  /** Why null: not in CMUdict, or variants of different shape and no table row. */
   reason?: 'not_found' | 'ambiguous';
 };
 
@@ -215,11 +231,14 @@ function wordIpa(
 ): IpaLookup {
   const prons = dict.get(word);
   if (!prons || prons.length === 0) return { ipa: null, reason: 'not_found' };
-  const first = prons[0] as Arpabet;
-  if (prons.every((p) => stressNeutral(first, p))) return { ipa: arpabetToIpa(first) };
   const variant = table.get(`${lemmaKey}\u0000${pos}`);
-  const chosen = variant === undefined ? undefined : prons[variant - 1];
-  return chosen ? { ipa: arpabetToIpa(chosen) } : { ipa: null, reason: 'ambiguous' };
+  if (variant !== undefined) {
+    const chosen = prons[variant - 1];
+    return chosen ? { ipa: arpabetToIpa(chosen) } : { ipa: null, reason: 'ambiguous' };
+  }
+  const first = prons[0] as Arpabet;
+  if (!prons.every((p) => sameShape(first, p))) return { ipa: null, reason: 'ambiguous' };
+  return { ipa: arpabetToIpa(strongestVariant(prons)) };
 }
 
 /**
