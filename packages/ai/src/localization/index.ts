@@ -44,6 +44,7 @@ export {
   glossWordCount,
   MAX_GLOSS_WORDS,
   type RejectedItem,
+  scriptProblems,
   type ValidatedBatch,
   validateLocalizedBatch,
 } from './validator';

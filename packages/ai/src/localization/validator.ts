@@ -51,7 +51,7 @@ export function glossWordCount(gloss: string): number {
 }
 
 /** Script check: a Russian text has no Ukrainian-only letter and vice versa; German has no Cyrillic. */
-function scriptProblems(text: FullTranslations, where: string): string[] {
+export function scriptProblems(text: FullTranslations, where: string): string[] {
   const problems: string[] = [];
   if (!CYRILLIC.test(text.ru) || UK_ONLY.test(text.ru)) problems.push(`${where}.ru is not Russian`);
   if (!CYRILLIC.test(text.uk) || RU_ONLY.test(text.uk))
