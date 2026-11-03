@@ -1,8 +1,5 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
-import {
-  countNewVocabWordsSince,
-  getDailyVocabLimit,
-} from '@englishlearn/db/queries/vocab-session';
+import { getDailyVocabLimit, newVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
 import {
   type AttemptOutcomeRow,
   type CandidateItemRow,
@@ -446,8 +443,8 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
         review: reviewByItem.get(item.id) ?? null,
       }));
     },
-    countNewVocabSince(userId, sinceMs) {
-      return countNewVocabWordsSince(prisma, { userId, sinceMs });
+    newVocabSince(userId, sinceMs) {
+      return newVocabWordsSince(prisma, { userId, sinceMs });
     },
     async getVocabProfile(userId) {
       const [dailyLimit, profile] = await Promise.all([

@@ -20,9 +20,9 @@ const word = (itemId: string, conceptId: string, frequencyRank: number): VocabCa
   review: null,
 });
 
-const db = (rows: VocabCandidateRow[]): VocabSessionDb => ({
+const db = (rows: VocabCandidateRow[], todayKeys: string[] = []): VocabSessionDb => ({
   getVocabCandidates: async () => rows,
-  countNewVocabSince: async () => 0,
+  newVocabSince: async () => ({ count: 0, lemmaKeys: todayKeys }),
   getVocabProfile: async () => ({ dailyLimit: 10, assessedLevel: null }),
 });
 
@@ -59,6 +59,17 @@ describe('nextVocab', () => {
     expect(
       await svc.nextVocab({ userId: 'u1', timeZone: 'UTC', nowMs: NOW, excludeItemIds: ['go-v'] }),
     ).toMatchObject({ itemId: 'home-1' });
+  });
+
+  it('B6.2a: skips a homograph of a word first met today', async () => {
+    const homographs = [
+      { ...word('go-n', 'vocab.food_drink.a1', 1), lemmaKey: 'go' },
+      word('home-1', 'vocab.house_home.a1', 2),
+    ];
+    const svc = createVocabSessionService(db(homographs, ['go']));
+    expect(await svc.nextVocab({ userId: 'u1', timeZone: 'UTC', nowMs: NOW })).toMatchObject({
+      itemId: 'home-1',
+    });
   });
 
   it('ignores a recent word it does not know', async () => {

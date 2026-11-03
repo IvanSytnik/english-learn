@@ -55,9 +55,9 @@ export function createVocabSessionService(db: VocabSessionDb) {
     }): Promise<VocabOverview> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [candidates, newToday, profile] = await Promise.all([
+      const [candidates, { count: newToday }, profile] = await Promise.all([
         db.getVocabCandidates(input.userId),
-        db.countNewVocabSince(input.userId, dayStart),
+        db.newVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
       ]);
       return {
@@ -71,9 +71,9 @@ export function createVocabSessionService(db: VocabSessionDb) {
     async nextVocab(input: NextVocabInput): Promise<VocabSelection> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [candidates, newToday, profile] = await Promise.all([
+      const [candidates, today, profile] = await Promise.all([
         db.getVocabCandidates(input.userId),
-        db.countNewVocabSince(input.userId, dayStart),
+        db.newVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
       ]);
       const byId = new Map(candidates.map((c) => [c.itemId, c]));
@@ -84,7 +84,7 @@ export function createVocabSessionService(db: VocabSessionDb) {
       return selectVocab({
         candidates,
         nowMs,
-        newToday,
+        newToday: today.count,
         dailyLimit: profile.dailyLimit,
         targetLevel: profile.assessedLevel,
         seed: `${input.userId}:${dayStart}`,
@@ -95,7 +95,7 @@ export function createVocabSessionService(db: VocabSessionDb) {
         hiddenItemIds: NO_ITEMS,
         recentConceptIds: recent.map((c) => c.conceptId),
         recentLemmaKeys: recent.map((c) => c.lemmaKey),
-        todayNewLemmaKeys: NO_ITEMS,
+        todayNewLemmaKeys: new Set(today.lemmaKeys),
       });
     },
   };

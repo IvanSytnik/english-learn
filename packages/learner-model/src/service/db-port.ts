@@ -237,8 +237,11 @@ export type VocabCandidateRow = {
 export type VocabSessionDb = {
   /** PUBLISHED lexeme-backed VOCAB_WORD items with this learner's review state. */
   getVocabCandidates(userId: string): Promise<VocabCandidateRow[]>;
-  /** Words first met at or after `sinceMs`, passed proofs excluded (countNewVocabWordsSince). */
-  countNewVocabSince(userId: string, sinceMs: number): Promise<number>;
+  /**
+   * Words first met at or after `sinceMs` (newVocabWordsSince): `count`
+   * without passed proofs (the daily limit), `lemmaKeys` of all of them.
+   */
+  newVocabSince(userId: string, sinceMs: number): Promise<{ count: number; lemmaKeys: string[] }>;
   getVocabProfile(
     userId: string,
   ): Promise<{ dailyLimit: number; assessedLevel: CefrLevelRow | null }>;

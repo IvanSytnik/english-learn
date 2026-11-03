@@ -93,7 +93,7 @@ export type VocabSelection =
 export type VocabSelectInput = {
   candidates: readonly VocabCandidate[];
   nowMs: number;
-  /** New words already introduced today (countNewVocabWordsSince). */
+  /** New words already introduced today (newVocabWordsSince().count). */
   newToday: number;
   dailyLimit: number;
   /** StudentProfile.assessedLevel; null before the diagnostic. */

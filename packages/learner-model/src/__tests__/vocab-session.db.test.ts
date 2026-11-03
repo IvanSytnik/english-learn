@@ -1,6 +1,6 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
-import { countNewVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
+import { newVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createLearnerService } from '../service/learner-service';
 import {
@@ -11,7 +11,7 @@ import {
 import { createVocabSessionService } from '../service/vocab-session-service';
 
 /**
- * The daily new-word limit on real Postgres (B2.5): countNewVocabWordsSince
+ * The daily new-word limit on real Postgres (B2.5): newVocabWordsSince
  * counts vocabulary words whose first attempt falls in the learner's local
  * day — once per word, never a passed proof, never a grammar item, never a
  * word first met yesterday — and nextVocab stops introducing new words at
@@ -57,7 +57,10 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
       proof: extra.proof,
       occurredAtMs: BigInt(atMs),
     });
-  const newToday = () => countNewVocabWordsSince(prisma, { userId, sinceMs: DAY_START });
+  const today = () => newVocabWordsSince(prisma, { userId, sinceMs: DAY_START });
+  const newToday = async () => (await today()).count;
+  /** lemmaKey of words[i] (`${RUN}-w${i}`). */
+  const key = (i: number) => `${RUN}-w${i}`;
 
   beforeAll(async () => {
     prisma = createPrismaClient(url);
@@ -136,7 +139,43 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     await answer(w0, DAY_START + 2 * MIN);
     await answer(w1, DAY_START + 3 * MIN);
     await answer(w0, DAY_START + 4 * MIN);
-    expect(await newToday()).toBe(2);
+    expect(await today()).toEqual({ count: 2, lemmaKeys: [key(0), key(1)] });
+  });
+
+  it('returns a headword once when two of its senses were first met today', async () => {
+    // A second sense of w0's headword, answered through the one write path;
+    // removed (and the catalogue cache cleared) so the other tests never see it.
+    const verb = await prisma.lexeme.create({
+      data: {
+        lemma: key(0),
+        lemmaKey: key(0),
+        pos: 'VERB',
+        cefrLevel: 'A1',
+        cefrJLevel: 'A1',
+        definitions: { en: 'x' },
+        translations: { ru: 'x' },
+        status: 'PUBLISHED',
+      },
+    });
+    const sense = await prisma.item.create({
+      data: {
+        conceptId: CONCEPT,
+        kind: 'VOCAB_WORD',
+        cefrLevel: 'A1',
+        status: 'PUBLISHED',
+        content: { headword: key(0), variants: [] },
+        lexemeId: verb.id,
+      },
+    });
+    try {
+      await answer(words[0] as string, DAY_START + MIN);
+      await answer(sense.id, DAY_START + 2 * MIN);
+      expect(await today()).toEqual({ count: 2, lemmaKeys: [key(0)] });
+    } finally {
+      await prisma.item.delete({ where: { id: sense.id } });
+      await prisma.lexeme.delete({ where: { id: verb.id } });
+      clearStaticGraphCache();
+    }
   });
 
   it('leaves out a word first met yesterday (local midnight), even if answered today', async () => {
@@ -144,7 +183,7 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     await answer(w0, DAY_START - 1);
     await answer(w1, DAY_START);
     await answer(w0, DAY_START + MIN);
-    expect(await newToday()).toBe(1);
+    expect(await today()).toEqual({ count: 1, lemmaKeys: [key(1)] });
   });
 
   it('leaves out a passed proof; a failed proof counts', async () => {
@@ -156,7 +195,8 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
       orderBy: { occurredAt: 'asc' },
     });
     expect(events.map((e) => (e.payload as { proof?: true }).proof ?? null)).toEqual([true, null]);
-    expect(await newToday()).toBe(1);
+    // The passed proof is not a new word for the limit, but its headword was met today.
+    expect(await today()).toEqual({ count: 1, lemmaKeys: [key(0), key(1)] });
   });
 
   it('never counts grammar answers', async () => {
