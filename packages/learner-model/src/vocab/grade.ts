@@ -1,5 +1,5 @@
 import type { VocabAnswerKey } from './card';
-import { normalizeAnswer } from './text';
+import { vocabVariant } from './variants';
 
 /**
  * Server-side grading of one vocabulary answer against the rebuilt card's key.
@@ -33,19 +33,7 @@ export type VocabGradingKey =
   | Omit<Extract<VocabAnswerKey, { kind: 'choice' }>, 'optionLexemeIds'>
   | Extract<VocabAnswerKey, { kind: 'text' }>;
 
+/** Grades with the key's own variant (./variants): choice by index, text by normalized form. */
 export function gradeVocabAnswer(key: VocabGradingKey, answer: VocabAnswer): VocabGrade {
-  if (answer.kind === 'dont_know') return 'DONT_KNOW';
-  if (key.kind === 'choice') {
-    if (answer.kind !== 'choice' || !Number.isInteger(answer.index) || answer.index < 0) {
-      return 'INVALID';
-    }
-    if (answer.index > 3) return 'INVALID';
-    return answer.index === key.correctIndex ? 'CORRECT' : 'INCORRECT';
-  }
-  if (answer.kind !== 'text') return 'INVALID';
-  const typed = normalizeAnswer(answer.text);
-  if (typed.length === 0) return 'INVALID';
-  if (key.accepted.includes(typed)) return 'CORRECT';
-  if (key.synonyms.includes(typed)) return 'SYNONYM_COLLISION';
-  return 'INCORRECT';
+  return vocabVariant(key.mode).grade(key, answer);
 }

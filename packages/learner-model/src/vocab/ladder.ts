@@ -1,5 +1,6 @@
 import type { FsrsCardState } from '../core/fsrs/types';
 import type { VocabMode } from './types';
+import { VOCAB_LADDER, VOCAB_VARIANTS } from './variants';
 
 /**
  * The word ladder (B2.1 / B2.5): which of the five modes a word is practised
@@ -14,10 +15,10 @@ import type { VocabMode } from './types';
  */
 export const LADDER_THRESHOLDS: Readonly<Record<Exclude<VocabMode, 'en_to_l1'>, number>> =
   Object.freeze({
-    l1_to_en: 2,
-    cloze: 7,
-    cued_recall: 21,
-    full_recall: 60,
+    l1_to_en: VOCAB_VARIANTS.l1_to_en.ladderFrom,
+    cloze: VOCAB_VARIANTS.cloze.ladderFrom,
+    cued_recall: VOCAB_VARIANTS.cued_recall.ladderFrom,
+    full_recall: VOCAB_VARIANTS.full_recall.ladderFrom,
   });
 
 /** The mode a "Know -> prove" check uses: one cued recall answer. */
@@ -28,10 +29,8 @@ export function vocabModeFor(
   state: Pick<FsrsCardState, 'stability' | 'cardStatus'> | null,
 ): VocabMode {
   if (state === null || state.cardStatus === 'NEW') return 'en_to_l1';
-  const s = state.stability;
-  if (s >= LADDER_THRESHOLDS.full_recall) return 'full_recall';
-  if (s >= LADDER_THRESHOLDS.cued_recall) return 'cued_recall';
-  if (s >= LADDER_THRESHOLDS.cloze) return 'cloze';
-  if (s >= LADDER_THRESHOLDS.l1_to_en) return 'l1_to_en';
-  return 'en_to_l1';
+  // The highest rung whose lower bound the stability has reached (registry order).
+  let mode: VocabMode = 'en_to_l1';
+  for (const variant of VOCAB_LADDER) if (state.stability >= variant.ladderFrom) mode = variant.id;
+  return mode;
 }

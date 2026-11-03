@@ -11,8 +11,12 @@ const DIR = new URL('..', import.meta.url);
 
 describe('vocab/ determinism', () => {
   it('no source file calls Math.random', () => {
-    const files = readdirSync(DIR).filter((f) => f.endsWith('.ts'));
+    // vocab/ and its variant modules (B6.3), never the tests.
+    const files = readdirSync(DIR, { recursive: true, encoding: 'utf8' }).filter(
+      (f) => f.endsWith('.ts') && !f.includes('__tests__'),
+    );
     expect(files.length).toBeGreaterThanOrEqual(6);
+    expect(files.some((f) => f.startsWith('variants'))).toBe(true);
     for (const file of files) {
       expect(readFileSync(new URL(file, DIR), 'utf8'), file).not.toMatch(/Math\s*\.\s*random/);
     }

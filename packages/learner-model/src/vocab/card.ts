@@ -1,70 +1,22 @@
-import { PRACTICE_GAP } from '@englishlearn/db/schemas';
-import { makeRng, type Rng, seedFromString } from '../policy/rng';
-import { DISTRACTOR_COUNT, pickDistractors, shuffle } from './distractors';
-import {
-  articleFor,
-  containsWholeWord,
-  findClozeSpan,
-  glossKey,
-  glossOf,
-  matchInitialCase,
-  normalizeAnswer,
-  recallCue,
-  type SurfaceShape,
-  surfaceShape,
-} from './text';
-import type { VocabLexeme, VocabLocale, VocabMode } from './types';
+import type { VocabMode } from './types';
+import { VocabCardError, vocabVariant } from './variants';
+import type { VocabCard, VocabCardInput, VocabVariant } from './variants/types';
 
 /**
  * One vocabulary question, built twice from the same input: when it is served
  * and when the answer is graded (stateless, like the diagnostic). `view` is
  * all the client ever gets — no correct index, no accepted answers, no lexeme
- * id (Axiom 3); `key` stays on the server.
+ * id (Axiom 3); `key` stays on the server. Each mode's card is built by its
+ * variant (./variants, B6.3); this module only dispatches.
  */
 
-export type VocabCardView =
-  /** Mode 1: the English word, choose its meaning. */
-  | { mode: 'en_to_l1'; word: string; ipa: string | null; options: string[] }
-  /** Mode 2: the meaning, choose the English word. */
-  | { mode: 'l1_to_en'; gloss: string; options: string[] }
-  /** Mode 3: a sentence with a gap, choose what fills it. */
-  | { mode: 'cloze'; sentence: string; options: string[] }
-  /** Mode 4: the meaning and a first-letter cue (`l___ u_`), type the word. */
-  | { mode: 'cued_recall'; gloss: string; cue: string }
-  /** Mode 5: the meaning, type the word. */
-  | { mode: 'full_recall'; gloss: string };
-
-export type VocabAnswerKey =
-  | {
-      kind: 'choice';
-      mode: 'en_to_l1' | 'l1_to_en' | 'cloze';
-      correctIndex: number;
-      /**
-       * Lexeme id behind each option, in display order (the target's at
-       * correctIndex). Server-side only: which word a wrong pick confused.
-       */
-      optionLexemeIds: string[];
-    }
-  | {
-      kind: 'text';
-      mode: 'cued_recall' | 'full_recall';
-      /** Normalized accepted answers: the lemma and its spelling variants. */
-      accepted: string[];
-      /** Normalized forms of other words with the same gloss (soft response). */
-      synonyms: string[];
-    };
-
-export type VocabCard = { view: VocabCardView; key: VocabAnswerKey };
-
-export type VocabCardInput = {
-  target: VocabLexeme;
-  /** PUBLISHED vocabulary to draw distractors and synonyms from (may include the target). */
-  pool: readonly VocabLexeme[];
-  mode: VocabMode;
-  locale: VocabLocale;
-  /** Stable per served question — see cardSeed. */
-  seed: string;
-};
+export type {
+  VocabAnswerKey,
+  VocabCard,
+  VocabCardInput,
+  VocabCardView,
+} from './variants/types';
+export { VocabCardError };
 
 /**
  * Seed of one served question: the same until the word is answered (its
@@ -74,164 +26,20 @@ export type VocabCardInput = {
 export const cardSeed = (args: { userId: string; itemId: string; lastReviewAt: bigint | null }) =>
   `${args.userId}:${args.itemId}:${args.lastReviewAt ?? 'new'}`;
 
-export class VocabCardError extends Error {
-  override name = 'VocabCardError';
-}
-
+/**
+ * The card for `input.mode`, or — when that variant is not eligible for the
+ * word — for its fallback (cloze → l1_to_en). The served mode is
+ * `view.mode`.
+ */
 export function buildVocabCard(input: VocabCardInput): VocabCard {
-  const { target, pool, mode, locale } = input;
-  const rng = makeRng(seedFromString(`${input.seed}:${mode}`));
-
-  switch (mode) {
-    case 'en_to_l1': {
-      const correct = glossOf(target, locale);
-      return choice(
-        { mode, word: target.lemma, ipa: target.ipa ?? null },
-        { option: correct, lexemeId: target.id },
-        pickFor(input, rng, correct, (l) => glossOf(l, locale)),
-        rng,
-      );
+  let variant: VocabVariant = vocabVariant(input.mode);
+  const seen = new Set<VocabMode>();
+  while (!variant.eligible(input.target, input)) {
+    seen.add(variant.id);
+    if (variant.fallback === undefined || seen.has(variant.fallback)) {
+      throw new VocabCardError(`"${input.target.lemma}" has no eligible variant (${input.mode})`);
     }
-    case 'l1_to_en': {
-      return choice(
-        { mode, gloss: promptGloss(target, locale) },
-        { option: target.lemma, lexemeId: target.id },
-        pickFor(input, rng, target.lemma, (l) => l.lemma),
-        rng,
-      );
-    }
-    case 'cloze':
-      // A blank whose form no three other words share (`kind-hearted`) is no
-      // fair choice: the mode below takes its place. The served mode is
-      // `view.mode` — that is what the payload records.
-      return clozeCard(input, rng) ?? buildVocabCard({ ...input, mode: 'l1_to_en' });
-    case 'cued_recall':
-    case 'full_recall': {
-      const gloss = promptGloss(target, locale);
-      const view: VocabCardView =
-        mode === 'cued_recall' ? { mode, gloss, cue: recallCue(target.lemma) } : { mode, gloss };
-      return { view, key: { kind: 'text', mode, ...recallKey(target, pool, locale) } };
-    }
+    variant = vocabVariant(variant.fallback);
   }
-}
-
-/**
- * The gloss shown as a prompt (modes 2, 4, 5). A cognate gloss that contains
- * the answer (`die Bank` for `bank`, `DVD`) would give it away, so the
- * English definition stands in.
- */
-function promptGloss(target: VocabLexeme, locale: VocabLocale): string {
-  const gloss = glossOf(target, locale);
-  const reveals = [target.lemma, ...target.variants].some((answer) =>
-    containsWholeWord(gloss, answer),
-  );
-  return reveals ? target.definitions.en : gloss;
-}
-
-/** Accepted spellings of the target and the forms of its same-gloss synonyms. */
-function recallKey(target: VocabLexeme, pool: readonly VocabLexeme[], locale: VocabLocale) {
-  const accepted = [...new Set([target.lemma, ...target.variants].map(normalizeAnswer))];
-  const gloss = glossKey(target, locale);
-  const synonyms = pool
-    .filter((l) => l.id !== target.id && glossKey(l, locale) === gloss)
-    .flatMap((l) => [l.lemma, ...l.variants].map(normalizeAnswer))
-    .filter((form) => !accepted.includes(form));
-  return { accepted, synonyms: [...new Set(synonyms)].sort() };
-}
-
-/** Null when fewer than three other words share the blank's form. */
-function clozeCard(input: VocabCardInput, rng: Rng): VocabCard | null {
-  const { target } = input;
-  const example = target.examples[0];
-  if (!example) throw new VocabCardError(`"${target.lemma}" has no example sentence`);
-
-  const span = findClozeSpan(example.sentence, example.clozeTarget);
-  const surface = example.sentence.slice(span.start, span.end);
-  const shape = surfaceShape(surface, target.lemmaKey, target.pos);
-  // With an article right before the blank, the blank takes it in: "___ pear"
-  // after "an" would give the answer away (`an ___` -> a vowel).
-  const article = span.article;
-  const withArticle = (form: string) =>
-    article ? `${matchInitialCase(articleFor(form), article.text)} ${form}` : form;
-  const asOption = (form: string) => withArticle(matchInitialCase(form, surface));
-
-  // The sentence's own article for the answer; distractors get theirs by spelling.
-  const correct = article ? `${article.text} ${surface}` : surface;
-  const distractors = pickFor(input, rng, correct, (l) => {
-    const form = formWithShape(l, shape);
-    return form === null ? null : asOption(form);
-  });
-  if (distractors.length < DISTRACTOR_COUNT) return null;
-
-  const gapStart = article ? article.start : span.start;
-  const sentence = `${example.sentence.slice(0, gapStart)}${PRACTICE_GAP}${example.sentence.slice(span.end)}`;
-  return choice(
-    { mode: 'cloze', sentence },
-    { option: correct, lexemeId: target.id },
-    distractors,
-    rng,
-  );
-}
-
-/**
- * A surface form of `lexeme` in `shape`: its lemma for the base form,
- * otherwise a cloze target of its own examples with the same shape — never a
- * guessed inflection.
- */
-function formWithShape(lexeme: VocabLexeme, shape: SurfaceShape): string | null {
-  if (shape === 'base') return lexeme.lemma;
-  for (const ex of lexeme.examples) {
-    if (surfaceShape(ex.clozeTarget, lexeme.lemmaKey, lexeme.pos) === shape) return ex.clozeTarget;
-  }
-  return null;
-}
-
-type ChoiceOption = { option: string; lexemeId: string };
-
-function pickFor(
-  input: VocabCardInput,
-  rng: Rng,
-  targetOption: string,
-  optionOf: (l: VocabLexeme) => string | null,
-): ChoiceOption[] {
-  const picked = pickDistractors({
-    target: input.target,
-    pool: input.pool,
-    locale: input.locale,
-    rng,
-    optionOf,
-    targetOption,
-  });
-  return picked.map((d) => ({ option: d.option, lexemeId: d.lexeme.id }));
-}
-
-type ChoiceView = Extract<VocabCardView, { options: string[] }>;
-/** A choice view without its options (distributive, one per mode). */
-type ChoicePrompt = ChoiceView extends infer V
-  ? V extends ChoiceView
-    ? Omit<V, 'options'>
-    : never
-  : never;
-
-function choice(
-  prompt: ChoicePrompt,
-  correct: ChoiceOption,
-  distractors: ChoiceOption[],
-  rng: Rng,
-): VocabCard {
-  if (distractors.length < DISTRACTOR_COUNT) {
-    throw new VocabCardError(`only ${distractors.length} distractors (${prompt.mode})`);
-  }
-  // The same Fisher–Yates draws as on the option strings alone: a card shows
-  // exactly what it showed before the ids rode along.
-  const shuffled = shuffle([correct, ...distractors], rng);
-  return {
-    view: { ...prompt, options: shuffled.map((o) => o.option) } as ChoiceView,
-    key: {
-      kind: 'choice',
-      mode: prompt.mode,
-      correctIndex: shuffled.indexOf(correct),
-      optionLexemeIds: shuffled.map((o) => o.lexemeId),
-    },
-  };
+  return variant.build({ ...input, mode: variant.id });
 }

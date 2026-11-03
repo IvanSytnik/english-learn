@@ -46,3 +46,10 @@ export {
   type VocabLocale,
   type VocabMode,
 } from './types';
+export {
+  type VariantContext,
+  VOCAB_LADDER,
+  VOCAB_VARIANTS,
+  type VocabVariant,
+  vocabVariant,
+} from './variants';
