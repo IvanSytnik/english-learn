@@ -24,7 +24,16 @@ export type VocabAnswer =
 
 export type VocabGrade = 'CORRECT' | 'INCORRECT' | 'DONT_KNOW' | 'SYNONYM_COLLISION' | 'INVALID';
 
-export function gradeVocabAnswer(key: VocabAnswerKey, answer: VocabAnswer): VocabGrade {
+/**
+ * What grading needs of a key: a choice is graded by its index alone (the
+ * web grades against the index sealed in the vocabRef), so the option ids
+ * are not required.
+ */
+export type VocabGradingKey =
+  | Omit<Extract<VocabAnswerKey, { kind: 'choice' }>, 'optionLexemeIds'>
+  | Extract<VocabAnswerKey, { kind: 'text' }>;
+
+export function gradeVocabAnswer(key: VocabGradingKey, answer: VocabAnswer): VocabGrade {
   if (answer.kind === 'dont_know') return 'DONT_KNOW';
   if (key.kind === 'choice') {
     if (answer.kind !== 'choice' || !Number.isInteger(answer.index) || answer.index < 0) {

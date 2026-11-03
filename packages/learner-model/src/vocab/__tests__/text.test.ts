@@ -4,6 +4,7 @@ import {
   findClozeSpan,
   matchInitialCase,
   normalizeAnswer,
+  payloadAnswerText,
   recallCue,
   surfaceShape,
 } from '../text';
@@ -88,5 +89,26 @@ describe('normalizeAnswer / matchInitialCase', () => {
     expect(matchInitialCase('walked', 'Ran')).toBe('Walked');
     expect(matchInitialCase('walked', 'ran')).toBe('walked');
     expect(matchInitialCase('English', 'ran')).toBe('English');
+  });
+});
+
+describe('payloadAnswerText (B6.1)', () => {
+  it('stores the answer the way the grader compared it', () => {
+    expect(payloadAnswerText('  Look   UP ')).toBe('look up');
+    expect(payloadAnswerText('don’t')).toBe("don't");
+  });
+
+  it('cuts to 64 UTF-16 units, never inside a surrogate pair, no trailing space', () => {
+    expect(payloadAnswerText('a'.repeat(80))).toBe('a'.repeat(64));
+    expect(payloadAnswerText(`${'a'.repeat(63)}😀b`)).toBe('a'.repeat(63));
+    expect(payloadAnswerText(`${'a'.repeat(63)} bcd`)).toBe('a'.repeat(63));
+    expect(payloadAnswerText('abcdef', 3)).toBe('abc');
+    for (const text of ['x'.repeat(200), `${'é'.repeat(70)}`, `${'😀'.repeat(40)}`]) {
+      expect((payloadAnswerText(text) ?? '').length).toBeLessThanOrEqual(64);
+    }
+  });
+
+  it('nothing left is null', () => {
+    expect(payloadAnswerText('   ')).toBeNull();
   });
 });

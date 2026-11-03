@@ -4,6 +4,8 @@ import {
   type LearnerBootstrappedPayload,
   LearnerBootstrappedPayloadSchema,
   type PracticeModeValue,
+  type VocabLocaleValue,
+  type VocabVariantValue,
 } from '@englishlearn/db/schemas';
 import type { IrtParams } from '../core/bkt/types';
 import type { FsrsRating } from '../core/fsrs/types';
@@ -30,6 +32,11 @@ export type ItemOutcomeFact = {
   mode?: PracticeModeValue;
   /** A passed "Know -> prove" check — written to the payload only when true. */
   proof?: boolean;
+  /** Vocabulary analytics (B6.1), never folded — see ItemAttemptedPayloadSchema. */
+  variant?: VocabVariantValue;
+  chosenItemId?: string;
+  answerText?: string;
+  locale?: VocabLocaleValue;
   timeMs: number | null;
   rating: FsrsRating;
   irt: IrtParams;
@@ -51,6 +58,10 @@ export function buildItemAttemptedEvent(fact: ItemOutcomeFact): LearnerEventInse
     ...(fact.hinted ? { hinted: true } : {}),
     ...(fact.mode ? { mode: fact.mode } : {}),
     ...(fact.proof ? { proof: true } : {}),
+    ...(fact.variant ? { variant: fact.variant } : {}),
+    ...(fact.chosenItemId ? { chosenItemId: fact.chosenItemId } : {}),
+    ...(fact.answerText ? { answerText: fact.answerText } : {}),
+    ...(fact.locale ? { locale: fact.locale } : {}),
   });
   return {
     userId: fact.userId,

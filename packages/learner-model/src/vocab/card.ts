@@ -35,7 +35,16 @@ export type VocabCardView =
   | { mode: 'full_recall'; gloss: string };
 
 export type VocabAnswerKey =
-  | { kind: 'choice'; mode: 'en_to_l1' | 'l1_to_en' | 'cloze'; correctIndex: number }
+  | {
+      kind: 'choice';
+      mode: 'en_to_l1' | 'l1_to_en' | 'cloze';
+      correctIndex: number;
+      /**
+       * Lexeme id behind each option, in display order (the target's at
+       * correctIndex). Server-side only: which word a wrong pick confused.
+       */
+      optionLexemeIds: string[];
+    }
   | {
       kind: 'text';
       mode: 'cued_recall' | 'full_recall';
@@ -78,7 +87,7 @@ export function buildVocabCard(input: VocabCardInput): VocabCard {
       const correct = glossOf(target, locale);
       return choice(
         { mode, word: target.lemma, ipa: target.ipa ?? null },
-        correct,
+        { option: correct, lexemeId: target.id },
         pickFor(input, rng, correct, (l) => glossOf(l, locale)),
         rng,
       );
@@ -86,7 +95,7 @@ export function buildVocabCard(input: VocabCardInput): VocabCard {
     case 'l1_to_en': {
       return choice(
         { mode, gloss: promptGloss(target, locale) },
-        target.lemma,
+        { option: target.lemma, lexemeId: target.id },
         pickFor(input, rng, target.lemma, (l) => l.lemma),
         rng,
       );
@@ -156,7 +165,12 @@ function clozeCard(input: VocabCardInput, rng: Rng): VocabCard | null {
 
   const gapStart = article ? article.start : span.start;
   const sentence = `${example.sentence.slice(0, gapStart)}${PRACTICE_GAP}${example.sentence.slice(span.end)}`;
-  return choice({ mode: 'cloze', sentence }, correct, distractors, rng);
+  return choice(
+    { mode: 'cloze', sentence },
+    { option: correct, lexemeId: target.id },
+    distractors,
+    rng,
+  );
 }
 
 /**
@@ -172,12 +186,14 @@ function formWithShape(lexeme: VocabLexeme, shape: SurfaceShape): string | null 
   return null;
 }
 
+type ChoiceOption = { option: string; lexemeId: string };
+
 function pickFor(
   input: VocabCardInput,
   rng: Rng,
   targetOption: string,
   optionOf: (l: VocabLexeme) => string | null,
-): string[] {
+): ChoiceOption[] {
   const picked = pickDistractors({
     target: input.target,
     pool: input.pool,
@@ -186,7 +202,7 @@ function pickFor(
     optionOf,
     targetOption,
   });
-  return picked.map((d) => d.option);
+  return picked.map((d) => ({ option: d.option, lexemeId: d.lexeme.id }));
 }
 
 type ChoiceView = Extract<VocabCardView, { options: string[] }>;
@@ -197,13 +213,25 @@ type ChoicePrompt = ChoiceView extends infer V
     : never
   : never;
 
-function choice(prompt: ChoicePrompt, correct: string, distractors: string[], rng: Rng): VocabCard {
+function choice(
+  prompt: ChoicePrompt,
+  correct: ChoiceOption,
+  distractors: ChoiceOption[],
+  rng: Rng,
+): VocabCard {
   if (distractors.length < DISTRACTOR_COUNT) {
     throw new VocabCardError(`only ${distractors.length} distractors (${prompt.mode})`);
   }
-  const options = shuffle([correct, ...distractors], rng);
+  // The same Fisher–Yates draws as on the option strings alone: a card shows
+  // exactly what it showed before the ids rode along.
+  const shuffled = shuffle([correct, ...distractors], rng);
   return {
-    view: { ...prompt, options } as ChoiceView,
-    key: { kind: 'choice', mode: prompt.mode, correctIndex: options.indexOf(correct) },
+    view: { ...prompt, options: shuffled.map((o) => o.option) } as ChoiceView,
+    key: {
+      kind: 'choice',
+      mode: prompt.mode,
+      correctIndex: shuffled.indexOf(correct),
+      optionLexemeIds: shuffled.map((o) => o.lexemeId),
+    },
   };
 }

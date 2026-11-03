@@ -171,6 +171,103 @@ describe('recordVocabOutcome', () => {
  * gets its outcome, a different answer to a card whose word was answered
  * since is STALE and writes nothing.
  */
+describe('recordVocabOutcome analytics (B6.1)', () => {
+  const PEAR = 'item.vocab.pear';
+  const payloadOf = async (
+    input: Parameters<ReturnType<typeof setup>['service']['recordVocabOutcome']>[0],
+  ) => {
+    const { service, events } = setup();
+    await expect(service.recordVocabOutcome(input)).resolves.toMatchObject({ ok: true });
+    return events[0]?.payload as Record<string, unknown>;
+  };
+
+  it('a wrong choice: variant, locale and the distractor picked', async () => {
+    expect(
+      await payloadOf({
+        userId: USER,
+        itemId: VOCAB,
+        correct: false,
+        mode: 'cloze',
+        occurredAtMs: T0,
+        analytics: { variant: 'cloze', locale: 'uk', chosenItemId: PEAR },
+      }),
+    ).toEqual({
+      itemId: VOCAB,
+      conceptId: 'vocab.food_drink.a1',
+      correct: false,
+      timeMs: null,
+      rating: 'AGAIN',
+      irt: { a: 1, b: 0 },
+      mode: 'cloze',
+      variant: 'cloze',
+      locale: 'uk',
+      chosenItemId: PEAR,
+    });
+  });
+
+  it('a typed answer is stored normalized and cut to 64 characters', async () => {
+    const payload = await payloadOf({
+      userId: USER,
+      itemId: VOCAB,
+      correct: false,
+      mode: 'recall',
+      occurredAtMs: T0,
+      analytics: { variant: 'full_recall', locale: 'de', answerText: `  APPEL ${'x'.repeat(80)}` },
+    });
+    expect(payload).toMatchObject({ variant: 'full_recall', locale: 'de' });
+    expect(payload.answerText).toBe(`appel ${'x'.repeat(58)}`);
+    expect(payload).not.toHaveProperty('chosenItemId');
+  });
+
+  it('a proof keeps its variant and the proving answer', async () => {
+    const payload = await payloadOf({
+      userId: USER,
+      itemId: VOCAB,
+      correct: true,
+      mode: 'recall',
+      proof: true,
+      occurredAtMs: T0,
+      analytics: { variant: 'cued_recall', locale: 'ru', answerText: 'Apple' },
+    });
+    expect(payload).toMatchObject({
+      proof: true,
+      rating: 'EASY',
+      variant: 'cued_recall',
+      answerText: 'apple',
+    });
+  });
+
+  it('a don’t-know records the card, no answer', async () => {
+    const payload = await payloadOf({
+      userId: USER,
+      itemId: VOCAB,
+      dontKnow: true,
+      mode: 'recognition',
+      occurredAtMs: T0,
+      analytics: { variant: 'en_to_l1', locale: 'en' },
+    });
+    expect(payload).toMatchObject({ dontKnow: true, variant: 'en_to_l1', locale: 'en' });
+    expect(payload).not.toHaveProperty('chosenItemId');
+    expect(payload).not.toHaveProperty('answerText');
+  });
+
+  it('a payload that breaks the schema writes nothing (variant ≠ mode)', async () => {
+    const { service, events, reviews } = setup();
+    await expect(
+      service.recordVocabOutcome({
+        userId: USER,
+        itemId: VOCAB,
+        correct: true,
+        mode: 'recognition',
+        occurredAtMs: T0,
+        analytics: { variant: 'full_recall', locale: 'ru' },
+      }),
+    ).rejects.toThrow();
+    expect(events).toHaveLength(0);
+    expect(reviews.size).toBe(0);
+  });
+});
+
 describe('recordVocabOutcome staleness precondition', () => {
   const answer = (over: { correct?: boolean; mode?: 'recognition' | 'recall' } = {}) => ({
     userId: USER,

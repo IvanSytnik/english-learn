@@ -12,10 +12,11 @@ import {
   PROOF_MODE,
   recallCue,
   type VocabAnswer,
-  type VocabAnswerKey,
   type VocabCardView,
+  type VocabGradingKey,
   type VocabLocale,
 } from '@englishlearn/learner-model';
+import type { VocabAttemptAnalytics } from '@englishlearn/learner-model/service';
 import { decryptVocabRef, encryptVocabRef, type VocabRef } from '@/lib/crypto/vocab-ref';
 import { contentLocale, type Review, reviewFor, type Verdict } from '@/lib/exercise/view';
 import { learnerService, vocabSessionService } from '@/lib/learner';
@@ -124,6 +125,12 @@ function rebuild(pool: VocabPool, userId: string, ref: VocabRef) {
   return { target, card };
 }
 
+/** The Item behind each option (sealed into the ref); null if one is missing. */
+function optionItemIds(pool: VocabPool, lexemeIds: readonly string[]): string[] | null {
+  const ids = lexemeIds.map((id) => pool.itemIdByLexemeId.get(id));
+  return ids.every((id) => id !== undefined) ? (ids as string[]) : null;
+}
+
 const hintFor = (lemma: string, ref: VocabRef): string | null =>
   ref.mode === 'full_recall' && !ref.isProof ? recallCue(lemma) : null;
 
@@ -165,6 +172,7 @@ export async function loadNextVocabCard(args: {
     lastReviewAt: selection.lastReviewAt,
     locale,
     correctIndex: null,
+    optionItemIds: null,
   };
   const built = rebuild(pool, userId, ref);
   // Published since the pool was cached, or unpublished since selection read it.
@@ -175,6 +183,7 @@ export async function loadNextVocabCard(args: {
     ...ref,
     mode: view.mode,
     correctIndex: key.kind === 'choice' ? key.correctIndex : null,
+    optionItemIds: key.kind === 'choice' ? optionItemIds(pool, key.optionLexemeIds) : null,
   };
   return {
     ok: true,
@@ -214,7 +223,13 @@ export async function startVocabProof(args: {
   ]);
   if (answered) return { ok: true, value: { status: 'stale' } };
 
-  const proof: VocabRef = { ...ref, mode: PROOF_MODE, isProof: true, correctIndex: null };
+  const proof: VocabRef = {
+    ...ref,
+    mode: PROOF_MODE,
+    isProof: true,
+    correctIndex: null,
+    optionItemIds: null,
+  };
   const built = rebuild(pool, userId, proof);
   if (!built) return { ok: false, error: 'NOT_FOUND' };
   return {
@@ -238,6 +253,29 @@ const toVocabAnswer = (answer: VocabSubmission['answer']): VocabAnswer =>
       : { kind: 'dont_know' };
 
 /**
+ * What the payload keeps of this answer (B6.1): the card actually shown (the
+ * served mode, cloze fallback included), its language, and — for analysis
+ * of confusions — the distractor a wrong pick chose (from the ids sealed in
+ * the ref; a ref issued before B6.1 has none) or the typed text.
+ */
+function analyticsFor(
+  ref: VocabRef,
+  answer: VocabSubmission['answer'],
+  grade: 'CORRECT' | 'INCORRECT' | 'DONT_KNOW',
+): VocabAttemptAnalytics {
+  const chosen =
+    answer.type === 'choice' && grade === 'INCORRECT'
+      ? ref.optionItemIds?.[answer.index]
+      : undefined;
+  return {
+    variant: ref.mode,
+    locale: ref.locale,
+    ...(chosen !== undefined && chosen !== ref.itemId ? { chosenItemId: chosen } : {}),
+    ...(answer.type === 'text' && grade !== 'DONT_KNOW' ? { answerText: answer.value } : {}),
+  };
+}
+
+/**
  * Grade one answer against the card that was served and record it. A
  * synonym of the asked word records nothing and asks again; a card whose
  * word was answered since records nothing and is reported stale.
@@ -256,7 +294,7 @@ export async function submitVocabAttempt(
 
   // Choice: the index sealed when the card was served. Recall: the accepted
   // spellings and synonyms, rebuilt for the served mode and language.
-  let key: VocabAnswerKey | null = null;
+  let key: VocabGradingKey | null = null;
   if (ref.correctIndex !== null) {
     if (ref.mode === 'cued_recall' || ref.mode === 'full_recall') {
       return { ok: false, error: 'INVALID' };
@@ -282,6 +320,7 @@ export async function submitVocabAttempt(
     timeMs: args.timeMs,
     idempotencyKey: args.attemptKey,
     expectedLastReviewAt: ref.lastReviewAt,
+    analytics: analyticsFor(ref, args.answer, grade),
   };
   const recorded = await learnerService.recordVocabOutcome(
     grade === 'DONT_KNOW' ? { ...base, dontKnow: true } : { ...base, correct: grade === 'CORRECT' },

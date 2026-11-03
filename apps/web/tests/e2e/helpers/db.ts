@@ -90,6 +90,16 @@ export async function itemAttempts(email: string) {
   return events.map((e) => e.payload as Record<string, unknown>);
 }
 
+/** The word behind a vocabulary Item: its kind, lemma and Russian gloss. */
+export async function vocabItemWord(itemId: string) {
+  const item = await db().item.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { kind: true, lexeme: { select: { lemma: true, translations: true } } },
+  });
+  const translations = (item.lexeme?.translations ?? {}) as Record<string, string | undefined>;
+  return { kind: item.kind, lemma: item.lexeme?.lemma ?? null, ru: translations.ru ?? null };
+}
+
 /** Idempotency keys of the learner's recorded answers, oldest first. */
 export async function itemAttemptKeys(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });

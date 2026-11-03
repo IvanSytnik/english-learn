@@ -18,6 +18,8 @@ export const VOCAB_POOL_TTL_MS = 60_000;
 export type VocabPool = {
   lexemes: readonly VocabLexemeRow[];
   byItemId: ReadonlyMap<string, VocabLexemeRow>;
+  /** Lexeme id → its VOCAB_WORD Item id (one item per lexeme). */
+  itemIdByLexemeId: ReadonlyMap<string, string>;
 };
 
 let cached: { expiresAt: number; value: Promise<VocabPool> } | null = null;
@@ -28,7 +30,11 @@ export function getVocabPool(nowMs: number = Date.now()): Promise<VocabPool> {
     if (invalidItemIds.length > 0) {
       console.error('vocab pool: unparseable published items left out', invalidItemIds);
     }
-    return { lexemes: rows, byItemId: new Map(rows.map((r) => [r.itemId, r])) };
+    return {
+      lexemes: rows,
+      byItemId: new Map(rows.map((r) => [r.itemId, r])),
+      itemIdByLexemeId: new Map(rows.map((r) => [r.id, r.itemId])),
+    };
   });
   const entry = { expiresAt: nowMs + VOCAB_POOL_TTL_MS, value };
   cached = entry;

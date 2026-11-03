@@ -130,6 +130,7 @@ beforeEach(() => {
   getVocabPool.mockResolvedValue({
     lexemes: LEXEMES,
     byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
+    itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
   });
   hasItemReviewState.mockResolvedValue(false);
   nextVocab.mockResolvedValue(selection());
@@ -218,6 +219,7 @@ describe('nextVocabCardAction', () => {
       lastReviewAt: null,
       locale: 'ru',
       correctIndex: 0,
+      optionItemIds: null,
     });
     const out = await nextVocabCardAction({
       conceptId: CONCEPT,

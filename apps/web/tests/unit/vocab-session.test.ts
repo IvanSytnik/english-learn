@@ -59,7 +59,11 @@ const LEXEMES = [
   word('broth', 'бульон'),
   word('pasta', 'макароны', { variants: ['macaroni'] }),
 ];
-const POOL = { lexemes: LEXEMES, byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])) };
+const POOL = {
+  lexemes: LEXEMES,
+  byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
+  itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
+};
 const APPLE = 'item-apple';
 
 const selection = (over = {}) => ({
@@ -108,7 +112,16 @@ beforeEach(() => {
 /** Keys and values the client must never see before answering. */
 function expectNoAnswerKey(payload: unknown, lemma?: string) {
   const json = JSON.stringify(payload);
-  for (const key of ['itemId', 'lexemeId', 'correctIndex', 'accepted', 'synonyms', 'stability']) {
+  for (const key of [
+    'itemId',
+    'lexemeId',
+    'correctIndex',
+    'accepted',
+    'synonyms',
+    'stability',
+    'optionItemIds',
+    'optionLexemeIds',
+  ]) {
     expect(json).not.toContain(`"${key}"`);
   }
   for (const l of LEXEMES) {
@@ -228,6 +241,7 @@ describe('submitVocabAttempt', () => {
       idempotencyKey: 'key-1',
       expectedLastReviewAt: null,
       correct: true,
+      analytics: { variant: 'en_to_l1', locale: 'ru' },
     });
     expect(out).toEqual({
       ok: true,
@@ -257,6 +271,7 @@ describe('submitVocabAttempt', () => {
     getVocabPool.mockResolvedValue({
       lexemes: grown,
       byItemId: new Map(grown.map((l) => [l.itemId, l])),
+      itemIdByLexemeId: new Map(grown.map((l) => [l.id, l.itemId])),
     });
     await submitVocabAttempt({
       userId: USER,
@@ -284,6 +299,102 @@ describe('submitVocabAttempt', () => {
     });
     expect(recordVocabOutcome).toHaveBeenLastCalledWith(
       expect.objectContaining({ dontKnow: true }),
+    );
+  });
+
+  it('a wrong choice records the Item of the option picked — the word it was confused with (B6.1)', async () => {
+    const card = await served();
+    const view = card.card;
+    if (view.mode !== 'en_to_l1') throw new Error('mode');
+    const index = await choiceIndex(card.vocabRef);
+    const wrong = (index + 1) % 4;
+    await submitVocabAttempt({
+      userId: USER,
+      vocabRef: card.vocabRef,
+      answer: { type: 'choice', index: wrong },
+    });
+
+    const picked = view.options[wrong];
+    const confused = LEXEMES.find((l) => l.translations.ru === picked);
+    if (!confused) throw new Error('the option names no lexeme');
+    expect(confused.itemId).not.toBe(APPLE);
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        correct: false,
+        analytics: { variant: 'en_to_l1', locale: 'ru', chosenItemId: confused.itemId },
+      }),
+    );
+    // A don't-know on the same card names no option.
+    await submitVocabAttempt({
+      userId: USER,
+      vocabRef: card.vocabRef,
+      answer: { type: 'dontKnow' },
+    });
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({ dontKnow: true, analytics: { variant: 'en_to_l1', locale: 'ru' } }),
+    );
+  });
+
+  it('a ref issued before B6.1 (no option ids) still grades; the wrong pick records no chosenItemId', async () => {
+    const card = await served();
+    const sealed = await decryptVocabRef(card.vocabRef, USER);
+    if (!sealed.ok || sealed.value.correctIndex === null) throw new Error('choice ref');
+    const legacy = await encryptVocabRef({ ...sealed.value, userId: USER, optionItemIds: null });
+    const wrong = (sealed.value.correctIndex + 1) % 4;
+    const out = await submitVocabAttempt({
+      userId: USER,
+      vocabRef: legacy,
+      answer: { type: 'choice', index: wrong },
+    });
+    expect(out).toMatchObject({
+      ok: true,
+      value: { verdict: 'incorrect', correctIndex: sealed.value.correctIndex },
+    });
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({ correct: false, analytics: { variant: 'en_to_l1', locale: 'ru' } }),
+    );
+  });
+
+  it('a cloze that fell back to l1_to_en is recorded as the card shown', async () => {
+    // The blank is a plural no other word has an example of: no fair cloze.
+    const eggs = {
+      ...word('egg', 'яйцо'),
+      examples: [{ sentence: 'I like the eggs a lot.', translation: {}, clozeTarget: 'eggs' }],
+    };
+    const pool = [...LEXEMES, eggs];
+    getVocabPool.mockResolvedValue({
+      lexemes: pool,
+      byItemId: new Map(pool.map((l) => [l.itemId, l])),
+      itemIdByLexemeId: new Map(pool.map((l) => [l.id, l.itemId])),
+    });
+    const card = await served({ itemId: 'item-egg', mode: 'cloze', lastReviewAt: 5n });
+    expect(card.card.mode).toBe('l1_to_en');
+    const index = await choiceIndex(card.vocabRef);
+    await submitVocabAttempt({
+      userId: USER,
+      vocabRef: card.vocabRef,
+      answer: { type: 'choice', index },
+    });
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        mode: 'recognition',
+        analytics: { variant: 'l1_to_en', locale: 'ru' },
+      }),
+    );
+  });
+
+  it('a typed answer records what was typed (the write path normalizes and cuts it)', async () => {
+    const card = await served({ itemId: 'item-pasta', mode: 'full_recall', lastReviewAt: 77n });
+    await submitVocabAttempt({
+      userId: USER,
+      vocabRef: card.vocabRef,
+      answer: { type: 'text', value: ' Rice ' },
+    });
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        correct: false,
+        analytics: { variant: 'full_recall', locale: 'ru', answerText: ' Rice ' },
+      }),
     );
   });
 
@@ -317,6 +428,7 @@ describe('submitVocabAttempt', () => {
     getVocabPool.mockResolvedValue({
       lexemes: synonymPool,
       byItemId: new Map(synonymPool.map((l) => [l.itemId, l])),
+      itemIdByLexemeId: new Map(synonymPool.map((l) => [l.id, l.itemId])),
     });
     const card = await served({ itemId: 'item-broth', mode: 'full_recall', lastReviewAt: 9n });
     const out = await submitVocabAttempt({
@@ -391,6 +503,7 @@ describe('submitVocabAttempt', () => {
       lastReviewAt: null,
       locale: 'ru',
       correctIndex: 0,
+      optionItemIds: null,
     });
     const expired = await encryptVocabRef(
       {
@@ -401,6 +514,7 @@ describe('submitVocabAttempt', () => {
         lastReviewAt: null,
         locale: 'ru',
         correctIndex: 0,
+        optionItemIds: null,
       },
       Date.now() - 25 * 3_600_000,
     );
@@ -413,6 +527,7 @@ describe('submitVocabAttempt', () => {
       lastReviewAt: 1n,
       locale: 'ru',
       correctIndex: 1,
+      optionItemIds: null,
     });
     for (const vocabRef of [
       other,
@@ -440,7 +555,11 @@ describe('submitVocabAttempt', () => {
 
   it('a word unpublished since it was served is NOT_FOUND, nothing recorded', async () => {
     const card = await served();
-    getVocabPool.mockResolvedValue({ lexemes: [], byItemId: new Map() });
+    getVocabPool.mockResolvedValue({
+      lexemes: [],
+      byItemId: new Map(),
+      itemIdByLexemeId: new Map(),
+    });
     expect(
       await submitVocabAttempt({
         userId: USER,
@@ -488,6 +607,7 @@ describe('"Know -> prove"', () => {
         correct: true,
         expectedLastReviewAt: null,
         idempotencyKey: 'key-p',
+        analytics: { variant: 'cued_recall', locale: 'ru', answerText: 'apple' },
       }),
     );
     expect(out).toMatchObject({

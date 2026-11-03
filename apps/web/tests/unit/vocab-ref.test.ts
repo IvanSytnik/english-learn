@@ -16,6 +16,7 @@ const REF = {
   lastReviewAt: 1_799_000_000_123n,
   locale: 'uk' as const,
   correctIndex: 2,
+  optionItemIds: ['cmitem0pear00001', 'cmitem0bread0001', 'cmitem0schedule01', 'cmitem0milk00001'],
 };
 const issued = (over = {}, nowMs = NOW) =>
   encryptVocabRef({ ...REF, userId: 'user_1', ...over }, nowMs);
@@ -55,11 +56,50 @@ describe('vocab references', () => {
     expect(a).not.toBe(b);
     for (const token of [a, b]) {
       const raw = Buffer.from(token, 'base64url').toString('latin1');
-      for (const secret of ['cmitem0schedule01', '1799000000123', '"k"', 'cloze']) {
+      for (const secret of [
+        'cmitem0schedule01',
+        'cmitem0pear00001',
+        '1799000000123',
+        '"k"',
+        '"o"',
+        'cloze',
+      ]) {
         expect(token).not.toContain(secret);
         expect(raw).not.toContain(secret);
       }
     }
+  });
+
+  it('option item ids (B6.1): sealed for a choice card, absent for recall and in older refs', async () => {
+    const recall = { mode: 'full_recall', correctIndex: null, optionItemIds: null };
+    expect(await decryptVocabRef(await issued(recall), 'user_1', NOW)).toEqual({
+      ok: true,
+      value: { ...REF, ...recall },
+    });
+    // A ref issued before B6.1 has no `o`: still valid, no option ids.
+    const { o: _, ...legacy } = { ...valid, o: undefined };
+    expect(await decryptVocabRef(await forged(legacy), 'user_1', NOW)).toMatchObject({
+      ok: true,
+      value: { itemId: 'it', correctIndex: 1, optionItemIds: null },
+    });
+    for (const o of [['a', 'b', 'c'], ['a', 'b', 'c', 'd', 'e'], ['a', 'b', 'c', ''], 'abcd']) {
+      expect(
+        await decryptVocabRef(await forged({ ...valid, o }), 'user_1', NOW),
+        String(o),
+      ).toEqual({
+        ok: false,
+        error: 'INVALID',
+      });
+    }
+  });
+
+  it('a choice ref with four cuid-sized option ids stays well inside the action’s 1024-char limit', async () => {
+    const cuid = (n: number) => `cm${'x'.repeat(21)}${n}`;
+    const token = await issued({
+      itemId: cuid(0),
+      optionItemIds: [cuid(1), cuid(2), cuid(0), cuid(3)],
+    });
+    expect(token.length).toBeLessThan(600);
   });
 
   it('rejects a tampered token (IV, ciphertext or tag) and garbage', async () => {

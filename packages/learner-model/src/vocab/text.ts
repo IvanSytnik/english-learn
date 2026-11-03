@@ -1,4 +1,4 @@
-import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
+import { ANSWER_TEXT_MAX, type PartOfSpeechValue } from '@englishlearn/db/schemas';
 import type { VocabLexeme, VocabLocale } from './types';
 
 /**
@@ -9,6 +9,21 @@ import type { VocabLexeme, VocabLocale } from './types';
 /** Typed-answer key: NFC, curly apostrophes straightened, spaces collapsed, lower case. */
 export function normalizeAnswer(text: string): string {
   return text.normalize('NFC').replace(/[‘’ʼ]/g, "'").trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/**
+ * A typed answer as the event payload keeps it (B6.1): normalized like the
+ * grader compares it, cut to `max` UTF-16 units without splitting a
+ * surrogate pair, trailing space dropped. Null when nothing is left.
+ */
+export function payloadAnswerText(text: string, max = ANSWER_TEXT_MAX): string | null {
+  let out = normalizeAnswer(text);
+  if (out.length > max) {
+    out = out.slice(0, max);
+    if (/[\uD800-\uDBFF]$/.test(out)) out = out.slice(0, -1);
+    out = out.trimEnd();
+  }
+  return out.length > 0 ? out : null;
 }
 
 /**

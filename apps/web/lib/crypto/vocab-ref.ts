@@ -13,7 +13,8 @@ import { createSealedRef } from './sealed-ref';
  * review state the card was built for (`lastReviewAt` — its seed and the
  * write path's staleness check), the content language, and for choice modes
  * the correct index — so a pool refresh after vocab:publish cannot shift the
- * grading of a card already on screen. AES-256-GCM keeps it confidential;
+ * grading of a card already on screen — plus the Item id behind each option
+ * (what a wrong pick confused the word with). AES-256-GCM keeps it confidential;
  * its own HKDF domain keeps an item-ref from ever opening here.
  */
 
@@ -35,6 +36,12 @@ export type VocabRef = {
   locale: VocabLocale;
   /** Choice modes: index of the right option; null for recall. */
   correctIndex: number | null;
+  /**
+   * Choice modes: the Item id behind each option, in display order (B6.1),
+   * so a wrong pick is recorded as the word it was confused with. Null for
+   * recall, and for refs issued before B6.1 (they record no chosenItemId).
+   */
+  optionItemIds: string[] | null;
 };
 
 export const VOCAB_REF_DOMAIN = {
@@ -54,6 +61,8 @@ const PayloadSchema = z
     r: z.string().regex(/^\d+$/).nullable(),
     l: z.enum(['ru', 'uk', 'de', 'en']),
     k: z.number().int().min(0).max(3).nullable(),
+    /** Option item ids (B6.1); absent in recall refs and refs issued before. */
+    o: z.array(z.string().min(1)).length(4).optional(),
     e: z.number(),
   })
   .strict();
@@ -72,6 +81,7 @@ export async function encryptVocabRef(
     r: ref.lastReviewAt === null ? null : ref.lastReviewAt.toString(),
     l: ref.locale,
     k: ref.correctIndex,
+    ...(ref.optionItemIds ? { o: ref.optionItemIds } : {}),
     e: nowMs + VOCAB_REF_TTL_MS,
   };
   return sealed.seal(payload);
@@ -97,6 +107,7 @@ export async function decryptVocabRef(
       lastReviewAt: p.r === null ? null : BigInt(p.r),
       locale: p.l,
       correctIndex: p.k,
+      optionItemIds: p.o ?? null,
     },
   };
 }

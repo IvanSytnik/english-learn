@@ -9,7 +9,12 @@ export {
 } from './card';
 export { localDayStartMs } from './day';
 export { DISTRACTOR_COUNT, type Distractor, pickDistractors } from './distractors';
-export { gradeVocabAnswer, type VocabAnswer, type VocabGrade } from './grade';
+export {
+  gradeVocabAnswer,
+  type VocabAnswer,
+  type VocabGrade,
+  type VocabGradingKey,
+} from './grade';
 export { LADDER_THRESHOLDS, PROOF_MODE, vocabModeFor } from './ladder';
 export {
   type StageCounts,
@@ -27,7 +32,7 @@ export {
   type VocabSelection,
   type VocabSelectionReason,
 } from './select';
-export { glossOf, normalizeAnswer, recallCue } from './text';
+export { glossOf, normalizeAnswer, payloadAnswerText, recallCue } from './text';
 export {
   PAYLOAD_MODE,
   VOCAB_MODES,

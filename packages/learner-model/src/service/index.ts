@@ -32,6 +32,7 @@ export {
   type RecordOutcomeInput,
   type RecordOutcomeResult,
   type RecordVocabOutcomeInput,
+  type VocabAttemptAnalytics,
 } from './learner-service';
 export { type Clock, OccurredAtNotMonotonicError, systemClock } from './occurred-at';
 export {

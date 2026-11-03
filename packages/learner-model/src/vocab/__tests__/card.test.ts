@@ -41,6 +41,32 @@ describe('buildVocabCard — choice modes', () => {
     expect(view.options[key.correctIndex]).toBe(answer);
   });
 
+  it('the key names the lexeme behind every option, the target at correctIndex (B6.1)', () => {
+    const byId = new Map(FOOD.map((l) => [l.id, l]));
+    fc.assert(
+      fc.property(
+        fc.constantFrom('en_to_l1', 'l1_to_en', 'cloze' as const),
+        fc.constantFrom('ru', 'uk', 'de', 'en' as const),
+        fc.string(),
+        (mode, locale, seed) => {
+          const { view, key } = buildVocabCard({ target: APPLE, pool: FOOD, mode, locale, seed });
+          if (!('options' in view) || key.kind !== 'choice') throw new Error('not a choice card');
+          expect(key.optionLexemeIds).toHaveLength(4);
+          expect(new Set(key.optionLexemeIds).size).toBe(4);
+          expect(key.optionLexemeIds[key.correctIndex]).toBe(APPLE.id);
+          key.optionLexemeIds.forEach((id, i) => {
+            const lexeme = byId.get(id);
+            if (!lexeme) throw new Error(`unknown option lexeme ${id}`);
+            const option = view.options[i] ?? '';
+            if (view.mode === 'en_to_l1') expect(option).toBe(glossOf(lexeme, locale));
+            else if (view.mode === 'l1_to_en') expect(option).toBe(lexeme.lemma);
+            else expect(option.toLowerCase()).toContain(lexeme.lemma.toLowerCase());
+          });
+        },
+      ),
+    );
+  });
+
   it('mode 1 shows the word, mode 2 the gloss', () => {
     expect(card({ target: APPLE, mode: 'en_to_l1' }).view).toMatchObject({
       word: 'apple',

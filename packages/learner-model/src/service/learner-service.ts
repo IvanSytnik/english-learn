@@ -1,8 +1,13 @@
-import type { PracticeModeValue } from '@englishlearn/db/schemas';
+import type {
+  PracticeModeValue,
+  VocabLocaleValue,
+  VocabVariantValue,
+} from '@englishlearn/db/schemas';
 import { bktStateToRow, rowToBktState } from '../adapters/concept-mastery';
 import { fsrsStateToRow, rowToFsrsState } from '../adapters/item-review-state';
 import type { FsrsCardStatus, FsrsRating } from '../core/fsrs/types';
 import type { MasteryStage } from '../mastery/stage';
+import { payloadAnswerText } from '../vocab/text';
 import { applyItemAttempted } from './apply';
 import {
   IdempotencyKeyTakenError,
@@ -80,6 +85,23 @@ export type RecordVocabOutcomeInput = RecordOutcomeInput & {
    * its original outcome. Absent = no check.
    */
   expectedLastReviewAt?: bigint | null;
+  /**
+   * What the learner was shown and answered (B6.1) — analytics only, frozen
+   * into the payload and never folded. `answerText` is the raw typed answer:
+   * stored normalized and cut to ANSWER_TEXT_MAX (payloadAnswerText).
+   */
+  analytics?: VocabAttemptAnalytics;
+};
+
+export type VocabAttemptAnalytics = {
+  /** The exact card shown (after the cloze → l1_to_en fallback). */
+  variant: VocabVariantValue;
+  /** Language of the card's gloss. */
+  locale: VocabLocaleValue;
+  /** A wrong pick on a choice card: the distractor's Item id. */
+  chosenItemId?: string;
+  /** A typed answer, as the learner typed it. */
+  answerText?: string;
 };
 
 /**
@@ -200,6 +222,19 @@ async function recordedOutcome(
   };
 }
 
+/** The payload's analytics fields from what the caller reported. */
+function analyticsFact(analytics: VocabAttemptAnalytics | undefined) {
+  if (!analytics) return {};
+  const answerText =
+    analytics.answerText === undefined ? null : payloadAnswerText(analytics.answerText);
+  return {
+    variant: analytics.variant,
+    locale: analytics.locale,
+    ...(analytics.chosenItemId ? { chosenItemId: analytics.chosenItemId } : {}),
+    ...(answerText ? { answerText } : {}),
+  };
+}
+
 export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDeps = {}) {
   const clock = deps.clock ?? systemClock;
 
@@ -215,6 +250,7 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
       mode: PracticeModeValue;
       proof: boolean;
       expectedLastReviewAt?: bigint | null;
+      analytics?: VocabAttemptAnalytics;
     },
   ): Promise<RecordOutcomeResult> {
     const item = await db.getItemForOutcome(input.itemId, pool);
@@ -255,6 +291,7 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
           hinted,
           ...(vocab ? { mode: vocab.mode } : {}),
           proof,
+          ...analyticsFact(vocab?.analytics),
           timeMs: input.timeMs ?? null,
           rating,
           irt: { a: item.irtDiscrimination, b: item.irtDifficulty },
@@ -328,11 +365,12 @@ export function createLearnerService(db: LearnerModelDb, deps: LearnerServiceDep
     },
     /** A vocabulary answer: published lexeme-backed items only (B2.5). */
     recordVocabOutcome(input: RecordVocabOutcomeInput): Promise<RecordOutcomeResult> {
-      const { mode, proof, expectedLastReviewAt, ...outcome } = input;
+      const { mode, proof, expectedLastReviewAt, analytics, ...outcome } = input;
       return record('vocab', outcome as RecordOutcomeInput, {
         mode,
         proof: proof === true,
         expectedLastReviewAt,
+        analytics,
       });
     },
   };

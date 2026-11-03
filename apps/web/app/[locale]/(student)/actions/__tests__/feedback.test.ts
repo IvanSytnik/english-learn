@@ -200,12 +200,17 @@ describe('submitBetaFeedbackAction: a report from the vocabulary player (vocabRe
         lastReviewAt: 5n,
         locale: 'ru',
         correctIndex: over.mode === 'full_recall' ? null : 2,
+        optionItemIds: null,
       },
       nowMs,
     );
 
   beforeEach(() => {
-    getVocabPool.mockResolvedValue({ lexemes: [word], byItemId: new Map([[ITEM, word]]) });
+    getVocabPool.mockResolvedValue({
+      lexemes: [word],
+      byItemId: new Map([[ITEM, word]]),
+      itemIdByLexemeId: new Map([[word.id, ITEM]]),
+    });
   });
 
   it('stores the word, its concept and the server-built word context', async () => {
@@ -253,7 +258,11 @@ describe('submitBetaFeedbackAction: a report from the vocabulary player (vocabRe
   });
 
   it('a word unpublished since it was shown is reported without its context', async () => {
-    getVocabPool.mockResolvedValue({ lexemes: [], byItemId: new Map() });
+    getVocabPool.mockResolvedValue({
+      lexemes: [],
+      byItemId: new Map(),
+      itemIdByLexemeId: new Map(),
+    });
     await submitBetaFeedbackAction({ ...report, vocabRef: await vocabRef() });
     expect(createBetaFeedback).toHaveBeenCalledWith(
       { tag: 'prisma' },
