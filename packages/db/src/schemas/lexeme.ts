@@ -146,9 +146,24 @@ const levelsAgree = (lexeme: { cefrLevel: CefrLevelValue; cefrJLevel: CefrJLevel
   cefrLevelOf(lexeme.cefrJLevel) === lexeme.cefrLevel;
 const levelsMessage = { message: 'cefrJLevel must sit inside cefrLevel', path: ['cefrJLevel'] };
 
+/**
+ * Columns a stored row carries that no create input sets: written only by
+ * their own sync scripts (vocab:sync-frequency, vocab:sync-collections, B6.2).
+ * Kept out of lexemeFields so an import re-run never resets them.
+ */
+const storedOnlyFields = {
+  frequencyZipf: z.number().positive().nullish(),
+  collections: z.array(z.string().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/u)).default([]),
+};
+
 /** A stored lexeme row (the JSON columns parsed). */
 export const LexemeSchema = z
-  .object({ id: z.string().min(1), lemmaKey: z.string().min(1), ...lexemeFields })
+  .object({
+    id: z.string().min(1),
+    lemmaKey: z.string().min(1),
+    ...lexemeFields,
+    ...storedOnlyFields,
+  })
   .strict()
   .refine(levelsAgree, levelsMessage)
   .refine((lexeme) => lexeme.lemmaKey === lexemeKey(lexeme.lemma), {

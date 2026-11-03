@@ -184,4 +184,26 @@ describe('LexemeSchema', () => {
   it('accepts a consistent stored row', () => {
     expect(LexemeSchema.safeParse({ ...input, id: 'lx1', lemmaKey: 'run' }).success).toBe(true);
   });
+
+  it('accepts the B6.2 columns a stored row carries, and no create input sets them', () => {
+    const stored = {
+      ...input,
+      id: 'lx1',
+      lemmaKey: 'run',
+      frequencyZipf: 5.2,
+      collections: ['work_jobs'],
+    };
+    expect(LexemeSchema.parse(stored)).toMatchObject({
+      frequencyZipf: 5.2,
+      collections: ['work_jobs'],
+    });
+    expect(
+      LexemeSchema.parse({ ...stored, frequencyZipf: null, collections: [] }).collections,
+    ).toEqual([]);
+    expect(LexemeSchema.safeParse({ ...stored, collections: ['Work and Jobs'] }).success).toBe(
+      false,
+    );
+    expect(CreateLexemeInputSchema.safeParse({ ...input, collections: [] }).success).toBe(false);
+    expect(CreateLexemeInputSchema.safeParse({ ...input, frequencyZipf: 5 }).success).toBe(false);
+  });
 });
