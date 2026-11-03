@@ -1,6 +1,5 @@
 'use client';
 
-import { PRACTICE_GAP } from '@englishlearn/db/schemas';
 import { cn, KeyHint, SegmentedProgress } from '@englishlearn/ui';
 import { Check, CircleHelp, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -28,6 +27,7 @@ import {
   startVocabProofAction,
   submitVocabAttemptAction,
 } from '../../actions/vocab';
+import { VocabCardAnswer, VocabCardPrompt } from './vocab-renderers';
 import { VocabSessionSummary } from './vocab-session-summary';
 
 /** Cards per session (client-enforced, like the exercise player's length). */
@@ -399,99 +399,20 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
             tabIndex={-1}
             className="flex flex-col gap-1 outline-none"
           >
-            {view.mode === 'en_to_l1' ? (
-              <>
-                <p lang="en" className="font-content text-[2rem] leading-tight text-ink">
-                  {view.word}
-                </p>
-                <p className="text-sm text-ink-muted">
-                  <span>{t('pos', { pos: card.pos })}</span>
-                  {view.ipa ? (
-                    <span lang="en" className="ml-2 font-mono">
-                      {view.ipa}
-                    </span>
-                  ) : null}
-                </p>
-              </>
-            ) : view.mode === 'cloze' ? (
-              <p lang="en" className="font-content text-[1.5rem] leading-snug text-ink">
-                <ClozeSentence
-                  sentence={view.sentence}
-                  fill={
-                    feedback?.correctIndex != null
-                      ? (view.options[feedback.correctIndex] ?? null)
-                      : null
-                  }
-                />
-              </p>
-            ) : (
-              <p className="font-content text-[1.5rem] leading-snug text-ink">{view.gloss}</p>
-            )}
-            {view.mode === 'cued_recall' ? (
-              <p lang="en" className="font-mono text-lg tracking-widest text-ink-muted" data-cue="">
-                {view.cue}
-              </p>
-            ) : null}
+            <VocabCardPrompt view={view} card={card} feedback={feedback} />
           </div>
 
-          {isChoice ? (
-            <ul className="flex flex-col gap-2">
-              {view.options.map((option, index) => {
-                const isCorrect = feedback?.correctIndex === index;
-                const isWrongPick =
-                  feedback !== null && feedback.chosenIndex === index && !isCorrect;
-                return (
-                  <li key={option}>
-                    <button
-                      type="button"
-                      data-player-option=""
-                      aria-pressed={selected === index}
-                      disabled={phase !== 'answering'}
-                      onClick={() => setSelected(index)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-control border bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-(--duration-fast) ease-standard',
-                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
-                        selected === index && !feedback
-                          ? 'border-accent bg-surface-2 ring-1 ring-accent'
-                          : 'border-line',
-                        phase === 'answering' && 'hover:bg-surface-2',
-                        isCorrect && 'border-feedback-correct',
-                        isWrongPick && 'border-feedback-incorrect',
-                      )}
-                    >
-                      <KeyHint>{String(index + 1)}</KeyHint>
-                      <span
-                        lang={view.mode === 'en_to_l1' ? undefined : 'en'}
-                        className="flex-1 font-content text-lg text-ink"
-                      >
-                        {option}
-                      </span>
-                      {isCorrect ? (
-                        <Check aria-hidden="true" className="size-5 text-feedback-correct" />
-                      ) : null}
-                      {isWrongPick ? (
-                        <X aria-hidden="true" className="size-5 text-feedback-incorrect" />
-                      ) : null}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : !answered ? (
-            <input
-              ref={inputRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={phase !== 'answering'}
-              aria-label={t('answerLabel')}
-              lang="en"
-              autoComplete="off"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              className="h-12 rounded-control border border-line bg-surface px-4 font-content text-xl text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-            />
-          ) : null}
+          <VocabCardAnswer
+            view={view}
+            feedback={feedback}
+            answered={answered}
+            disabled={phase !== 'answering'}
+            selected={selected}
+            onSelect={setSelected}
+            text={text}
+            onText={setText}
+            inputRef={inputRef}
+          />
 
           {hintOpen && offersHint && !answered ? (
             <p lang="en" className="font-mono text-lg tracking-widest text-ink" data-hint="">
@@ -607,26 +528,6 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
         </>
       ) : null}
     </main>
-  );
-}
-
-/** The gap stays empty until the answer is in, then shows the right word. */
-function ClozeSentence({ sentence, fill }: { sentence: string; fill: string | null }) {
-  const [before, after] = sentence.split(PRACTICE_GAP);
-  if (after === undefined) return <>{sentence}</>;
-  return (
-    <>
-      {before}
-      <span
-        className={cn(
-          'mx-1 inline-block min-w-[4ch] border-b-2 px-1 text-center',
-          fill ? 'border-feedback-correct' : 'border-ink',
-        )}
-      >
-        {fill ?? '\u00a0'}
-      </span>
-      {after}
-    </>
   );
 }
 
