@@ -67,6 +67,9 @@ describe.each(Object.keys(MESSAGES) as Locale[])('legal pages (%s)', (locale) =>
     expect(heading(1, credits.title)).toBeInTheDocument();
     expect(heading(2, credits.cefrjTitle)).toBeInTheDocument();
     expect(heading(2, credits.fontsTitle)).toBeInTheDocument();
+    // Vocabulary content is AI-generated: the page says so, under its own heading.
+    expect(heading(2, credits.aiTitle)).toBeInTheDocument();
+    expect(screen.getByText(credits.aiText)).toBeInTheDocument();
     // The CEFR-J Wordlist terms: free use, provided the dataset is cited.
     expect(screen.getByText(credits.cefrjCitation).tagName).toBe('CITE');
   });
