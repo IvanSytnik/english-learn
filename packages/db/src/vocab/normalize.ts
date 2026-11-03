@@ -7,6 +7,7 @@ import {
   lexemeKey,
   type PartOfSpeechValue,
 } from '../schemas/lexeme';
+import { sortCollections, VocabCollectionValue } from './collections';
 import { resolveVocabTopic, type VocabTopicId } from './topics';
 
 /**
@@ -28,6 +29,8 @@ export const CefrJEntrySchema = z
     cefrJLevel: z.string().min(1),
     topic: z.string().min(1).optional(),
     topicSource: z.enum(['threshold', 'threshold-sibling', 'llm']).optional(),
+    /** CEFR-J CoreInventory 1 / 2 as browsing tags (B6.2, ./collections.ts). */
+    collections: z.array(VocabCollectionValue).min(1).optional(),
   })
   .strict();
 export type CefrJEntry = z.infer<typeof CefrJEntrySchema>;
@@ -43,6 +46,7 @@ export const CefrJDatasetSchema = z
         terms: z.string().min(1),
         selection: z.string().min(1),
         topics: z.string().min(1),
+        collections: z.string().min(1).optional(),
       })
       .strict(),
     entries: z.array(CefrJEntrySchema).min(1),
@@ -60,6 +64,8 @@ export type NormalizedLexemeEntry = {
   cefrJLevel: CefrJLevelValue;
   topic: VocabTopicId;
   variants: string[];
+  /** Browsing tags, canonical order; never a concept (B6-SPEC V2-6). */
+  collections: VocabCollectionValue[];
 };
 
 /** Letters, digits, and the joiners the wordlist uses (`brand-new`, `a.m.`, `o'clock`). */
@@ -129,6 +135,7 @@ export function normalizeEntry(entry: CefrJEntry): NormalizedLexemeEntry | null 
     cefrJLevel: entry.cefrJLevel as CefrJLevelValue,
     topic: resolveVocabTopic(entry.topic),
     variants: (entry.variants ?? []).map((v) => normalizeLemma(v).lemma),
+    collections: sortCollections(entry.collections ?? []),
   };
 }
 
@@ -140,7 +147,7 @@ const uniqueKey = (e: NormalizedLexemeEntry) => `${e.lemmaKey}\u0000${e.pos}\u00
 /**
  * One entry per Lexeme unique key `[lemmaKey, pos, sense]`, in first-seen
  * order. The same word listed twice (same display form) folds into the
- * lowest-level entry, with the variants merged. Two display forms on one key
+ * lowest-level entry, with the variants and collections merged. Two display forms on one key
  * (`March` / `march`) are two meanings: that throws until the data gives
  * them a `sense` — meanings are never merged silently.
  */
@@ -163,7 +170,8 @@ export function dedupeLexemes(entries: readonly NormalizedLexemeEntry[]): Normal
     const variants = [...new Set([...low.variants, ...high.variants])].filter(
       (v) => v !== low.lemma,
     );
-    byKey.set(key, { ...low, variants });
+    const collections = sortCollections([...low.collections, ...high.collections]);
+    byKey.set(key, { ...low, variants, collections });
   }
   return [...byKey.values()];
 }

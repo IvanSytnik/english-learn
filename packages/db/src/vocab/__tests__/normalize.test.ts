@@ -20,6 +20,7 @@ const lexeme = (extra: Partial<NormalizedLexemeEntry> = {}): NormalizedLexemeEnt
   cefrJLevel: 'A1',
   topic: 'general',
   variants: [],
+  collections: [],
   ...extra,
 });
 
@@ -32,6 +33,7 @@ const dataset = (entries: unknown[]) => ({
     terms: 't',
     selection: 's',
     topics: 'x',
+    collections: 'k',
   },
   entries,
 });
@@ -146,6 +148,7 @@ describe('normalizeEntry', () => {
       cefrJLevel: 'A2',
       topic: 'relations',
       variants: ['behaviour'],
+      collections: [],
     });
   });
 
@@ -173,6 +176,14 @@ describe('dedupeLexemes', () => {
     expect(result).toEqual([
       lexeme({ cefrJLevel: 'A1.2', topic: 'free_time', variants: ['rn', 'runn'] }),
     ]);
+  });
+
+  it('merges the collections of a word listed twice, in canonical order (B6.2)', () => {
+    const result = dedupeLexemes([
+      lexeme({ cefrLevel: 'B1', cefrJLevel: 'B1', collections: ['work_jobs', 'education'] }),
+      lexeme({ cefrJLevel: 'A1', collections: ['media', 'education'] }),
+    ]);
+    expect(result).toEqual([lexeme({ collections: ['education', 'work_jobs', 'media'] })]);
   });
 
   it('keeps the first entry on a tie', () => {
@@ -217,6 +228,29 @@ describe('normalizeDataset', () => {
     );
     expect(result.lexemes).toEqual([lexeme({ topic: 'free_time' })]);
     expect(result.skipped).toEqual([{ lemma: 'the', pos: 'determiner' }]);
+  });
+
+  it('keeps collections as tags in canonical order and never lets them pick the topic (B6.2)', () => {
+    const [run] = normalizeDataset(
+      dataset([
+        {
+          lemma: 'run',
+          pos: 'verb',
+          cefrJLevel: 'A1',
+          topic: 'free_time',
+          collections: ['media', 'education'],
+        },
+      ]),
+    ).lexemes;
+    expect(run).toEqual(lexeme({ topic: 'free_time', collections: ['education', 'media'] }));
+  });
+
+  it('rejects an unknown collection key or an empty list', () => {
+    for (const collections of [['work_and_jobs'], []]) {
+      expect(() =>
+        normalizeDataset(dataset([{ lemma: 'run', pos: 'verb', cefrJLevel: 'A1', collections }])),
+      ).toThrow();
+    }
   });
 
   it('rejects a row with an unknown field', () => {

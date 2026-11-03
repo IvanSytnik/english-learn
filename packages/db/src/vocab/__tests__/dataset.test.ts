@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CreateDraftLexemeInputSchema } from '../../schemas/lexeme';
+import { VOCAB_COLLECTIONS } from '../collections';
 import { normalizeDataset } from '../normalize';
 
 /**
@@ -39,8 +40,32 @@ describe('CEFR-J dataset v1.5', () => {
   });
 
   it('makes every row a valid DRAFT lexeme', () => {
-    for (const { topic: _topic, variants: _variants, lemmaKey: _key, ...lexeme } of lexemes) {
+    for (const {
+      topic: _topic,
+      variants: _variants,
+      collections: _collections,
+      lemmaKey: _key,
+      ...lexeme
+    } of lexemes) {
       CreateDraftLexemeInputSchema.parse({ ...lexeme, definitions: {}, translations: {} });
     }
+  });
+
+  it('tags 1285 words with CoreInventory collections, every canonical key in use (B6.2)', () => {
+    const tagged = lexemes.filter((l) => l.collections.length > 0);
+    expect(tagged).toHaveLength(1285);
+    expect(new Set(tagged.flatMap((l) => l.collections))).toEqual(new Set(VOCAB_COLLECTIONS));
+    expect(lexemes.find((l) => l.lemmaKey === 'accent')?.collections).toEqual(['education']);
+  });
+
+  it('collections never move a word between topics (B6-SPEC V2-6)', () => {
+    const plain = raw as { source: object; entries: Record<string, unknown>[] };
+    const stripped = normalizeDataset({
+      ...plain,
+      entries: plain.entries.map(({ collections: _c, ...e }) => e),
+    }).lexemes;
+    expect(stripped.map((l) => [l.lemmaKey, l.pos, l.sense, l.topic, l.cefrLevel])).toEqual(
+      lexemes.map((l) => [l.lemmaKey, l.pos, l.sense, l.topic, l.cefrLevel]),
+    );
   });
 });
