@@ -1,9 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { lexemeIdentity } from '../dataset';
 import {
+  EXAMPLE_MAX_WORDS,
+  EXAMPLE_MIN_WORDS,
+  exampleWords,
+  normalizeSentence,
+} from '../example-checks';
+import {
+  EXAMPLES_SNAPSHOT_URL,
   type ExamplesSnapshot,
   ExamplesSnapshotSchema,
+  loadExamplesSnapshot,
   serializeExamplesSnapshot,
 } from '../examples-snapshot';
+import { loadLocalizationSnapshot } from '../localization-snapshot';
 
 const ex = (sentence: string, clozeTarget: string) => ({
   sentence,
@@ -71,5 +82,30 @@ describe('examples snapshot (B6.4a)', () => {
     expect(new Set(back.entries.map((e) => JSON.stringify(e)))).toEqual(
       new Set(s.entries.map((e) => JSON.stringify(e))),
     );
+  });
+});
+
+describe('the committed examples snapshot', () => {
+  const snapshot = loadExamplesSnapshot();
+  const localized = new Map(loadLocalizationSnapshot().entries.map((e) => [lexemeIdentity(e), e]));
+
+  it('is serialized canonically, so a re-run diff shows only what changed', () => {
+    expect(readFileSync(EXAMPLES_SNAPSHOT_URL, 'utf8')).toBe(serializeExamplesSnapshot(snapshot));
+  });
+
+  it('extends a published lexeme on its current first example, with two new sentences', () => {
+    for (const e of snapshot.entries) {
+      const l = localized.get(lexemeIdentity(e));
+      expect(l, `${e.lemmaKey} ${e.pos}`).toBeDefined();
+      expect(e.base).toBe(l?.examples[0]?.sentence);
+      const existing = new Set(l?.examples.map((x) => normalizeSentence(x.sentence)));
+      const fresh = e.examples.map((x) => normalizeSentence(x.sentence));
+      expect(new Set(fresh).size).toBe(2);
+      for (const [i, x] of e.examples.entries()) {
+        expect(existing.has(fresh[i] as string)).toBe(false);
+        const n = exampleWords(x.sentence).length;
+        expect(n >= EXAMPLE_MIN_WORDS && n <= EXAMPLE_MAX_WORDS, x.sentence).toBe(true);
+      }
+    }
   });
 });

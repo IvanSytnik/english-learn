@@ -1,0 +1,572 @@
+{
+  "updatedAt": "2026-11-03T19:45:35.067Z",
+  "entries": [
+    {
+      "lemmaKey": "arrest",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "arrest",
+      "reasons": [
+        "neither example varies the form \"arrest\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "average",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "average",
+      "reasons": [
+        "neither example varies the form \"average\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "bit",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "bit",
+      "reasons": [
+        "neither example varies the form \"bit\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "black",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "black",
+      "reasons": [
+        "neither example varies the form \"black\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "blue",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "blue",
+      "reasons": [
+        "examples.0: 5 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "bookshop",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "bookshop",
+      "reasons": [
+        "neither example varies the form \"bookshop\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "button",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "button",
+      "reasons": [
+        "neither example varies the form \"button\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "calculation",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "calculation",
+      "reasons": [
+        "neither example varies the form \"calculation\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "celebration",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "celebration",
+      "reasons": [
+        "neither example varies the form \"celebration\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "check-in desk",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "check-in desk",
+      "reasons": [
+        "neither example varies the form \"check-in desk\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "chef",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "chef",
+      "reasons": [
+        "neither example varies the form \"chef\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "civil",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "civil",
+      "reasons": [
+        "neither example varies the form \"civil\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "club",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "club",
+      "reasons": [
+        "neither example varies the form \"club\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "cod",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "cod",
+      "reasons": [
+        "neither example varies the form \"cod\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "coffin",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "coffin",
+      "reasons": [
+        "neither example varies the form \"coffin\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "collapse",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "collapse",
+      "reasons": [
+        "neither example varies the form \"collapse\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "collar",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "collar",
+      "reasons": [
+        "neither example varies the form \"collar\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "columnist",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "columnist",
+      "reasons": [
+        "neither example varies the form \"columnist\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "combination",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "combination",
+      "reasons": [
+        "neither example varies the form \"combination\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "combine",
+      "pos": "VERB",
+      "sense": "",
+      "lemma": "combine",
+      "reasons": [
+        "neither example varies the form \"combine\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "comedian",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "comedian",
+      "reasons": [
+        "neither example varies the form \"comedian\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "comedy",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "comedy",
+      "reasons": [
+        "neither example varies the form \"comedy\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "comet",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "comet",
+      "reasons": [
+        "neither example varies the form \"comet\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "comma",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "comma",
+      "reasons": [
+        "neither example varies the form \"comma\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "comment",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "comment",
+      "reasons": [
+        "neither example varies the form \"comment\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "course",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "course",
+      "reasons": [
+        "neither example varies the form \"course\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "curve",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "curve",
+      "reasons": [
+        "neither example varies the form \"curve\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "demonstration",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "demonstration",
+      "reasons": [
+        "neither example varies the form \"demonstration\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "dependent",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "dependent",
+      "reasons": [
+        "neither example varies the form \"dependent\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "earache",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "earache",
+      "reasons": [
+        "neither example varies the form \"earache\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "element",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "element",
+      "reasons": [
+        "neither example varies the form \"element\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "employment",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "employment",
+      "reasons": [
+        "neither example varies the form \"employment\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "equipment",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "equipment",
+      "reasons": [
+        "neither example varies the form \"equipment\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "everyday",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "everyday",
+      "reasons": [
+        "neither example varies the form \"everyday\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "extent",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "extent",
+      "reasons": [
+        "neither example varies the form \"extent\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "familiar",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "familiar",
+      "reasons": [
+        "neither example varies the form \"familiar\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "fault",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "fault",
+      "reasons": [
+        "examples.0: 5 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "frightened",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "frightened",
+      "reasons": [
+        "neither example varies the form \"frightened\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "front",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "front",
+      "reasons": [
+        "neither example varies the form \"front\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "hike",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "hike",
+      "reasons": [
+        "neither example varies the form \"hike\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "host",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "host",
+      "reasons": [
+        "neither example varies the form \"host\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "id",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "ID",
+      "reasons": [
+        "neither example varies the form \"ID\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "incident",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "incident",
+      "reasons": [
+        "neither example varies the form \"incident\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "interviewer",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "interviewer",
+      "reasons": [
+        "neither example varies the form \"interviewer\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "its",
+      "pos": "PRONOUN",
+      "sense": "",
+      "lemma": "its",
+      "reasons": [
+        "examples.0.clozeTarget: clozeTarget must occur in the sentence exactly once, as a whole word"
+      ]
+    },
+    {
+      "lemmaKey": "journey",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "journey",
+      "reasons": [
+        "neither example varies the form \"journey\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "juice",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "juice",
+      "reasons": [
+        "neither example varies the form \"juice\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "liar",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "liar",
+      "reasons": [
+        "neither example varies the form \"liar\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "liberation",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "liberation",
+      "reasons": [
+        "neither example varies the form \"liberation\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "lighter",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "lighter",
+      "reasons": [
+        "examples.0: 5 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "lorry",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "lorry",
+      "reasons": [
+        "neither example varies the form \"lorry\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "motorway",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "motorway",
+      "reasons": [
+        "neither example varies the form \"motorway\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "nephew",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "nephew",
+      "reasons": [
+        "neither example varies the form \"nephew\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "plastic",
+      "pos": "ADJECTIVE",
+      "sense": "",
+      "lemma": "plastic",
+      "reasons": [
+        "neither example varies the form \"plastic\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "row",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "row",
+      "reasons": [
+        "examples.0.clozeTarget: clozeTarget must occur in the sentence exactly once, as a whole word"
+      ]
+    },
+    {
+      "lemmaKey": "step",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "step",
+      "reasons": [
+        "examples.0.clozeTarget: clozeTarget must occur in the sentence exactly once, as a whole word"
+      ]
+    },
+    {
+      "lemmaKey": "surfing",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "surfing",
+      "reasons": [
+        "examples.0: 5 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "test",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "test",
+      "reasons": [
+        "neither example varies the form \"test\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "that",
+      "pos": "PRONOUN",
+      "sense": "",
+      "lemma": "that",
+      "reasons": [
+        "examples.1: 4 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "throw",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "throw",
+      "reasons": [
+        "neither example varies the form \"throw\" or its place (middle) of examples[0]"
+      ]
+    },
+    {
+      "lemmaKey": "twenty",
+      "pos": "OTHER",
+      "sense": "",
+      "lemma": "twenty",
+      "reasons": [
+        "examples.0: 5 words, not 6..18"
+      ]
+    },
+    {
+      "lemmaKey": "wave",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "wave",
+      "reasons": [
+        "examples.0.clozeTarget: clozeTarget must occur in the sentence exactly once, as a whole word"
+      ]
+    },
+    {
+      "lemmaKey": "week",
+      "pos": "NOUN",
+      "sense": "",
+      "lemma": "week",
+      "reasons": [
+        "examples.0.clozeTarget: clozeTarget must occur in the sentence exactly once, as a whole word"
+      ]
+    }
+  ]
+}
