@@ -1,4 +1,5 @@
 export {
+  callParsed,
   createLocalizationCaller,
   DEFAULT_LOCALIZATION_MODEL,
   type LocalizationCaller,

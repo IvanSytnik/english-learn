@@ -37,37 +37,46 @@ export function resolveLocalizationModel(flag?: string): string {
   return flag || process.env.VOCAB_LLM_MODEL || DEFAULT_LOCALIZATION_MODEL;
 }
 
+/**
+ * One structured-output call, its failures classified (see the file header).
+ * Shared by every offline content job (localization B2.4, examples B6.4a).
+ */
+export async function callParsed(
+  client: Anthropic,
+  params: Anthropic.MessageCreateParamsNonStreaming,
+): Promise<LocalizationCallResult> {
+  let response: Awaited<ReturnType<typeof client.messages.parse>>;
+  try {
+    response = await client.messages.parse(params);
+  } catch (error) {
+    if (
+      error instanceof Anthropic.APIError &&
+      error.status !== undefined &&
+      error.status >= 400 &&
+      error.status < 500 &&
+      error.status !== 429
+    ) {
+      throw new LocalizationFatalError(`Anthropic API ${error.status}: ${error.message}`);
+    }
+    throw new LocalizationChunkError(error instanceof Error ? error.message : String(error));
+  }
+  if (response.stop_reason !== 'end_turn') {
+    throw new LocalizationChunkError(`stop_reason ${response.stop_reason}`);
+  }
+  return {
+    data: response.parsed_output,
+    usage: {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
+      cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
+    },
+  };
+}
+
 export function createLocalizationCaller(
   options: LocalizationRequestOptions & { client?: Anthropic; maxRetries?: number },
 ): LocalizationCaller {
   const client = options.client ?? new Anthropic({ maxRetries: options.maxRetries ?? 6 });
-  return async (items) => {
-    let response: Awaited<ReturnType<typeof client.messages.parse>>;
-    try {
-      response = await client.messages.parse(buildLocalizationRequest(items, options));
-    } catch (error) {
-      if (
-        error instanceof Anthropic.APIError &&
-        error.status !== undefined &&
-        error.status >= 400 &&
-        error.status < 500 &&
-        error.status !== 429
-      ) {
-        throw new LocalizationFatalError(`Anthropic API ${error.status}: ${error.message}`);
-      }
-      throw new LocalizationChunkError(error instanceof Error ? error.message : String(error));
-    }
-    if (response.stop_reason !== 'end_turn') {
-      throw new LocalizationChunkError(`stop_reason ${response.stop_reason}`);
-    }
-    return {
-      data: response.parsed_output,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        cacheReadTokens: response.usage.cache_read_input_tokens ?? 0,
-        cacheWriteTokens: response.usage.cache_creation_input_tokens ?? 0,
-      },
-    };
-  };
+  return (items) => callParsed(client, buildLocalizationRequest(items, options));
 }
