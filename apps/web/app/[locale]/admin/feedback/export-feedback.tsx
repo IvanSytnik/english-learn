@@ -4,11 +4,12 @@ import type { BetaFeedbackSort } from '@englishlearn/db/queries/feedback';
 import { Button } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
+import { CSV_BOM } from '@/lib/feedback-csv';
 import { exportFeedbackCsvAction } from './actions';
 
 /** Hand the browser the CSV to save, without leaving the page. */
 function download(fileName: string, csv: string) {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const url = URL.createObjectURL(new Blob([CSV_BOM, csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;

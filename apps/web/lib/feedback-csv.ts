@@ -15,6 +15,9 @@ const COLUMNS = [
 // "CSV injection"); the text comes from learners, so it is never trusted.
 const FORMULA_START = /^[=+\-@\t\r]/;
 
+/** UTF-8 BOM so Excel reads Cyrillic correctly; prepended to the saved file. */
+export const CSV_BOM = '\uFEFF';
+
 /**
  * One RFC 4180 field: a formula-looking value is defused with a leading `'`,
  * then every field is quoted and inner quotes doubled — commas, quotes and
@@ -28,7 +31,9 @@ export function csvCell(value: string | null): string {
 
 /**
  * The admin feedback export: a header row and one row per report, CRLF line
- * ends, UTF-8 with a BOM so Excel reads Cyrillic correctly. Times are ISO UTC.
+ * ends. Times are ISO UTC. No BOM here: a string of 1024+ characters crosses
+ * React Flight as a text row and the client's TextDecoder strips a leading
+ * U+FEFF, so the BOM is added where the file is made (`CSV_BOM`).
  */
 export function toFeedbackCsv(rows: BetaFeedbackListEntry[]): string {
   const lines = [
@@ -46,5 +51,5 @@ export function toFeedbackCsv(rows: BetaFeedbackListEntry[]): string {
       ].map(csvCell),
     ),
   ];
-  return `\uFEFF${lines.map((cells) => cells.join(',')).join('\r\n')}\r\n`;
+  return `${lines.map((cells) => cells.join(',')).join('\r\n')}\r\n`;
 }

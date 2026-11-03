@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { csvCell, toFeedbackCsv } from '@/lib/feedback-csv';
+import { CSV_BOM, csvCell, toFeedbackCsv } from '@/lib/feedback-csv';
 
 const { auth, getBetaFeedbacks } = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -59,10 +59,10 @@ describe('csvCell', () => {
 });
 
 describe('toFeedbackCsv', () => {
-  it('a BOM, a header, one CRLF row per report, ISO UTC times', () => {
+  it('a header, one CRLF row per report, ISO UTC times; no BOM (Flight strips it)', () => {
     const csv = toFeedbackCsv([row(), row({ id: 'fb-2', user: { email: 'b@x.dev', name: null } })]);
-    expect(csv.startsWith('\uFEFF')).toBe(true);
-    const lines = csv.slice(1).split('\r\n');
+    expect(csv.startsWith(CSV_BOM)).toBe(false);
+    const lines = csv.split('\r\n');
     expect(lines).toHaveLength(4); // header + 2 rows + trailing empty
     expect(lines[0]).toBe('"createdAt","email","name","kind","text","url","itemId","conceptId"');
     expect(lines[1]).toBe(
