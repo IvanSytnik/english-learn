@@ -72,5 +72,13 @@ describe.each(Object.keys(MESSAGES) as Locale[])('legal pages (%s)', (locale) =>
     expect(screen.getByText(credits.aiText)).toBeInTheDocument();
     // The CEFR-J Wordlist terms: free use, provided the dataset is cited.
     expect(screen.getByText(credits.cefrjCitation).tagName).toBe('CITE');
+    // wordfreq (B6.2): CC BY-SA 4.0, its sources and the citation its README asks for.
+    expect(heading(2, credits.frequencyTitle)).toBeInTheDocument();
+    expect(screen.getByText(credits.frequencyText)).toBeInTheDocument();
+    for (const credit of ['wordfreq', 'CC BY-SA 4.0', 'OpenSubtitles', 'SUBTLEX', 'Brysbaert']) {
+      expect(credits.frequencyText).toContain(credit);
+    }
+    expect(screen.getByText(credits.frequencyCitation).tagName).toBe('CITE');
+    expect(credits.frequencyCitation).toContain('10.5281/zenodo.7199437');
   });
 });
