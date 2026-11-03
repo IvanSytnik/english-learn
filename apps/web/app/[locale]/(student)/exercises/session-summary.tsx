@@ -128,9 +128,13 @@ function ReviewRow({ kind, when, concepts }: { kind: string; when: string; conce
   return (
     <li data-review={kind} className="flex flex-col gap-1 sm:flex-row sm:gap-4">
       <span className="shrink-0 text-sm font-medium text-ink sm:w-44">{when}</span>
-      <ul className="flex flex-col gap-1 text-sm text-ink-muted">
+      <ul className="flex flex-col gap-1 text-sm">
+        {/* Own colour class, not inherited: Chromium kept the light ink-muted
+            on inheriting children after a live scheme switch (pitfall 169). */}
         {concepts.map((concept) => (
-          <li key={concept}>{concept}</li>
+          <li key={concept} className="text-ink-muted">
+            {concept}
+          </li>
         ))}
       </ul>
     </li>
