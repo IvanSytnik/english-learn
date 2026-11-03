@@ -35,6 +35,14 @@ import { type Clock, nextOccurredAt, systemClock } from './occurred-at';
  *      concept was already practised: the diagnostic still counts as done.
  */
 
+/**
+ * The bootstrap transaction's timeout (B6.2b, pitfall 199). Its statements
+ * are O(1) in the number of concepts now, but the advisory-lock wait and the
+ * Neon pooler round trips under load count against Prisma's 5 s default;
+ * this bounds a stuck transaction without failing a slow-but-healthy one.
+ */
+export const BOOTSTRAP_TX_TIMEOUT_MS = 15_000;
+
 export type BootstrapInputData = {
   userId: string;
   diagnosticAttemptId: string;
@@ -114,49 +122,60 @@ export function createBootstrapService(db: LearnerModelDb, deps: BootstrapServic
         snapshots,
       };
 
-      const result = await db.runInTx(async (tx) => {
-        // Strictly-once guard. Race-free only because of the user lock: two
-        // concurrent diagnostics serialize here, and the second one sees the
-        // first one's committed event.
-        await tx.lockUser(input.userId);
-        if (await tx.hasEventOfType(input.userId, 'LEARNER_BOOTSTRAPPED')) {
-          return { guarded: true as const };
-        }
+      const result = await db.runInTx(
+        async (tx) => {
+          // Strictly-once guard. Race-free only because of the user lock: two
+          // concurrent diagnostics serialize here, and the second one sees the
+          // first one's committed event.
+          await tx.lockUser(input.userId);
+          if (await tx.hasEventOfType(input.userId, 'LEARNER_BOOTSTRAPPED')) {
+            return { guarded: true as const };
+          }
 
-        const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
-        const event = buildLearnerBootstrappedEvent({
-          userId: input.userId,
-          occurredAt,
-          payload,
-        });
-        await tx.appendEvent(event);
+          const occurredAt = await nextOccurredAt(tx, input.userId, clock, input.occurredAtMs);
+          const event = buildLearnerBootstrappedEvent({
+            userId: input.userId,
+            occurredAt,
+            payload,
+          });
+          await tx.appendEvent(event);
 
-        // Current state of the payload's concepts, read under the lock, so the
-        // fold skips exactly the concepts replay will see as practised.
-        const rows = await tx.getConceptMasteries(
-          input.userId,
-          payload.snapshots.map((s) => s.conceptId),
-        );
-        const prev = new Map(rows.map((r) => [r.conceptId, rowToBktState(r)]));
-        const fold = applyLearnerBootstrapped(
-          payload,
-          occurredAt,
-          (conceptId) => prev.get(conceptId) ?? null,
-        );
+          // Current state of the payload's concepts, read under the lock, so the
+          // fold skips exactly the concepts replay will see as practised.
+          const rows = await tx.getConceptMasteries(
+            input.userId,
+            payload.snapshots.map((s) => s.conceptId),
+          );
+          const prev = new Map(rows.map((r) => [r.conceptId, rowToBktState(r)]));
+          const fold = applyLearnerBootstrapped(
+            payload,
+            occurredAt,
+            (conceptId) => prev.get(conceptId) ?? null,
+          );
 
-        // Sequential on purpose: N ≤ number of concepts (15 today), and a
-        // single tx keeps it atomic.
-        for (const s of fold.states) {
-          await tx.upsertConceptMastery(input.userId, s.conceptId, bktStateToRow(s.bkt, s.stage));
-        }
+          // The projection writer of the LEARNER_BOOTSTRAPPED event just
+          // appended: the fold's states, written as one set-based upsert (68
+          // concepts per-row ran past the transaction timeout, pitfall 199). Still
+          // the only way bootstrap changes ConceptMastery — through this event,
+          // in its transaction — so "learner state changes only via LearnerEvent"
+          // holds and replay folds the same rows (replay-equivalence DB test).
+          await tx.upsertConceptMasteries(
+            input.userId,
+            fold.states.map((s) => ({
+              conceptId: s.conceptId,
+              write: bktStateToRow(s.bkt, s.stage),
+            })),
+          );
 
-        return {
-          guarded: false as const,
-          occurredAt,
-          conceptIds: fold.states.map((s) => s.conceptId),
-          alreadyObserved: fold.skipped,
-        };
-      });
+          return {
+            guarded: false as const,
+            occurredAt,
+            conceptIds: fold.states.map((s) => s.conceptId),
+            alreadyObserved: fold.skipped,
+          };
+        },
+        { timeoutMs: BOOTSTRAP_TX_TIMEOUT_MS },
+      );
 
       if (result.guarded) {
         return { ok: false, error: 'ALREADY_BOOTSTRAPPED' };

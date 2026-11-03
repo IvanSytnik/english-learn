@@ -182,6 +182,52 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
       });
     },
 
+    async upsertConceptMasteries(userId, rows) {
+      if (rows.length === 0) return;
+      const w = rows.map((r) => r.write);
+      // One INSERT … ON CONFLICT DO UPDATE over unnest(): one round trip for
+      // every concept (the per-row upsert loop ran past the 5 s transaction
+      // timeout over the Neon pooler, pitfall 199). Same columns and values
+      // as upsertConceptMastery; `id` is opaque (Prisma's cuid default is
+      // client-side), `updatedAt` is set here because @updatedAt is too.
+      const written = await tx.$executeRaw`
+        INSERT INTO "ConceptMastery" AS m (
+          "id", "userId", "conceptId", "pKnown", "pLearn", "pSlip", "pGuess",
+          "pForgetLambda", "lastUpdatedAt", "observationCount", "displayStage", "updatedAt"
+        )
+        SELECT
+          gen_random_uuid()::text, ${userId}, v."conceptId", v."pKnown", v."pLearn", v."pSlip",
+          v."pGuess", v."pForgetLambda", v."lastUpdatedAt", v."observationCount",
+          v."displayStage"::"MasteryStage", now()
+        FROM unnest(
+          ${rows.map((r) => r.conceptId)}::text[],
+          ${w.map((x) => x.pKnown)}::double precision[],
+          ${w.map((x) => x.pLearn)}::double precision[],
+          ${w.map((x) => x.pSlip)}::double precision[],
+          ${w.map((x) => x.pGuess)}::double precision[],
+          ${w.map((x) => x.pForgetLambda)}::double precision[],
+          ${w.map((x) => x.lastUpdatedAt.toString())}::bigint[],
+          ${w.map((x) => x.observationCount)}::integer[],
+          ${w.map((x) => x.displayStage)}::text[]
+        ) AS v(
+          "conceptId", "pKnown", "pLearn", "pSlip", "pGuess", "pForgetLambda",
+          "lastUpdatedAt", "observationCount", "displayStage"
+        )
+        ON CONFLICT ("userId", "conceptId") DO UPDATE SET
+          "pKnown" = EXCLUDED."pKnown",
+          "pLearn" = EXCLUDED."pLearn",
+          "pSlip" = EXCLUDED."pSlip",
+          "pGuess" = EXCLUDED."pGuess",
+          "pForgetLambda" = EXCLUDED."pForgetLambda",
+          "lastUpdatedAt" = EXCLUDED."lastUpdatedAt",
+          "observationCount" = EXCLUDED."observationCount",
+          "displayStage" = EXCLUDED."displayStage",
+          "updatedAt" = EXCLUDED."updatedAt"`;
+      if (written !== rows.length) {
+        throw new Error(`upsertConceptMasteries wrote ${written} of ${rows.length} rows`);
+      }
+    },
+
     async getItemReviewState(userId, itemId) {
       const row = await tx.itemReviewState.findUnique({
         where: { userId_itemId: { userId, itemId } },
@@ -235,7 +281,8 @@ function txOps(tx: PrismaTxClient): LearnerModelTx {
 /**
  * `txTimeoutMs` overrides Prisma's interactive-transaction timeout (5 s) —
  * for scripts/replay-all.ts, whose per-user rebuild upserts every row one by
- * one. The app keeps the default: a live write that slow is a bug.
+ * one. The app keeps the default (a live write that slow is a bug), except
+ * where a caller passes its own `runInTx(fn, { timeoutMs })`.
  */
 export function createPrismaLearnerDb(
   prisma: PrismaClient,
@@ -385,10 +432,11 @@ export function createPrismaLearnerDb(
     ORDER BY "occurredAt" ASC, "id" ASC
   `;
     },
-    runInTx(fn) {
+    runInTx(fn, txOptions) {
+      const timeout = txOptions?.timeoutMs ?? options.txTimeoutMs;
       return prisma.$transaction(
         (tx) => fn(txOps(tx)),
-        options.txTimeoutMs === undefined ? undefined : { timeout: options.txTimeoutMs },
+        timeout === undefined ? undefined : { timeout },
       );
     },
   };

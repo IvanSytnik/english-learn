@@ -5,7 +5,7 @@ import {
   type DiagnosticAnswerFact,
 } from '../../diagnostic';
 import { applyLearnerBootstrapped } from '../apply';
-import { createBootstrapService } from '../bootstrap-service';
+import { BOOTSTRAP_TX_TIMEOUT_MS, createBootstrapService } from '../bootstrap-service';
 import { parseEventRow } from '../event-store';
 import { replayUser } from '../replay';
 import { createMemoryDb } from './memory-db';
@@ -35,6 +35,37 @@ const ACCURACY = { estimator: accuracyBasedEstimator };
 
 describe('createBootstrapService', () => {
   const at = 1_700_000_000_000n;
+
+  it('B6.2b: one set-based projection write whatever the concept count, under its own timeout', async () => {
+    const many: BootstrapConcept[] = Array.from({ length: 68 }, (_, i) => ({
+      id: `c${String(i).padStart(2, '0')}`,
+      category: i % 4 === 0 ? 'GRAMMAR' : 'VOCAB',
+      cefrLevel: 'A2',
+    }));
+    const { db, masteries, transactions, txOptions } = createMemoryDb();
+    const res = await createBootstrapService(db, ACCURACY).bootstrapFromDiagnostic({
+      userId: 'u1',
+      diagnosticAttemptId: 'da1',
+      assessedLevel: 'B1',
+      answers: ANSWERS,
+      concepts: many,
+      occurredAtMs: at,
+    });
+    expect(res.ok && res.bootstrappedConceptIds).toHaveLength(68);
+    expect(masteries.size).toBe(68);
+    expect(transactions).toEqual([
+      [
+        'lockUser',
+        'hasEventOfType',
+        'lastEventOccurredAt',
+        'appendEvent',
+        'getConceptMasteries',
+        'upsertConceptMasteries',
+      ],
+    ]);
+    expect(txOptions).toEqual([{ timeoutMs: BOOTSTRAP_TX_TIMEOUT_MS }]);
+    expect(BOOTSTRAP_TX_TIMEOUT_MS).toBeGreaterThan(5_000);
+  });
 
   it('writes one event and N ConceptMastery rows in a single tx', async () => {
     const { db, events, masteries } = createMemoryDb();

@@ -44,6 +44,8 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
   const reviews = new Map<string, ItemReviewStateRow>(); // `${userId}:${itemId}`
   /** Method names called on the tx, one array per runInTx. */
   const transactions: string[][] = [];
+  /** The options of each runInTx, in order. */
+  const txOptions: ({ timeoutMs?: number } | undefined)[] = [];
   /** `${userId}:${idempotencyKey}` -> event id (the unique index). */
   const idempotencyKeys = new Map<string, string>();
   let nextId = 0;
@@ -99,6 +101,11 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
     async upsertConceptMastery(userId, conceptId, write) {
       masteries.set(`${userId}:${conceptId}`, { ...write });
     },
+    async upsertConceptMasteries(userId, rows) {
+      for (const { conceptId, write } of rows) {
+        masteries.set(`${userId}:${conceptId}`, { ...write });
+      }
+    },
     async getItemReviewState(userId, itemId) {
       const row = reviews.get(`${userId}:${itemId}`);
       return row ? { ...row } : null;
@@ -145,9 +152,10 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
       const { pool: _, ...forOutcome } = item;
       return forOutcome;
     },
-    async runInTx(fn) {
+    async runInTx(fn, options) {
       const log: string[] = [];
       transactions.push(log);
+      txOptions.push(options);
       return fn(loggingTx(log));
     },
     async getMasterySnapshots(userId) {
@@ -216,5 +224,5 @@ export function createMemoryDb(options: MemoryDbOptions = {}) {
     },
   };
 
-  return { db, tx, events, masteries, reviews, transactions, idempotencyKeys };
+  return { db, tx, events, masteries, reviews, transactions, txOptions, idempotencyKeys };
 }

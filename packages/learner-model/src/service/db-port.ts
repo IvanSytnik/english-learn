@@ -111,6 +111,15 @@ export type LearnerModelTx = {
     conceptId: string,
     write: ConceptMasteryWrite,
   ): Promise<void>;
+  /**
+   * The same upsert for many concepts as ONE statement (B6.2b, pitfall 199):
+   * the projection writer of LEARNER_BOOTSTRAPPED, whose fold covers every
+   * concept at once. `conceptId`s are distinct.
+   */
+  upsertConceptMasteries(
+    userId: string,
+    rows: readonly { conceptId: string; write: ConceptMasteryWrite }[],
+  ): Promise<void>;
 
   getItemReviewState(userId: string, itemId: string): Promise<ItemReviewStateRow | null>;
   upsertItemReviewState(userId: string, itemId: string, write: ItemReviewStateWrite): Promise<void>;
@@ -141,7 +150,10 @@ export type LearnerModelDb = {
    * Run `fn` atomically. Everything recordOutcome writes (event + both
    * projections) happens inside one of these — all or nothing.
    */
-  runInTx<R>(fn: (tx: LearnerModelTx) => Promise<R>): Promise<R>;
+  runInTx<R>(
+    fn: (tx: LearnerModelTx) => Promise<R>,
+    options?: { /** Overrides the interactive-transaction timeout. */ timeoutMs?: number },
+  ): Promise<R>;
 
   getMasterySnapshots(userId: string): Promise<MasterySnapshotRow[]>;
   getPrereqEdges(): Promise<PrereqEdgeRow[]>;
