@@ -120,6 +120,9 @@ test('/ru/words/practice: a wrong choice is stored with the word it was confused
     await expect(verdict).toBeVisible(AFTER_SUBMIT);
     if ((await verdict.getAttribute('data-verdict')) === 'incorrect') break;
     await page.keyboard.press('Enter');
+    // The next card replaces the feedback after a server round trip: read it
+    // only then, or the loop re-reads this card's "correct" verdict.
+    await expect(verdict).toBeHidden(AFTER_SUBMIT);
   }
 
   const attempts = await itemAttempts(email);
