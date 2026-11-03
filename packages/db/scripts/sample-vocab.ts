@@ -19,7 +19,7 @@ import { CefrLevelValue } from '../src/schemas/learner-events';
 import { ContentStatusSchema } from '../src/schemas/lexeme';
 import { lexemeIdentity, loadCefrJDataset, topicIndex } from '../src/vocab/dataset';
 import { loadExamplesSnapshot } from '../src/vocab/examples-snapshot';
-import { primarySenseIds } from '../src/vocab/frequency';
+import { secondarySenseIds, shadowedIdentities } from '../src/vocab/frequency';
 import { loadLocalizationSnapshot } from '../src/vocab/localization-snapshot';
 import { formatLexemeSample, pickSample, pickWeightedPerLevel } from '../src/vocab/sample';
 import { VOCAB_TOPIC_IDS } from '../src/vocab/topics';
@@ -38,7 +38,8 @@ const ArgsSchema = z.object({
 
 /** The examples review, offline and deterministic (default seed `b6.4a`). */
 function sampleExamples(count: number, seed: string): void {
-  const dataset = new Map(loadCefrJDataset().lexemes.map((l) => [lexemeIdentity(l), l]));
+  const lexemes = loadCefrJDataset().lexemes;
+  const dataset = new Map(lexemes.map((l) => [lexemeIdentity(l), l]));
   const generated = new Map(loadExamplesSnapshot().entries.map((e) => [lexemeIdentity(e), e]));
   const rows = loadLocalizationSnapshot().entries.map((e) => {
     const id = lexemeIdentity(e);
@@ -46,9 +47,11 @@ function sampleExamples(count: number, seed: string): void {
     if (!entry) throw new Error(`${e.lemmaKey} ${e.pos} is not in the dataset`);
     return { ...e, id, pos: entry.pos, lemma: entry.lemma, status: 'PUBLISHED' };
   });
-  const primary = primarySenseIds(
+  const secondarySenses = secondarySenseIds(
     rows.map((r) => ({ ...r, frequencyZipf: null, frequencyRank: null })),
+    shadowedIdentities(lexemes),
   );
+  const primary = { has: (id: string) => !secondarySenses.has(id) };
   const withNew = rows.filter((r) => generated.has(r.id));
   const sample = pickWeightedPerLevel(withNew, {
     perLevel: count,

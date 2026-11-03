@@ -7,9 +7,9 @@ import {
   FUNCTION_ADVERBS,
   isClosedClass,
   loadFrequencyDataset,
-  PRIMARY_POS_ORDER,
   planFrequency,
-  primarySenseIds,
+  secondarySenseIds,
+  shadowedIdentities,
 } from '../frequency';
 
 const row = (
@@ -98,7 +98,7 @@ describe('planFrequency', () => {
     const rank = Object.fromEntries(plan.map((p) => [p.id, p.frequencyRank]));
     expect(rank).toEqual({
       'go-v': 1, // 6.5
-      'like-v': 2, // 6.4 — the verb is primary at A1 (VERB before PREPOSITION)
+      'like-v': 2, // 6.4 — verb and preposition both A1: both primary
       'name-n': 3,
       'please-i': 4, // an interjection is content
       rice: 5,
@@ -107,22 +107,42 @@ describe('planFrequency', () => {
       'please-v': 8,
       of: 9, // closed class last, of < to on a tie
       to: 10,
-      'like-p': 11, // closed class and a second sense
+      'like-p': 11, // closed class, primary, 6.4 < 7.4
     });
     expect(plan.find((p) => p.id === 'go-n')?.frequencyZipf).toBe(6.5);
   });
 
-  it('the primary sense: lowest level, then the POS order, then sense — even when the lower level is a closed class', () => {
+  it('B6.2b secondary: a strictly lower level of the key, or shadowed; equal levels are both primary', () => {
     const rows = [
+      row('wash-n', 'wash'),
+      row('wash-v', 'wash', 'PUBLISHED', { pos: 'VERB' }), // equal level: primary (B6.2a made it secondary)
       row('n-b1', 'round', 'PUBLISHED', { cefrLevel: 'B1' }),
       row('adj-a2', 'round', 'PUBLISHED', { pos: 'ADJECTIVE', cefrLevel: 'A2' }),
       row('prep-a2', 'round', 'PUBLISHED', { pos: 'PREPOSITION', cefrLevel: 'A2' }),
+      row('draft', 'round', 'DRAFT', { pos: 'VERB', cefrLevel: 'A1' }), // not PUBLISHED: ignored
       row('bank-r', 'bank', 'PUBLISHED', { sense: 'river' }),
       row('bank-f', 'bank', 'PUBLISHED', { sense: 'finance' }),
-      row('draft', 'round', 'DRAFT', { pos: 'VERB', cefrLevel: 'A1' }), // not PUBLISHED: ignored
+      row('can-n', 'can', 'PUBLISHED', { cefrLevel: 'A2' }), // the only `can`, but shadowed by the modal
+      row('being-n', 'being', 'PUBLISHED', { cefrLevel: 'A2' }),
     ];
-    expect([...primarySenseIds(rows)].sort()).toEqual(['adj-a2', 'bank-f']);
-    expect(PRIMARY_POS_ORDER.slice(0, 4)).toEqual(['NOUN', 'VERB', 'ADJECTIVE', 'ADVERB']);
+    const shadowed = shadowedIdentities([
+      { lemmaKey: 'can', pos: 'NOUN', sense: '', shadowedByExcludedPos: true },
+      { lemmaKey: 'being', pos: 'NOUN', sense: '', shadowedByExcludedPos: true },
+      { lemmaKey: 'wash', pos: 'NOUN', sense: '' }, // not flagged
+    ]);
+    expect([...secondarySenseIds(rows, shadowed)].sort()).toEqual(['being-n', 'can-n', 'n-b1']);
+    expect([...secondarySenseIds(rows)].sort()).toEqual(['n-b1']);
+    // and the rank reads it: shadowed `can` (6.0) after primary `wash` (4.6)
+    const z = { wash: 4.6, can: 6.0 };
+    const rank = (sh?: Set<string>) =>
+      Object.fromEntries(
+        planFrequency([row('w', 'wash'), row('c', 'can')], z, sh).map((p) => [
+          p.id,
+          p.frequencyRank,
+        ]),
+      );
+    expect(rank(shadowed)).toEqual({ w: 1, c: 2 });
+    expect(rank()).toEqual({ c: 1, w: 2 });
   });
 
   it('closed class = preposition, conjunction, pronoun, other — not interjection', () => {
@@ -183,7 +203,19 @@ describe('planFrequency', () => {
   });
 });
 
-const POS: PartOfSpeechValue[] = [...PRIMARY_POS_ORDER];
+const POS: PartOfSpeechValue[] = [
+  'NOUN',
+  'VERB',
+  'ADJECTIVE',
+  'ADVERB',
+  'PHRASAL_VERB',
+  'IDIOM',
+  'INTERJECTION',
+  'PRONOUN',
+  'PREPOSITION',
+  'CONJUNCTION',
+  'OTHER',
+];
 const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const;
 const rowsArb = fc
   .array(
@@ -232,16 +264,21 @@ describe('planFrequency properties (B6.2a)', () => {
     );
   });
 
-  it('exactly one primary per PUBLISHED lemmaKey', () => {
+  it('secondary ⇔ PUBLISHED and (a strictly lower PUBLISHED level of the key, or shadowed)', () => {
     fc.assert(
-      fc.property(rowsArb, (rows) => {
-        const primary = primarySenseIds(rows);
-        const keys = new Set(rows.filter((r) => r.status === 'PUBLISHED').map((r) => r.lemmaKey));
-        for (const key of keys) {
-          expect(rows.filter((r) => r.lemmaKey === key && primary.has(r.id))).toHaveLength(1);
-        }
-        for (const id of primary) {
-          expect(rows.find((r) => r.id === id)?.status).toBe('PUBLISHED');
+      fc.property(rowsArb, fc.array(fc.nat(29), { maxLength: 5 }), (rows, picks) => {
+        const flagged = picks.flatMap((i) => (rows[i] ? [rows[i]] : []));
+        const shadowed = shadowedIdentities(
+          flagged.map((r) => ({ ...r, shadowedByExcludedPos: true as const })),
+        );
+        const secondary = secondarySenseIds(rows, shadowed);
+        const level = (r: FrequencyRow) => LEVELS.indexOf(r.cefrLevel as (typeof LEVELS)[number]);
+        for (const r of rows) {
+          const lower = rows.some(
+            (o) => o.status === 'PUBLISHED' && o.lemmaKey === r.lemmaKey && level(o) < level(r),
+          );
+          const expected = r.status === 'PUBLISHED' && (lower || flagged.includes(r));
+          expect(secondary.has(r.id)).toBe(expected);
         }
       }),
     );
@@ -250,12 +287,12 @@ describe('planFrequency properties (B6.2a)', () => {
   it('within a word class, a secondary sense ranks after every primary', () => {
     fc.assert(
       fc.property(rowsArb, zipfArb, (rows, z) => {
-        const primary = primarySenseIds(rows);
+        const secondary = secondarySenseIds(rows);
         const out = ranked(rows, z);
         for (const closed of [true, false]) {
           const cls = out.filter((x) => isClosedClass(x.r) === closed);
-          for (const s of cls.filter((x) => !primary.has(x.r.id)))
-            for (const p of cls.filter((x) => primary.has(x.r.id)))
+          for (const s of cls.filter((x) => secondary.has(x.r.id)))
+            for (const p of cls.filter((x) => !secondary.has(x.r.id)))
               expect(s.rank).toBeGreaterThan(p.rank);
         }
       }),

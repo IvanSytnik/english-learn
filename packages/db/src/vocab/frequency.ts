@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { PrismaClient } from '../generated/client/client';
 import type { CefrLevelValue } from '../schemas/learner-events';
 import type { PartOfSpeechValue } from '../schemas/lexeme';
+import { lexemeIdentity } from './dataset';
 
 /**
  * vocab:sync-frequency (B6.2): wordfreq Zipf frequency onto Lexeme.
@@ -125,25 +126,6 @@ export const FUNCTION_ADVERBS: ReadonlySet<string> = new Set([
 export const isClosedClass = (r: { pos: PartOfSpeechValue; lemmaKey: string }): boolean =>
   CLOSED_CLASS_POS.has(r.pos) || (r.pos === 'ADVERB' && FUNCTION_ADVERBS.has(r.lemmaKey));
 
-/**
- * Which sense of a form is primary when two PUBLISHED lexemes of one
- * lemmaKey share the lowest CEFR level: the first by this order (the most
- * frequent part of speech of an English form), then the rest.
- */
-export const PRIMARY_POS_ORDER: readonly PartOfSpeechValue[] = [
-  'NOUN',
-  'VERB',
-  'ADJECTIVE',
-  'ADVERB',
-  'PHRASAL_VERB',
-  'IDIOM',
-  'INTERJECTION',
-  'PRONOUN',
-  'PREPOSITION',
-  'CONJUNCTION',
-  'OTHER',
-];
-
 const CEFR_ORDER: readonly CefrLevelValue[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 export type FrequencyRow = {
@@ -164,50 +146,66 @@ export type FrequencyValues = {
 };
 
 /**
- * The primary sense of each lemmaKey among the PUBLISHED rows: the lowest
- * CEFR level, then PRIMARY_POS_ORDER, then sense and id — exactly one per
- * lemmaKey; every other PUBLISHED row of that key is a secondary sense.
+ * The identities of the dataset entries flagged `shadowedByExcludedPos`
+ * (./shadowed.ts) — the second input of the secondary-sense rule.
  */
-export function primarySenseIds(rows: readonly FrequencyRow[]): Set<string> {
-  const best = new Map<string, FrequencyRow>();
-  const order = (r: FrequencyRow) =>
-    [CEFR_ORDER.indexOf(r.cefrLevel), PRIMARY_POS_ORDER.indexOf(r.pos)] as const;
-  for (const r of rows) {
-    if (r.status !== 'PUBLISHED') continue;
-    const b = best.get(r.lemmaKey);
-    if (!b) {
-      best.set(r.lemmaKey, r);
-      continue;
-    }
-    const [rl, rp] = order(r);
-    const [bl, bp] = order(b);
-    const better =
-      rl !== bl
-        ? rl < bl
-        : rp !== bp
-          ? rp < bp
-          : r.sense !== b.sense
-            ? r.sense < b.sense
-            : r.id < b.id;
-    if (better) best.set(r.lemmaKey, r);
+export function shadowedIdentities(
+  lexemes: readonly {
+    lemmaKey: string;
+    pos: string;
+    sense: string;
+    shadowedByExcludedPos?: true;
+  }[],
+): Set<string> {
+  return new Set(lexemes.filter((l) => l.shadowedByExcludedPos).map(lexemeIdentity));
+}
+
+/**
+ * The secondary senses among the PUBLISHED rows (B6-SPEC §2, revised in
+ * B6.2b). A row is secondary when
+ * (a) another PUBLISHED row of its lemmaKey has a strictly lower CEFR level
+ *     — equal levels are both primary (`wash` noun A1 and verb A1); or
+ * (b) its identity is in `shadowed`: the source lists the headword under a
+ *     left-out POS, so the form's frequency belongs to an entry the catalogue
+ *     doesn't have (`can` noun, `being` noun).
+ * Only PUBLISHED rows are compared (a DRAFT/REVIEW neighbour changes nothing).
+ */
+export function secondarySenseIds(
+  rows: readonly FrequencyRow[],
+  shadowed: ReadonlySet<string> = new Set(),
+): Set<string> {
+  const published = rows.filter((r) => r.status === 'PUBLISHED');
+  const lowest = new Map<string, number>();
+  for (const r of published) {
+    const level = CEFR_ORDER.indexOf(r.cefrLevel);
+    lowest.set(r.lemmaKey, Math.min(level, lowest.get(r.lemmaKey) ?? level));
   }
-  return new Set([...best.values()].map((r) => r.id));
+  return new Set(
+    published
+      .filter(
+        (r) =>
+          CEFR_ORDER.indexOf(r.cefrLevel) > (lowest.get(r.lemmaKey) as number) ||
+          shadowed.has(lexemeIdentity(r)),
+      )
+      .map((r) => r.id),
+  );
 }
 
 /** Target values for every row, pure. */
 export function planFrequency(
   rows: readonly FrequencyRow[],
   zipfByKey: Readonly<Record<string, number>>,
+  shadowed: ReadonlySet<string> = new Set(),
 ): FrequencyValues[] {
   const zipfOf = (lemmaKey: string): number | null => {
     const z = Object.hasOwn(zipfByKey, lemmaKey) ? zipfByKey[lemmaKey] : undefined;
     return z === undefined || z <= 0 ? null : z;
   };
-  const primary = primarySenseIds(rows);
+  const secondary = secondarySenseIds(rows, shadowed);
   type Key = readonly [closed: number, secondary: number, zipf: number, lemmaKey: string];
   const keyOf = (r: FrequencyRow): Key => [
     isClosedClass(r) ? 1 : 0,
-    primary.has(r.id) ? 0 : 1,
+    secondary.has(r.id) ? 1 : 0,
     zipfOf(r.lemmaKey) as number,
     r.lemmaKey,
   ];
@@ -252,7 +250,13 @@ export type SyncFrequencyReport = {
 export async function syncFrequency(
   db: Pick<PrismaClient, 'lexeme' | '$executeRaw'>,
   dataset: FrequencyDataset,
-  options: { dryRun?: boolean; lemmaKeyPrefix?: string; chunkSize?: number } = {},
+  options: {
+    dryRun?: boolean;
+    lemmaKeyPrefix?: string;
+    chunkSize?: number;
+    /** shadowedIdentities() of the committed CEFR-J dataset. */
+    shadowed?: ReadonlySet<string>;
+  } = {},
 ): Promise<SyncFrequencyReport> {
   const rows = await db.lexeme.findMany({
     where: options.lemmaKeyPrefix ? { lemmaKey: { startsWith: options.lemmaKeyPrefix } } : {},
@@ -268,7 +272,7 @@ export async function syncFrequency(
     },
     orderBy: { id: 'asc' },
   });
-  const plan = planFrequency(rows, dataset.entries);
+  const plan = planFrequency(rows, dataset.entries, options.shadowed);
   const before = new Map(rows.map((r) => [r.id, r]));
   const changed = plan.filter((p) => {
     const r = before.get(p.id);

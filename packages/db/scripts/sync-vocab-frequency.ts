@@ -2,7 +2,8 @@
 //
 // Writes the committed wordfreq Zipf values (data/frequency-wordfreq-en.json,
 // CC BY-SA 4.0) to Lexeme.frequencyZipf and the dense frequency rank of the
-// PUBLISHED lexemes to Lexeme.frequencyRank (see src/vocab/frequency.ts).
+// PUBLISHED lexemes to Lexeme.frequencyRank (see src/vocab/frequency.ts);
+// secondary senses also read the committed CEFR-J dataset's shadowed flags.
 // Idempotent; run after vocab:publish (the rank covers PUBLISHED only).
 //
 // Needs migration 20261103120000_lexeme_frequency_collections on the target.
@@ -12,7 +13,8 @@
 //   pnpm vocab:sync-frequency
 
 import { createPrismaClient } from '../src/create-client';
-import { loadFrequencyDataset, syncFrequency } from '../src/vocab/frequency';
+import { loadCefrJDataset } from '../src/vocab/dataset';
+import { loadFrequencyDataset, shadowedIdentities, syncFrequency } from '../src/vocab/frequency';
 
 async function main(): Promise<void> {
   const dataset = loadFrequencyDataset();
@@ -26,7 +28,9 @@ async function main(): Promise<void> {
 
   const db = createPrismaClient(url, { log: ['error'] });
   try {
-    const r = await syncFrequency(db, dataset, { dryRun });
+    // B6.2b: secondary senses shadowed by a left-out POS, from the committed dataset
+    const shadowed = shadowedIdentities(loadCefrJDataset().lexemes);
+    const r = await syncFrequency(db, dataset, { dryRun, shadowed });
     console.log(
       `${r.lexemes} lexemes: ${r.withFrequency} with a frequency, ${r.ranked} PUBLISHED ranked; ` +
         `${r.changed} ${dryRun ? 'would change' : `changed (${r.chunks} chunks)`}`,

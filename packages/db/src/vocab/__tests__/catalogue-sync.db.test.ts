@@ -4,7 +4,7 @@ import type { PrismaClient } from '../../generated/client/client';
 import type { ExamplesSnapshot } from '../examples-snapshot';
 import { syncExamples } from '../examples-snapshot';
 import type { FrequencyDataset } from '../frequency';
-import { syncFrequency } from '../frequency';
+import { shadowedIdentities, syncFrequency } from '../frequency';
 import { importCefrJ } from '../import';
 import { syncIpa } from '../ipa-data';
 import { type CefrJEntry, normalizeDataset } from '../normalize';
@@ -159,6 +159,28 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
       chunks: 0,
     });
     expect(await lexemes()).toEqual(before);
+  });
+
+  it('frequency (B6.2b): a dataset-shadowed sense ranks as secondary', async () => {
+    await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN });
+    const shadowed = shadowedIdentities([
+      { lemmaKey: k('apple'), pos: 'NOUN', sense: '', shadowedByExcludedPos: true },
+    ]);
+    expect(await syncFrequency(db, FREQ, { lemmaKeyPrefix: RUN, shadowed })).toMatchObject({
+      changed: 4,
+    });
+    expect(
+      (await lexemes())
+        .filter((l) => l.frequencyRank !== null)
+        .map((l) => [l.lemmaKey, l.frequencyRank]),
+    ).toEqual([
+      [k('apple'), 5], // shadowed: a secondary sense, after `go` noun (zipf 6 > 4.5)
+      [k('bake'), 3],
+      [k('chef'), 2],
+      [k('go'), 4], // noun B1, secondary, zipf 6
+      [k('go'), 1],
+      [k('of'), 6],
+    ]);
   });
 
   it('collections: tags land, re-run writes nothing, items and their concepts are untouched', async () => {
