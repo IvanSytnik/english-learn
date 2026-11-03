@@ -330,6 +330,13 @@
         "practiceLevel": "{topic}, рівень {level}: практикувати",
         "levelProgress": "{started} / {total}"
       },
+      "collections": {
+        "title": "Добірки",
+        "hint": "Тематичні набори слів із різних тем. Нові слова — з добірки, але спершу — повторення, яким настав час.",
+        "progress": "Розпочато {started} з {total, plural, one {# слова} few {# слів} many {# слів} other {# слова}}",
+        "practice": "{collection}: тренувати",
+        "practiceShort": "Тренувати"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Виберіть переклад.",

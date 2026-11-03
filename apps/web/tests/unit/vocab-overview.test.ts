@@ -37,10 +37,25 @@ beforeEach(() => {
       concept('vocab.personal_identification.a2', 2, { mastered: 2 }),
       concept('vocab.travel.a1', 3, { new: 1, familiar: 2 }),
     ],
+    // Sorted by key, as the service returns them.
+    collections: [
+      { key: 'food_drink', total: 12, started: 3 },
+      { key: 'holidays', total: 5, started: 0 },
+      { key: 'unknown_key', total: 40, started: 0 },
+      { key: 'work_jobs', total: 10, started: 10 },
+    ],
   });
 });
 
 describe('loadVocabOverview', () => {
+  it('collection cards (B6.2): taxonomy order, UI-locale titles, tiny and unknown ones left out', async () => {
+    const out = await loadVocabOverview({ userId: 'u1', uiLocale: 'de', timeZone: 'UTC' });
+    expect(out.collections).toEqual([
+      { key: 'work_jobs', title: 'Arbeit und Berufe', total: 10, started: 10 },
+      { key: 'food_drink', title: 'Essen und Trinken', total: 12, started: 3 },
+    ]);
+  });
+
   it('groups concepts into topics in the taxonomy’s order, titled in the UI locale', async () => {
     const out = await loadVocabOverview({ userId: 'u1', uiLocale: 'ru', timeZone: 'Europe/Kyiv' });
 

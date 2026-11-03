@@ -330,6 +330,13 @@
         "practiceLevel": "{topic}, Niveau {level}: üben",
         "levelProgress": "{started} / {total}"
       },
+      "collections": {
+        "title": "Sammlungen",
+        "hint": "Thematische Wortsammlungen quer durch die Themen. Neue Wörter kommen aus der Sammlung, fällige Wiederholungen aber zuerst.",
+        "progress": "{started} von {total, plural, one {# Wort} other {# Wörtern}} begonnen",
+        "practice": "{collection}: üben",
+        "practiceShort": "Üben"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Wähle die Übersetzung.",

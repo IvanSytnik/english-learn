@@ -6,7 +6,11 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { TopBarControls } from '@/app/_components/top-bar-controls';
 import { Link } from '@/i18n/navigation';
-import type { VocabOverviewView, VocabTopicProgress } from '@/lib/vocab-overview';
+import type {
+  VocabCollectionView,
+  VocabOverviewView,
+  VocabTopicProgress,
+} from '@/lib/vocab-overview';
 import { browserTimeZone } from '../_components/browser-time-zone';
 import { vocabOverviewAction } from '../actions/vocab';
 import { DailyLimitForm } from './daily-limit-form';
@@ -27,6 +31,11 @@ export function practiceHref(conceptId?: string) {
   return conceptId
     ? { pathname: '/words/practice', query: { concept: conceptId } }
     : { pathname: '/words/practice' };
+}
+
+/** Starts a collection session (B6.2): new words from the collection, due reviews from all. */
+export function collectionHref(key: string) {
+  return { pathname: '/words/practice', query: { collection: key } };
 }
 
 /**
@@ -123,6 +132,22 @@ export function WordsOverview({ initial }: { initial: VocabOverviewView }) {
           ))}
         </ul>
       </section>
+
+      {overview.collections.length > 0 && (
+        <section aria-labelledby="words-collections" className="flex flex-col gap-3">
+          <h2 id="words-collections" className="font-content text-xl text-ink">
+            {t('collections.title')}
+          </h2>
+          <p className="text-sm text-ink-muted">{t('collections.hint')}</p>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {overview.collections.map((collection) => (
+              <li key={collection.key}>
+                <CollectionCard collection={collection} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
@@ -156,6 +181,30 @@ function TopicCard({ topic }: { topic: VocabTopicProgress }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+function CollectionCard({ collection }: { collection: VocabCollectionView }) {
+  const t = useTranslations('student.words.collections');
+  const share =
+    collection.total === 0 ? 0 : Math.round((collection.started / collection.total) * 100);
+  return (
+    <Card className="flex h-full flex-col gap-3 p-4" data-collection={collection.key}>
+      <h3 className="font-medium text-ink">{collection.title}</h3>
+      <p className="text-sm text-ink-muted">
+        {t('progress', { started: collection.started, total: collection.total })}
+      </p>
+      <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-line">
+        <div className="h-full bg-accent" style={{ width: `${share}%` }} />
+      </div>
+      <Link
+        href={collectionHref(collection.key)}
+        aria-label={t('practice', { collection: collection.title })}
+        className="mt-auto inline-flex w-fit items-center rounded-control border border-line px-2 py-1 text-sm text-ink transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {t('practiceShort')}
+      </Link>
     </Card>
   );
 }

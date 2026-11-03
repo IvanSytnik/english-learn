@@ -1,12 +1,22 @@
 import 'server-only';
 import { type CefrLevelValue, type Locale, localized } from '@englishlearn/db/schemas';
 import {
+  MIN_COLLECTION_WORDS,
+  VOCAB_COLLECTION_TITLES,
+  VOCAB_COLLECTIONS,
+  type VocabCollectionValue,
+} from '@englishlearn/db/vocab/collections';
+import {
   getVocabTopic,
   parseVocabConceptId,
   VOCAB_TOPICS,
   type VocabTopicId,
 } from '@englishlearn/db/vocab/topics';
-import type { StageCounts, VocabConceptProgress } from '@englishlearn/learner-model';
+import type {
+  StageCounts,
+  VocabCollectionProgress,
+  VocabConceptProgress,
+} from '@englishlearn/learner-model';
 import { vocabSessionService } from '@/lib/learner';
 
 /**
@@ -36,6 +46,14 @@ export type VocabTopicProgress = {
   levels: VocabLevelProgress[];
 };
 
+/** A browsing collection card (B6.2): starts a `{ kind: 'collection' }` session. */
+export type VocabCollectionView = {
+  key: VocabCollectionValue;
+  title: string;
+  total: number;
+  started: number;
+};
+
 export type VocabOverviewView = {
   dueNow: number;
   newToday: number;
@@ -46,6 +64,11 @@ export type VocabOverviewView = {
   stages: StageCounts;
   /** In the taxonomy's order; topics without published words are left out. */
   topics: VocabTopicProgress[];
+  /**
+   * In the taxonomy's order; only collections with at least
+   * MIN_COLLECTION_WORDS published words (smaller ones stay tags).
+   */
+  collections: VocabCollectionView[];
 };
 
 const addStages = (into: StageCounts, from: StageCounts) => {
@@ -89,6 +112,25 @@ export function groupByTopic(
   return VOCAB_TOPICS.flatMap((t) => byTopic.get(t.id) ?? []);
 }
 
+export function collectionCards(
+  collections: readonly VocabCollectionProgress[],
+  uiLocale: Locale,
+): VocabCollectionView[] {
+  const byKey = new Map(collections.map((c) => [c.key, c]));
+  return VOCAB_COLLECTIONS.flatMap((key) => {
+    const c = byKey.get(key);
+    if (!c || c.total < MIN_COLLECTION_WORDS) return [];
+    return [
+      {
+        key,
+        title: localized(VOCAB_COLLECTION_TITLES[key], uiLocale),
+        total: c.total,
+        started: c.started,
+      },
+    ];
+  });
+}
+
 export async function loadVocabOverview(args: {
   userId: string;
   uiLocale: Locale;
@@ -111,5 +153,6 @@ export async function loadVocabOverview(args: {
     startedWords: topics.reduce((n, t) => n + t.started, 0),
     stages,
     topics,
+    collections: collectionCards(overview.collections, args.uiLocale),
   };
 }

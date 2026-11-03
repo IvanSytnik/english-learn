@@ -330,6 +330,13 @@
         "practiceLevel": "{topic}, уровень {level}: практиковать",
         "levelProgress": "{started} / {total}"
       },
+      "collections": {
+        "title": "Подборки",
+        "hint": "Тематические наборы слов из разных тем. Новые слова — из подборки, но сначала — повторения, которым пришёл срок.",
+        "progress": "Начато {started} из {total, plural, one {# слова} few {# слов} many {# слов} other {# слова}}",
+        "practice": "{collection}: тренировать",
+        "practiceShort": "Тренировать"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Выберите перевод.",

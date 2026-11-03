@@ -330,6 +330,13 @@
         "practiceLevel": "{topic}, level {level}: practise",
         "levelProgress": "{started} / {total}"
       },
+      "collections": {
+        "title": "Collections",
+        "hint": "Themed word sets across topics. New words come from the collection; your due reviews still come first.",
+        "progress": "{started} of {total, plural, one {# word} other {# words}} started",
+        "practice": "{collection}: practise",
+        "practiceShort": "Practise"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Choose the translation.",

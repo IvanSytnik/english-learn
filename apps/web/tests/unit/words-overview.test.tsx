@@ -84,6 +84,7 @@ const OVERVIEW = {
       ],
     },
   ],
+  collections: [{ key: 'work_jobs', title: 'Work and jobs', total: 12, started: 4 }],
 };
 
 beforeEach(() => {
@@ -170,6 +171,23 @@ describe('/words page', () => {
       'href',
       '/words/practice?concept=vocab.travel.a2',
     );
+  });
+
+  it('starts a collection session from its card (B6.2)', async () => {
+    await renderPage();
+    const card = document.querySelector('[data-collection="work_jobs"]') as HTMLElement;
+    expect(within(card).getByText('4 of 12 words started')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Work and jobs: practise' })).toHaveAttribute(
+      'href',
+      '/words/practice?collection=work_jobs',
+    );
+  });
+
+  it('shows no collections section when there is none', async () => {
+    loadVocabOverview.mockResolvedValue({ ...OVERVIEW, collections: [] });
+    vocabOverviewAction.mockResolvedValue({ ok: true, value: { ...OVERVIEW, collections: [] } });
+    await renderPage();
+    expect(screen.queryByRole('heading', { name: 'Collections' })).toBeNull();
   });
 
   it('never shows an FSRS number', async () => {
