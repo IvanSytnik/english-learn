@@ -1,0 +1,8 @@
+# Pinned for scripts/vocab-frequency.py (offline only; never a runtime dependency).
+wordfreq==3.1.1
+ftfy==6.3.1
+langcodes==3.5.1
+locate==1.1.1
+msgpack==1.2.4
+regex==2026.9.29
+wcwidth==0.9.4
