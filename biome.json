@@ -80,6 +80,21 @@
   },
   "overrides": [
     {
+      "includes": [
+        "packages/*/scripts/**",
+        "apps/web/scripts/**",
+        "packages/db/src/seed.ts",
+        "packages/learner-model/seed/**/run.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.css"],
       "linter": {
         "enabled": false
