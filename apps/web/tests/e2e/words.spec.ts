@@ -1,7 +1,7 @@
 import { VOCAB_TOPICS } from '@englishlearn/db/vocab/topics';
 import { expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
-import { closeDb, itemAttempts, vocabItemWord } from './helpers/db';
+import { closeDb, itemAttempts, vocabItemCollections, vocabItemWord } from './helpers/db';
 
 test.afterAll(closeDb);
 
@@ -141,5 +141,33 @@ test('/ru/words/practice: a wrong choice is stored with the word it was confused
   for (const right of attempts.slice(0, -1)) {
     expect(right).toMatchObject({ correct: true, variant: 'en_to_l1', locale: 'ru' });
     expect(right).not.toHaveProperty('chosenItemId');
+  }
+});
+
+test('/ru/words: a collection card starts a session of that collection’s new words (B6.2)', async ({
+  page,
+}) => {
+  const email = await registerFreshLearner(page, 'words-collection');
+  await page.goto('/ru/words');
+  await expect(page.getByRole('heading', { name: 'Подборки' })).toBeVisible();
+  await page.getByRole('link', { name: 'Работа и профессии: тренировать' }).click();
+  await expect(page).toHaveURL(/\/ru\/words\/practice\?collection=work_jobs$/, AFTER_SUBMIT);
+
+  // Two new words, each answered (whatever the verdict): both from the collection.
+  for (let card = 1; card <= 2; card++) {
+    await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
+    await page.keyboard.press('1');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-verdict]')).toBeVisible(AFTER_SUBMIT);
+    if (card < 2) {
+      await page.keyboard.press('Enter');
+      // The next card, not the last one's feedback.
+      await expect(page.locator('[data-verdict]')).toHaveCount(0, AFTER_SUBMIT);
+    }
+  }
+  const attempts = await itemAttempts(email);
+  expect(attempts).toHaveLength(2);
+  for (const attempt of attempts) {
+    expect(await vocabItemCollections(attempt.itemId as string)).toContain('work_jobs');
   }
 });

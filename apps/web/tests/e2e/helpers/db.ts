@@ -100,6 +100,15 @@ export async function vocabItemWord(itemId: string) {
   return { kind: item.kind, lemma: item.lexeme?.lemma ?? null, ru: translations.ru ?? null };
 }
 
+/** The browsing collections of a vocabulary item's lexeme (B6.2). */
+export async function vocabItemCollections(itemId: string) {
+  const item = await db().item.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { lexeme: { select: { collections: true } } },
+  });
+  return item.lexeme?.collections ?? [];
+}
+
 /** Idempotency keys of the learner's recorded answers, oldest first. */
 export async function itemAttemptKeys(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
