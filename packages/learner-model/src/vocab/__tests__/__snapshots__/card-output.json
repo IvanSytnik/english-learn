@@ -1,0 +1,86 @@
+{
+  "en_to_l1/ru": {
+    "count": 200,
+    "sha256": "cbec23e19836bd0a6e909fe76900dbf8bce832c28702fe2c68b674850c2ba278"
+  },
+  "en_to_l1/uk": {
+    "count": 200,
+    "sha256": "9c7cfaa0b79036c7ee2fafde1aa5a374e385f9a0c12b6c4e6bdd60a17f912edd"
+  },
+  "en_to_l1/de": {
+    "count": 200,
+    "sha256": "aa49e3bc3bf85fbf14a80183766d38c349b69b98f1d8e7a574d903b9b7ca016d"
+  },
+  "en_to_l1/en": {
+    "count": 200,
+    "sha256": "3187f8f6d29d9e6c960eff9588c330222cacd2948a70688045a2d99c1f31ca14"
+  },
+  "l1_to_en/ru": {
+    "count": 200,
+    "sha256": "914f85f1a6f5bd9b949ba034eee220d3bece07d285ad98ed09b99f74f7ab47b8"
+  },
+  "l1_to_en/uk": {
+    "count": 200,
+    "sha256": "f49689e7b41a59f889c51d82af346991b5726bcfbedf38c2cccc1a65518def1f"
+  },
+  "l1_to_en/de": {
+    "count": 200,
+    "sha256": "6538dca2a0774f2560eb5ae12855c388c04bbe50f4f73adcb88916e4fbe96e3e"
+  },
+  "l1_to_en/en": {
+    "count": 200,
+    "sha256": "39614cad749a4b2edce998398e8ae962bcc537162f9e8fbb2e73671ee73b77bb"
+  },
+  "cloze/ru": {
+    "count": 200,
+    "sha256": "490bce1532d79d4da2b26a3bf9ca0a752839fa3b89a4f3668f9ffdbcc92bc1be"
+  },
+  "cloze/uk": {
+    "count": 200,
+    "sha256": "b339f45b7cbfcedc56a3fc14100a4b95403f3b35df4508fed0fc460f6d0eb806"
+  },
+  "cloze/de": {
+    "count": 200,
+    "sha256": "24e26f890e8cdf8a8c8d37feb70352dedb9d10063b4b9e6a2d9ba270290df66e"
+  },
+  "cloze/en": {
+    "count": 200,
+    "sha256": "302f562bfebbb2f7904ea2df396a8cf590e8bfbff1a57a99793605c375a81f9c"
+  },
+  "cued_recall/ru": {
+    "count": 200,
+    "sha256": "7a390dfe59d9281cb133ae21b61b9dd40d9e2bf6efe343996e690a97ec67d8e8"
+  },
+  "cued_recall/uk": {
+    "count": 200,
+    "sha256": "d80d5bdedea76305d465f8ef6a196d34c6d4618f35ce28ba61829e8477e615d9"
+  },
+  "cued_recall/de": {
+    "count": 200,
+    "sha256": "9ad4b117fa875b257b53546257f19ca5d69885ec6fe7c185321f163a63872b98"
+  },
+  "cued_recall/en": {
+    "count": 200,
+    "sha256": "b86def658e1b34968ebca33b8a34a3792c6b65b4a6832f28ec8a5cea242423fe"
+  },
+  "full_recall/ru": {
+    "count": 200,
+    "sha256": "16b5c2a80ac36a48efe83aa21b6e58ddac9119f18752797d3b1b92574480a323"
+  },
+  "full_recall/uk": {
+    "count": 200,
+    "sha256": "6d4e0044573bd71747bb349a32704cf22a523c916c06027936c8946c4635786e"
+  },
+  "full_recall/de": {
+    "count": 200,
+    "sha256": "df80129e8926e01cb09408abd794d5185d4528e28616e647f03d0c3b16af023b"
+  },
+  "full_recall/en": {
+    "count": 200,
+    "sha256": "0052d7f9b0ca328c3f1dda5a2bcf3bf0496b74f8ea5bf09d7f514b5f2af443ae"
+  },
+  "ladder": {
+    "count": 45,
+    "sha256": "bc38aefbc2476bad0289397ddd2c8081aace8b2de81e6e3bea712b7419c88741"
+  }
+}
