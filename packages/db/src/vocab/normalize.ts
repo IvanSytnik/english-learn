@@ -31,6 +31,12 @@ export const CefrJEntrySchema = z
     topicSource: z.enum(['threshold', 'threshold-sibling', 'llm']).optional(),
     /** CEFR-J CoreInventory 1 / 2 as browsing tags (B6.2, ./collections.ts). */
     collections: z.array(CollectionKeyValue).min(1).optional(),
+    /**
+     * The source also lists this headword under a part of speech the import
+     * leaves out (B6.2b, ./shadowed.ts): the form's frequency belongs mostly
+     * to an entry we don't have (`can` noun ← modal `can`).
+     */
+    shadowedByExcludedPos: z.literal(true).optional(),
   })
   .strict();
 export type CefrJEntry = z.infer<typeof CefrJEntrySchema>;
@@ -47,6 +53,7 @@ export const CefrJDatasetSchema = z
         selection: z.string().min(1),
         topics: z.string().min(1),
         collections: z.string().min(1).optional(),
+        shadowed: z.string().min(1).optional(),
       })
       .strict(),
     entries: z.array(CefrJEntrySchema).min(1),
@@ -66,6 +73,8 @@ export type NormalizedLexemeEntry = {
   variants: string[];
   /** Browsing tags, canonical order; never a concept (B6-SPEC V2-6). */
   collections: CollectionKeyValue[];
+  /** See CefrJEntrySchema; absent = false. */
+  shadowedByExcludedPos?: true;
 };
 
 /** Letters, digits, and the joiners the wordlist uses (`brand-new`, `a.m.`, `o'clock`). */
@@ -136,6 +145,7 @@ export function normalizeEntry(entry: CefrJEntry): NormalizedLexemeEntry | null 
     topic: resolveVocabTopic(entry.topic),
     variants: (entry.variants ?? []).map((v) => normalizeLemma(v).lemma),
     collections: sortCollections(entry.collections ?? []),
+    ...(entry.shadowedByExcludedPos ? { shadowedByExcludedPos: true as const } : {}),
   };
 }
 
@@ -171,7 +181,13 @@ export function dedupeLexemes(entries: readonly NormalizedLexemeEntry[]): Normal
       (v) => v !== low.lemma,
     );
     const collections = sortCollections([...low.collections, ...high.collections]);
-    byKey.set(key, { ...low, variants, collections });
+    const shadowed = low.shadowedByExcludedPos || high.shadowedByExcludedPos;
+    byKey.set(key, {
+      ...low,
+      variants,
+      collections,
+      ...(shadowed ? { shadowedByExcludedPos: true as const } : {}),
+    });
   }
   return [...byKey.values()];
 }

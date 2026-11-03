@@ -44,6 +44,7 @@ describe('CEFR-J dataset v1.5', () => {
       topic: _topic,
       variants: _variants,
       collections: _collections,
+      shadowedByExcludedPos: _shadowed,
       lemmaKey: _key,
       ...lexeme
     } of lexemes) {
