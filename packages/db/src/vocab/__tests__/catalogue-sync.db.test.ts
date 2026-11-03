@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createPrismaClient } from '../../create-client';
 import type { PrismaClient } from '../../generated/client/client';
+import type { ExamplesSnapshot } from '../examples-snapshot';
+import { syncExamples } from '../examples-snapshot';
 import type { FrequencyDataset } from '../frequency';
 import { syncFrequency } from '../frequency';
 import { importCefrJ } from '../import';
@@ -197,5 +199,145 @@ describe.skipIf(!url)('catalogue sync: frequency and collections (real Postgres)
     expect(await syncCollections(db, DATASET, { lemmaKeyPrefix: RUN })).toMatchObject({
       changed: 0,
     });
+  });
+
+  it('examples: appended after examples[0], a changed first example left alone; dry run and re-run write nothing', async () => {
+    const ex = (sentence: string, clozeTarget: string) => ({
+      sentence,
+      clozeTarget,
+      translation: { ru: 'р', uk: 'у', de: 'd' },
+    });
+    const entry = (w: string, pos: string, base: string, examples: ReturnType<typeof ex>[]) => ({
+      lemmaKey: k(w),
+      pos,
+      sense: '',
+      base,
+      examples,
+    });
+    const snapshot: ExamplesSnapshot = {
+      source: {
+        job: 'examples',
+        model: 'm',
+        prompt: 'v1',
+        updatedAt: '2026-11-03T12:00:00.000Z',
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      entries: [
+        entry('apple', 'NOUN', 'A thing.', [
+          ex('I eat one thing a day.', 'thing'),
+          ex('Things fall down.', 'Things'),
+        ]),
+        // One of the two is already there (punctuation and case aside): only the other is added.
+        entry('bake', 'VERB', 'A thing.', [
+          ex('a THING', 'THING'),
+          ex('We bake things on Sunday.', 'things'),
+        ]),
+        // examples[0] is not the sentence this pair was made for: untouched.
+        entry('chef', 'NOUN', 'Another first sentence.', [
+          ex('A chef thing here.', 'thing'),
+          ex('Things a chef does.', 'Things'),
+        ]),
+        entry('nowhere', 'NOUN', 'A thing.', [
+          ex('No thing here at all.', 'thing'),
+          ex('Things are not here.', 'Things'),
+        ]),
+      ],
+    };
+    const examples = async () =>
+      Object.fromEntries(
+        (
+          await db.lexeme.findMany({
+            where: { lemmaKey: { in: [k('apple'), k('bake'), k('chef')] } },
+            select: { lemmaKey: true, examples: true },
+          })
+        ).map((l) => [
+          l.lemmaKey.slice(RUN.length + 1),
+          (l.examples as { sentence: string }[]).map((e) => e.sentence),
+        ]),
+      );
+    const before = await examples();
+
+    const dry = await syncExamples(db, snapshot, { lemmaKeyPrefix: RUN, dryRun: true });
+    expect(dry).toMatchObject({
+      inSnapshot: 4,
+      missing: 1,
+      changed: 2,
+      examplesAdded: 3,
+      chunks: 0,
+      written: 0,
+    });
+    expect(dry.baseChanged).toEqual([`${k('chef')} NOUN`]);
+    expect(await examples()).toEqual(before);
+
+    expect(await syncExamples(db, snapshot, { lemmaKeyPrefix: RUN, chunkSize: 1 })).toMatchObject({
+      changed: 2,
+      written: 2,
+      chunks: 2,
+    });
+    expect(await examples()).toEqual({
+      apple: ['A thing.', 'I eat one thing a day.', 'Things fall down.'],
+      bake: ['A thing.', 'We bake things on Sunday.'],
+      chef: ['A thing.'],
+    });
+    expect(await syncExamples(db, snapshot, { lemmaKeyPrefix: RUN })).toMatchObject({
+      changed: 0,
+      chunks: 0,
+    });
+  });
+
+  it('examples: a row edited between read and write is not overwritten', async () => {
+    const snapshot: ExamplesSnapshot = {
+      source: {
+        job: 'examples',
+        model: 'm',
+        prompt: 'v1',
+        updatedAt: '2026-11-03T12:00:00.000Z',
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      entries: [
+        {
+          lemmaKey: k('apple'),
+          pos: 'NOUN',
+          sense: '',
+          base: 'A thing.',
+          examples: [
+            {
+              sentence: 'I eat one thing a day.',
+              clozeTarget: 'thing',
+              translation: { ru: 'р', uk: 'у', de: 'd' },
+            },
+            {
+              sentence: 'Things fall down.',
+              clozeTarget: 'Things',
+              translation: { ru: 'р', uk: 'у', de: 'd' },
+            },
+          ],
+        },
+      ],
+    };
+    // A reviewer edits the row after the sync has read it.
+    const edited = [{ sentence: 'A thing.', clozeTarget: 'thing', translation: { ru: 'новое' } }];
+    const racing = {
+      lexeme: {
+        findMany: async (args: Parameters<typeof db.lexeme.findMany>[0]) => {
+          const rows = await db.lexeme.findMany(args);
+          await db.lexeme.update({
+            where: { lemmaKey_pos_sense: { lemmaKey: k('apple'), pos: 'NOUN', sense: '' } },
+            data: { examples: edited },
+          });
+          return rows;
+        },
+      },
+      $executeRaw: db.$executeRaw.bind(db),
+    } as unknown as Pick<PrismaClient, 'lexeme' | '$executeRaw'>;
+    expect(await syncExamples(racing, snapshot, { lemmaKeyPrefix: RUN })).toMatchObject({
+      changed: 1,
+      written: 0,
+    });
+    const row = await db.lexeme.findFirst({
+      where: { lemmaKey: k('apple') },
+      select: { examples: true },
+    });
+    expect(row?.examples).toEqual(edited);
   });
 });
