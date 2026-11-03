@@ -24,6 +24,19 @@ export default async function CreditsPage() {
           <cite>{t('frequencyCitation')}</cite>
         </p>
       </section>
+      <section aria-labelledby="pronunciation" className="mt-12">
+        <h2 id="pronunciation" className="font-content text-2xl text-ink">
+          {t('pronunciationTitle')}
+        </h2>
+        <p className="mt-3 leading-relaxed text-ink-muted">{t('pronunciationText')}</p>
+        <pre
+          lang="en"
+          data-licence="cmudict"
+          className="mt-3 whitespace-pre-wrap font-mono text-xs leading-relaxed text-ink-muted"
+        >
+          {t('pronunciationLicence')}
+        </pre>
+      </section>
       <section aria-labelledby="ai-content" className="mt-12">
         <h2 id="ai-content" className="font-content text-2xl text-ink">
           {t('aiTitle')}

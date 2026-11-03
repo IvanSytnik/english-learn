@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
+import cmudict from '../../../../packages/db/data/ipa-cmudict-us.json';
 import de from '../../messages/de.json';
 import en from '../../messages/en.json';
 import ru from '../../messages/ru.json';
@@ -74,6 +75,14 @@ describe.each(Object.keys(MESSAGES) as Locale[])('legal pages (%s)', (locale) =>
     expect(screen.getByText(credits.cefrjCitation).tagName).toBe('CITE');
     // wordfreq (B6.2): CC BY-SA 4.0, its sources and the citation its README asks for.
     expect(heading(2, credits.frequencyTitle)).toBeInTheDocument();
+    // B6.4a: CMUdict, with its BSD licence text in full, in English.
+    expect(heading(2, credits.pronunciationTitle)).toBeInTheDocument();
+    const licence = document.querySelector('[data-licence="cmudict"]') as HTMLElement;
+    expect(licence).toHaveAttribute('lang', 'en');
+    expect(licence.textContent).toContain('Copyright (C) 1993-2015 Carnegie Mellon University');
+    expect(licence.textContent).toContain('IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY');
+    // ICU would turn the licence's '' into ': the shown text is the file's, byte for byte.
+    expect(licence.textContent).toBe(cmudict.source.licenceText);
     expect(screen.getByText(credits.frequencyText)).toBeInTheDocument();
     for (const credit of ['wordfreq', 'CC BY-SA 4.0', 'OpenSubtitles', 'SUBTLEX', 'Brysbaert']) {
       expect(credits.frequencyText).toContain(credit);
