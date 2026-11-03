@@ -21,6 +21,7 @@ import type {
   ExerciseView,
   ReasonDetail,
 } from '@/lib/exercise/view';
+import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import { ConceptTheory } from '../_components/concept-theory';
 import { FeedbackDialog } from '../_components/feedback-dialog';
 import { WeekRhythmPanel } from '../_components/week-rhythm-panel';
@@ -215,7 +216,7 @@ export function ExercisePlayer({
         }
         const next = res.value;
         setView(next);
-        setRecent((refs) => [...refs, next.itemRef].slice(-10));
+        setRecent((refs) => [...refs, next.itemRef].slice(-RECENT_EXCLUDE));
         setSelected(null);
         setText('');
         setHintOpen(false);

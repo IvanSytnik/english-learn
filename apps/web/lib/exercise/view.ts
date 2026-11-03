@@ -46,9 +46,6 @@ export function parseSessionMinutes(raw: unknown): SessionMinutes | null {
   return SESSION_MINUTES.find((m) => String(m) === raw) ?? null;
 }
 
-/** How many recently shown items the player asks selectNext to skip. */
-export const RECENT_EXCLUDE = 3;
-
 const DAY_MS = 86_400_000;
 
 export type ExerciseQuestion =

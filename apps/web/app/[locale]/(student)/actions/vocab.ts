@@ -8,7 +8,7 @@ import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { authorizeAction } from '@/lib/authz';
 import { decryptVocabRef } from '@/lib/crypto/vocab-ref';
-import { RECENT_EXCLUDE } from '@/lib/exercise/view';
+import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { Result } from '@/lib/result';
 import { loadVocabOverview, type VocabOverviewView } from '@/lib/vocab-overview';
 import {

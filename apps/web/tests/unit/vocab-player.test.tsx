@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 import en from '../../messages/en.json';
 import { us } from './keys';
@@ -198,6 +199,31 @@ describe('choice modes', () => {
     await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(2));
     expect(nextVocabCardAction).toHaveBeenLastCalledWith(
       expect.objectContaining({ recentVocabRefs: ['ref-1'] }),
+    );
+  });
+
+  it('keeps exactly the RECENT_EXCLUDE latest refs the server reads, no more', async () => {
+    for (const n of [1, 2, 3, 4, 5]) {
+      nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn(`ref-${n}`)));
+    }
+    renderPlayer();
+    for (let shown = 1; shown <= 4; shown++) {
+      await onChoiceCard();
+      key('2');
+      key('Enter');
+      await onFeedback();
+      key('Enter');
+      await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(shown + 1));
+    }
+    await onChoiceCard();
+    key('2');
+    key('Enter');
+    await onFeedback();
+    key('Enter');
+    await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(6));
+    expect(RECENT_EXCLUDE).toBe(3);
+    expect(nextVocabCardAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ recentVocabRefs: ['ref-3', 'ref-4', 'ref-5'] }),
     );
   });
 

@@ -21,11 +21,11 @@ import {
   explanationFor,
   fillGap,
   gradeAnswer,
-  RECENT_EXCLUDE,
   reviewFor,
   type Verdict,
 } from '@/lib/exercise/view';
 import { learnerService } from '@/lib/learner';
+import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { Result } from '@/lib/result';
 
 export type ExerciseActionError =

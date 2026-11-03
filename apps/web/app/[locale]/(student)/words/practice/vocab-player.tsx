@@ -16,6 +16,7 @@ import {
 import { useRouter } from '@/i18n/navigation';
 import { focusKind } from '@/lib/exercise/shortcuts';
 import type { Verdict } from '@/lib/exercise/view';
+import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { VocabCardPayload, VocabFeedback, VocabSubmission } from '@/lib/vocab-session';
 import { resolveVocabShortcut, type VocabPlayerPhase } from '@/lib/vocab-shortcuts';
 import { summarizeVocabSession, type VocabSessionEntry } from '@/lib/vocab-summary';
@@ -30,8 +31,6 @@ import { VocabSessionSummary } from './vocab-session-summary';
 
 /** Cards per session (client-enforced, like the exercise player's length). */
 export const VOCAB_SESSION_LENGTH = 15;
-/** Cards just shown that selection is asked to skip. */
-const RECENT_REFS = 5;
 
 type Answer = VocabSubmission['answer'];
 type Notice = 'synonym' | 'stale' | null;
@@ -160,7 +159,7 @@ export function VocabPlayer({ conceptId }: { conceptId?: string }) {
           return;
         }
         const next = res.value;
-        setRecent((refs) => [...refs, next.vocabRef].slice(-RECENT_REFS));
+        setRecent((refs) => [...refs, next.vocabRef].slice(-RECENT_EXCLUDE));
         show(next);
       });
     },
