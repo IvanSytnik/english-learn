@@ -42,6 +42,7 @@ vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 const {
   nextVocabCardAction,
   startVocabProofAction,
+  startWordProofAction,
   submitVocabAttemptAction,
   updateDailyVocabLimitAction,
   vocabOverviewAction,
@@ -138,6 +139,7 @@ beforeEach(() => {
     lexemes: LEXEMES,
     byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
     itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
+    bySlug: new Map(LEXEMES.map((l) => [`${l.lemma}-noun`, l])),
   });
   hasItemReviewState.mockResolvedValue(false);
   nextVocab.mockResolvedValue(selection());
@@ -149,6 +151,7 @@ describe('only learners (S5)', () => {
   const calls = (vocabRef: string) => [
     () => nextVocabCardAction({}),
     () => startVocabProofAction({ vocabRef }),
+    () => startWordProofAction({ slug: 'apple-noun' }),
     () => submitVocabAttemptAction({ vocabRef, answer: { type: 'dontKnow' } }),
     () => updateDailyVocabLimitAction({ dailyVocabLimit: 20 }),
     () => vocabOverviewAction({ timeZone: 'UTC' }),
@@ -208,6 +211,19 @@ describe('input validation', () => {
       error: 'INVALID',
     });
     expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['no slug', {}],
+    ['an upper-case slug', { slug: 'Apple-noun' }],
+    ['a slug with spaces', { slug: 'apple noun' }],
+    ['a trailing hyphen', { slug: 'apple-' }],
+    ['an oversized slug', { slug: `a${'-a'.repeat(80)}` }],
+    ['a number', { slug: 42 }],
+  ])('startWordProofAction refuses %s', async (_, input) => {
+    expect(await startWordProofAction(input as never)).toEqual({ ok: false, error: 'INVALID' });
+    expect(getVocabPool).not.toHaveBeenCalled();
+    expect(hasItemReviewState).not.toHaveBeenCalled();
   });
 
   it.each([0, 51, 10.5, '20', null])('updateDailyVocabLimitAction refuses %s', async (value) => {
@@ -326,6 +342,47 @@ describe('startVocabProofAction', () => {
       ok: true,
       value: { isProof: true, card: { mode: 'cued_recall', gloss: 'яблоко' } },
     });
+  });
+});
+
+describe('startWordProofAction (B6.6)', () => {
+  it('a word by its public slug: a proof card in the learner’s language, for this learner', async () => {
+    const out = await startWordProofAction({ slug: 'apple-noun' });
+    expect(out).toMatchObject({
+      ok: true,
+      value: { isProof: true, card: { mode: 'cued_recall', gloss: 'яблоко' } },
+    });
+    if (!out.ok || 'status' in out.value) throw new Error('proof');
+    expect(await decryptVocabRef(out.value.vocabRef, USER)).toMatchObject({
+      ok: true,
+      value: { itemId: APPLE, isProof: true, lastReviewAt: null },
+    });
+    expect(hasItemReviewState).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      { userId: USER, itemId: APPLE },
+    );
+  });
+
+  it('an item or lexeme id is no address: NOT_FOUND', async () => {
+    expect(await startWordProofAction({ slug: 'lex-apple' })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+    expect(await startWordProofAction({ slug: 'item-apple' })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  it('an unexpected failure is UNAVAILABLE', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getVocabPool.mockRejectedValueOnce(new Error('db down'));
+    expect(await startWordProofAction({ slug: 'apple-noun' })).toEqual({
+      ok: false,
+      error: 'UNAVAILABLE',
+    });
+    expect(log).toHaveBeenCalledWith('startWordProof failed', expect.any(Error));
+    log.mockRestore();
   });
 });
 

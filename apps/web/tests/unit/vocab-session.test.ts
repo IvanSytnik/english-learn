@@ -26,9 +26,13 @@ vi.mock('@/lib/learner', () => ({
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
-const { loadCardAfterIntro, loadNextVocabCard, startVocabProof, submitVocabAttempt } = await import(
-  '@/lib/vocab-session'
-);
+const {
+  loadCardAfterIntro,
+  loadNextVocabCard,
+  startVocabProof,
+  startWordProof,
+  submitVocabAttempt,
+} = await import('@/lib/vocab-session');
 const { decryptVocabRef, encryptVocabRef, VOCAB_REF_DOMAIN } = await import(
   '@/lib/crypto/vocab-ref'
 );
@@ -73,6 +77,7 @@ const POOL = {
   lexemes: LEXEMES,
   byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
   itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
+  bySlug: new Map(LEXEMES.map((l) => [`${l.lemma}-noun`, l])),
 };
 const APPLE = 'item-apple';
 
@@ -758,6 +763,63 @@ describe('"Know -> prove"', () => {
   });
 });
 
+describe('"I know" on a word page (B6.6): the proof by public slug', () => {
+  const prove = (slug: string, userId = USER) => startWordProof({ userId, uiLocale: 'en', slug });
+
+  it('a never-answered word opens its proof card; no id, no key on the client', async () => {
+    const out = await prove('apple-noun');
+    if (!out.ok || 'status' in out.value) throw new Error('expected a proof card');
+    expect(out.value).toMatchObject({ isProof: true, canProve: false, hint: null, pos: 'NOUN' });
+    expect(out.value.card).toEqual({ mode: 'cued_recall', gloss: 'яблоко', cue: 'a____' });
+    expectNoAnswerKey(out.value, 'apple');
+    expect(hasItemReviewState).toHaveBeenCalledWith({}, { userId: USER, itemId: APPLE });
+    expect(nextVocab).not.toHaveBeenCalled();
+  });
+
+  it('the proof it issues is the B2.5 proof: a pass records with the proof flag', async () => {
+    const proof = await prove('apple-noun');
+    if (!proof.ok || 'status' in proof.value) throw new Error('proof');
+    recordVocabOutcome.mockResolvedValueOnce(recorded({ rating: 'EASY', scheduledDays: 8 }));
+    const out = await submitVocabAttempt({
+      userId: USER,
+      vocabRef: proof.value.vocabRef,
+      answer: { type: 'text', value: 'apple' },
+      attemptKey: 'key-w',
+    });
+    expect(recordVocabOutcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: APPLE,
+        proof: true,
+        correct: true,
+        expectedLastReviewAt: null,
+      }),
+    );
+    expect(out).toMatchObject({ ok: true, value: { proven: true } });
+  });
+
+  it('the proof ref is sealed for its learner only', async () => {
+    const proof = await prove('apple-noun');
+    if (!proof.ok || 'status' in proof.value) throw new Error('proof');
+    expect(
+      await submitVocabAttempt({
+        userId: 'user_2',
+        vocabRef: proof.value.vocabRef,
+        answer: { type: 'text', value: 'apple' },
+      }),
+    ).toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  it('an unknown slug (or one the pool left out: ambiguous, unpublished) is NOT_FOUND', async () => {
+    expect(await prove('apple-verb')).toEqual({ ok: false, error: 'NOT_FOUND' });
+    expect(hasItemReviewState).not.toHaveBeenCalled();
+  });
+
+  it('a word already answered is stale: being learned, nothing to prove', async () => {
+    hasItemReviewState.mockResolvedValueOnce(true);
+    expect(await prove('apple-noun')).toEqual({ ok: true, value: { status: 'stale' } });
+  });
+});
+
 describe('the intro card (B6.5, V2-11)', () => {
   async function introRef(over = {}) {
     nextVocab.mockResolvedValueOnce(selection(over));
@@ -902,13 +964,27 @@ describe('the intro card (B6.5, V2-11)', () => {
     expect(recordVocabOutcome).not.toHaveBeenCalled();
   });
 
-  it('startVocabProof refuses an intro ref: an intro card is not proved', async () => {
+  it('K on the intro card opens the proof (B6.6): the same cued recall check, nothing recorded', async () => {
     const intro = await introRef();
-    expect(await startVocabProof({ userId: USER, vocabRef: intro.vocabRef })).toEqual({
-      ok: false,
-      error: 'INVALID',
+    const out = await startVocabProof({ userId: USER, vocabRef: intro.vocabRef });
+    if (!out.ok || 'status' in out.value) throw new Error('expected a proof card');
+    expect(out.value).toMatchObject({ isProof: true, canProve: false, hint: null, pos: 'NOUN' });
+    expect(out.value.card).toEqual({ mode: 'cued_recall', gloss: 'яблоко', cue: 'a____' });
+    expectNoAnswerKey(out.value, 'apple');
+    expect(await decryptVocabRef(out.value.vocabRef, USER)).toMatchObject({
+      ok: true,
+      value: { kind: 'question', mode: 'cued_recall', isProof: true, lastReviewAt: null },
     });
-    expect(hasItemReviewState).not.toHaveBeenCalled();
+    expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it('an intro whose word was answered since (another tab) is stale', async () => {
+    const intro = await introRef();
+    hasItemReviewState.mockResolvedValueOnce(true);
+    expect(await startVocabProof({ userId: USER, vocabRef: intro.vocabRef })).toEqual({
+      ok: true,
+      value: { status: 'stale' },
+    });
   });
 
   it('a ref issued before B6.5 (no kind) is a question: it still submits', async () => {

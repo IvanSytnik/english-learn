@@ -1,4 +1,5 @@
 import { VocabCollectionValue } from '@englishlearn/db/vocab/collections';
+import { LexemeSlugSchema } from '@englishlearn/db/vocab/slug';
 import { parseVocabConceptId } from '@englishlearn/db/vocab/topics';
 import type { VocabSessionScope } from '@englishlearn/learner-model/service';
 import { z } from 'zod';
@@ -40,5 +41,17 @@ export function scopeFromSearchParams(
         ? { kind: 'collection', key: collection }
         : null,
   );
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * `/words/practice?prove=<slug>` (B6.6): "I know" on a word page — the
+ * session opens on that word's proof. Only a well-formed public slug, once;
+ * anything else starts the session as usual.
+ */
+export function proveSlugFromSearchParams(
+  params: Record<string, string | string[] | undefined>,
+): string | undefined {
+  const parsed = LexemeSlugSchema.safeParse(params.prove);
   return parsed.success ? parsed.data : undefined;
 }

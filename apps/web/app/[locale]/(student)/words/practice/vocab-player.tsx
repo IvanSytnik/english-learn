@@ -32,6 +32,7 @@ import { FeedbackDialog } from '../../_components/feedback-dialog';
 import {
   nextVocabCardAction,
   startVocabProofAction,
+  startWordProofAction,
   submitVocabAttemptAction,
 } from '../../actions/vocab';
 import { IpaTag, VocabCardAnswer, VocabCardPrompt, VocabIntroCard } from './vocab-renderers';
@@ -42,6 +43,15 @@ export const VOCAB_SESSION_LENGTH = 15;
 
 type Answer = VocabSubmission['answer'];
 type Notice = 'synonym' | 'stale' | null;
+
+/**
+ * Where "I know" was asked (B6.6): a never-answered word's question card, its
+ * intro card (`K`), or a word page (`proveSlug`, before the session's first
+ * card). A lost request goes back there, and Retry asks again.
+ */
+type ProofSource =
+  | { from: 'answering' | 'intro'; vocabRef: string }
+  | { from: 'start'; slug: string };
 
 const primaryButton =
   'inline-flex h-11 items-center justify-center gap-2 rounded-control bg-accent px-5 text-sm font-medium text-on-accent transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50';
@@ -59,7 +69,14 @@ const quietButton =
  * request at a time (`busy`, set before the call). Keys: one window listener,
  * attached once (`useEffectEvent`), silent while typing in the answer field.
  */
-export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
+export function VocabPlayer({
+  scope,
+  proveSlug,
+}: {
+  scope?: ClientVocabScope;
+  /** "I know" on a word page (B6.6): open the session on that word's proof. */
+  proveSlug?: string;
+}) {
   const t = useTranslations('student.words.player');
   const tl = useTranslations('learning');
   const tf = useTranslations('feedback');
@@ -85,7 +102,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   const [unsent, setUnsent] = useState<{ answer: Answer; timeMs: number } | null>(null);
   // The next card / the proof card never came back: Retry loads it again.
   const [nextFailed, setNextFailed] = useState(false);
-  const [proofFailed, setProofFailed] = useState(false);
+  const [proofFailed, setProofFailed] = useState<ProofSource | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
 
   const busy = useRef(false);
@@ -127,7 +144,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
 
   // Focus goes where the next action is: Retry after a lost request, the
   // answer field or the prompt for a card, Continue once feedback is in.
-  const anyRetry = unsent !== null || nextFailed || proofFailed;
+  const anyRetry = unsent !== null || nextFailed || proofFailed !== null;
   useEffect(() => {
     if (anyRetry) {
       retryRef.current?.focus();
@@ -146,6 +163,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       setPhase('loading');
       setError(false);
       setNextFailed(false);
+      setProofFailed(null);
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof nextVocabCardAction>>;
         try {
@@ -198,14 +216,6 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
     [scope, show],
   );
 
-  // The first card, in the browser's time zone.
-  const started = useRef(false);
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    loadNext([]);
-  }, [loadNext]);
-
   const submit = useCallback(
     (answer: Answer, resendTimeMs?: number) => {
       if (!card || phase !== 'answering' || busy.current) return;
@@ -213,7 +223,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       setPhase('submitting');
       setError(false);
       setUnsent(null);
-      setProofFailed(false);
+      setProofFailed(null);
       // A resend keeps the time of the first send: the wait is not thinking.
       const timeMs = resendTimeMs ?? Math.max(1, Date.now() - shownAt.current);
       const request = {
@@ -273,45 +283,87 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
     }
   }, [view, isChoice, selected, text, submit]);
 
-  const startProof = useCallback(() => {
-    if (!card || !offersProof || phase !== 'answering' || busy.current) return;
-    busy.current = true;
-    setPhase('submitting');
-    setError(false);
-    setProofFailed(false);
-    const vocabRef = card.vocabRef;
-    startTransition(async () => {
-      let res: Awaited<ReturnType<typeof startVocabProofAction>>;
-      try {
-        res = await callServerAction(() => startVocabProofAction({ vocabRef }));
-      } catch {
-        // No reply: nothing is written by starting a proof, asking again is safe.
+  // "I know": the B2.5 proof — one cued recall answer — for a word never answered.
+  const requestProof = useCallback(
+    (source: ProofSource) => {
+      if (busy.current) return;
+      busy.current = true;
+      // Back where it was asked if the request is lost.
+      const back = source.from === 'start' ? 'loading' : source.from;
+      setPhase(source.from === 'start' ? 'loading' : 'submitting');
+      setError(false);
+      setNextFailed(false);
+      setProofFailed(null);
+      startTransition(async () => {
+        let res: Awaited<ReturnType<typeof startVocabProofAction>>;
+        try {
+          res = await callServerAction(() =>
+            source.from === 'start'
+              ? startWordProofAction({ slug: source.slug })
+              : startVocabProofAction({ vocabRef: source.vocabRef }),
+          );
+        } catch {
+          // No reply: nothing is written by starting a proof, asking again is safe.
+          busy.current = false;
+          setProofFailed(source);
+          setPhase(back);
+          return;
+        }
         busy.current = false;
-        setProofFailed(true);
-        setPhase('answering');
-        return;
-      }
-      busy.current = false;
-      if (!res.ok) {
-        setError(true);
-        setPhase('answering');
-        return;
-      }
-      if ('status' in res.value) {
-        setNotice('stale');
-        loadNext(recent);
-        return;
-      }
-      setNotice(null);
-      show(res.value);
-    });
-  }, [card, offersProof, phase, loadNext, recent, show]);
+        if (source.from === 'start' && (!res.ok || 'status' in res.value)) {
+          // The word page's word cannot be proved now (being learned since,
+          // unpublished): the session simply starts.
+          loadNext([]);
+          return;
+        }
+        if (!res.ok) {
+          setError(true);
+          setPhase(back);
+          return;
+        }
+        if ('status' in res.value) {
+          setNotice('stale');
+          loadNext(recent);
+          return;
+        }
+        const proof = res.value;
+        setNotice(null);
+        setIntro(null);
+        // A question card's word is in the recent list already.
+        if (source.from !== 'answering') {
+          setRecent((refs) => [...refs, proof.vocabRef].slice(-RECENT_EXCLUDE));
+        }
+        show(proof);
+      });
+    },
+    [loadNext, recent, show],
+  );
 
-  // Continue and "I know" on an intro card (B6.5: both open the first question).
+  const startProof = useCallback(() => {
+    if (!card || !offersProof || phase !== 'answering') return;
+    requestProof({ from: 'answering', vocabRef: card.vocabRef });
+  }, [card, offersProof, phase, requestProof]);
+
+  // Continue on an intro card: the word's first question.
   const continueIntro = useCallback(() => {
     if (phase !== 'intro' || !intro) return;
     loadNext(recent, intro.vocabRef);
   }, [phase, intro, loadNext, recent]);
+
+  // "I know" on an intro card (`K`, B6.6): the proof instead of the first question.
+  const knowIntro = useCallback(() => {
+    if (phase !== 'intro' || !intro) return;
+    requestProof({ from: 'intro', vocabRef: intro.vocabRef });
+  }, [phase, intro, requestProof]);
+
+  // The first card, in the browser's time zone — or the word page's proof.
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    if (proveSlug === undefined) loadNext([]);
+    else requestProof({ from: 'start', slug: proveSlug });
+  }, [loadNext, requestProof, proveSlug]);
 
   const toggleHint = useCallback(() => {
     if (phase !== 'answering' || !offersHint) return;
@@ -343,6 +395,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       if (!introAction) return;
       event.preventDefault();
       if (introAction.type === 'pause') router.push('/words');
+      else if (introAction.type === 'know') knowIntro();
       else continueIntro();
       return;
     }
@@ -400,7 +453,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   const retry = unsent
     ? { text: tl('player.sendFailed'), onClick: () => submit(unsent.answer, unsent.timeMs) }
     : proofFailed
-      ? { text: t('proofFailed'), onClick: startProof }
+      ? { text: t('proofFailed'), onClick: () => requestProof(proofFailed) }
       : nextFailed
         ? { text: t('nextFailed'), onClick: () => loadNext(recent, intro?.vocabRef) }
         : null;
@@ -544,7 +597,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
               <button
                 type="button"
                 className={quietButton}
-                onClick={continueIntro}
+                onClick={knowIntro}
                 disabled={phase !== 'intro'}
               >
                 {t('know')}
@@ -553,7 +606,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
             </div>
           }
         />
-      ) : nextFailed ? null : (
+      ) : nextFailed || proofFailed ? null : (
         <p className="text-sm text-ink-muted" aria-busy="true">
           {t('loading')}
         </p>

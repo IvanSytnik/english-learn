@@ -3,6 +3,7 @@
 import { prisma } from '@englishlearn/db';
 import { setDailyVocabLimit } from '@englishlearn/db/queries/vocab-session';
 import { DailyVocabLimitSchema, isLocale } from '@englishlearn/db/schemas';
+import { LexemeSlugSchema } from '@englishlearn/db/vocab/slug';
 import { getLocale } from 'next-intl/server';
 import { z } from 'zod';
 import { authorizeAction } from '@/lib/authz';
@@ -16,8 +17,9 @@ import {
   loadNextVocabCard,
   type NextVocabCard,
   startVocabProof,
+  startWordProof,
   submitVocabAttempt,
-  type VocabCardPayload,
+  type VocabProofStart,
   type VocabSubmitOutcome,
 } from '@/lib/vocab-session';
 
@@ -53,6 +55,9 @@ const NextSchema = z.object({
 });
 
 const ProofSchema = z.object({ vocabRef: VocabRefSchema });
+
+/** A word by its public slug (B6.6, B6-SPEC §1) — never an Item or Lexeme id. */
+const WordProofSchema = z.object({ slug: LexemeSlugSchema });
 
 const SubmitSchema = z.object({
   vocabRef: VocabRefSchema,
@@ -129,13 +134,33 @@ export async function nextVocabCardAction(
 /** "I know this word": the one cued recall check that proves it. */
 export async function startVocabProofAction(
   input: z.input<typeof ProofSchema>,
-): Promise<Result<VocabCardPayload | { status: 'stale' }, VocabActionError>> {
+): Promise<Result<VocabProofStart, VocabActionError>> {
   const user = await authorizeAction('STUDENT');
   if (!user.ok) return user;
   const parsed = ProofSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
   return guarded('startVocabProof', () =>
     startVocabProof({ userId: user.value.id, vocabRef: parsed.data.vocabRef }),
+  );
+}
+
+/**
+ * "I know" on a word page (B6.6): the same proof, for the word a public slug
+ * names. Writes nothing — the answer is recorded by submitVocabAttemptAction.
+ */
+export async function startWordProofAction(
+  input: z.input<typeof WordProofSchema>,
+): Promise<Result<VocabProofStart, VocabActionError>> {
+  const user = await authorizeAction('STUDENT');
+  if (!user.ok) return user;
+  const parsed = WordProofSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' };
+  return guarded('startWordProof', async () =>
+    startWordProof({
+      userId: user.value.id,
+      uiLocale: await currentLocale(),
+      slug: parsed.data.slug,
+    }),
   );
 }
 

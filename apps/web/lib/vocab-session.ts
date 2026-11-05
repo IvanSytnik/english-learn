@@ -303,33 +303,64 @@ export async function loadCardAfterIntro(args: {
 
 /**
  * "I know this word": swap a new word's first card for one cued recall
- * answer. Only from a card served for a never-answered word; if the word has
- * been answered since (another tab), the card is stale.
+ * answer. From the word's intro card (`K`, B6.6) or its first question — a
+ * card served for a never-answered word; if the word has been answered since
+ * (another tab), the card is stale.
  */
 export async function startVocabProof(args: {
   userId: string;
   vocabRef: string;
-}): Promise<Result<VocabCardPayload | { status: 'stale' }, VocabSessionError>> {
+}): Promise<Result<VocabProofStart, VocabSessionError>> {
   const { userId } = args;
   const decrypted = await decryptVocabRef(args.vocabRef, userId);
   if (!decrypted.ok) return { ok: false, error: 'INVALID' };
   const ref = decrypted.value;
-  // An intro reference is no question: it is never answered, nor proved.
-  if (
-    ref.kind !== 'question' ||
-    ref.isProof ||
-    ref.lastReviewAt !== null ||
-    ref.mode !== 'en_to_l1'
-  ) {
+  // A proof is offered once, for a word never answered: not from a proof,
+  // not from a later rung.
+  if (ref.isProof || ref.lastReviewAt !== null || ref.mode !== 'en_to_l1') {
     return { ok: false, error: 'INVALID' };
   }
+  const pool = await getVocabPool();
+  return proofCard(pool, userId, { ...ref, kind: 'question' });
+}
 
-  const [answered, pool] = await Promise.all([
-    hasItemReviewState(prisma, { userId, itemId: ref.itemId }),
-    getVocabPool(),
-  ]);
-  if (answered) return { ok: true, value: { status: 'stale' } };
+/**
+ * "I know" on a word page (B6.6): the same proof, for the word a public slug
+ * names (B6-SPEC §1). An unknown, ambiguous or unpublished slug is NOT_FOUND;
+ * a word already answered is stale — it is being learned, nothing to prove.
+ */
+export async function startWordProof(args: {
+  userId: string;
+  uiLocale: Locale;
+  slug: string;
+}): Promise<Result<VocabProofStart, VocabSessionError>> {
+  const { userId } = args;
+  const [pool, locale] = await Promise.all([getVocabPool(), learnerLocale(userId, args.uiLocale)]);
+  const word = pool.bySlug.get(args.slug);
+  if (!word) return { ok: false, error: 'NOT_FOUND' };
+  return proofCard(pool, userId, {
+    kind: 'question',
+    itemId: word.itemId,
+    mode: 'en_to_l1',
+    isProof: false,
+    lastReviewAt: null,
+    locale,
+    correctIndex: null,
+    optionItemIds: null,
+  });
+}
 
+export type VocabProofStart = VocabCardPayload | { status: 'stale' };
+
+/** The proof card for a never-answered word's first question `ref`. */
+async function proofCard(
+  pool: VocabPool,
+  userId: string,
+  ref: VocabRef,
+): Promise<Result<VocabProofStart, VocabSessionError>> {
+  if (await hasItemReviewState(prisma, { userId, itemId: ref.itemId })) {
+    return { ok: true, value: { status: 'stale' } };
+  }
   const proof: VocabRef = {
     ...ref,
     mode: PROOF_MODE,

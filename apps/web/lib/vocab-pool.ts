@@ -4,6 +4,7 @@ import {
   getPublishedVocabLexemes,
   type VocabLexemeRow,
 } from '@englishlearn/db/queries/vocab-lexemes';
+import { slugIndex } from '@englishlearn/db/vocab/slug';
 
 /**
  * The published vocabulary the card builder draws targets, distractors and
@@ -20,6 +21,12 @@ export type VocabPool = {
   byItemId: ReadonlyMap<string, VocabLexemeRow>;
   /** Lexeme id → its VOCAB_WORD Item id (one item per lexeme). */
   itemIdByLexemeId: ReadonlyMap<string, string>;
+  /**
+   * Public slug → word (B6.6, `lexemeSlug`): how browsing pages and their
+   * actions name a word. An ambiguous slug is left out (logged): NOT_FOUND,
+   * never the wrong word.
+   */
+  bySlug: ReadonlyMap<string, VocabLexemeRow>;
 };
 
 let cached: { expiresAt: number; value: Promise<VocabPool> } | null = null;
@@ -30,10 +37,13 @@ export function getVocabPool(nowMs: number = Date.now()): Promise<VocabPool> {
     if (invalidItemIds.length > 0) {
       console.error('vocab pool: unparseable published items left out', invalidItemIds);
     }
+    const { bySlug, ambiguous } = slugIndex(rows);
+    if (ambiguous.length > 0) console.error('vocab pool: ambiguous word slugs', ambiguous);
     return {
       lexemes: rows,
       byItemId: new Map(rows.map((r) => [r.itemId, r])),
       itemIdByLexemeId: new Map(rows.map((r) => [r.id, r.itemId])),
+      bySlug,
     };
   });
   const entry = { expiresAt: nowMs + VOCAB_POOL_TTL_MS, value };

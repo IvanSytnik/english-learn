@@ -9,18 +9,26 @@ import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 import en from '../../messages/en.json';
 import { us } from './keys';
 
-const { nextVocabCardAction, startVocabProofAction, submitVocabAttemptAction, push, hardReload } =
-  vi.hoisted(() => ({
-    nextVocabCardAction: vi.fn(),
-    startVocabProofAction: vi.fn(),
-    submitVocabAttemptAction: vi.fn(),
-    push: vi.fn(),
-    hardReload: vi.fn(),
-  }));
+const {
+  nextVocabCardAction,
+  startVocabProofAction,
+  startWordProofAction,
+  submitVocabAttemptAction,
+  push,
+  hardReload,
+} = vi.hoisted(() => ({
+  nextVocabCardAction: vi.fn(),
+  startVocabProofAction: vi.fn(),
+  startWordProofAction: vi.fn(),
+  submitVocabAttemptAction: vi.fn(),
+  push: vi.fn(),
+  hardReload: vi.fn(),
+}));
 vi.mock('@/lib/hard-reload', () => ({ hardReload }));
 vi.mock('@/app/[locale]/(student)/actions/vocab', () => ({
   nextVocabCardAction,
   startVocabProofAction,
+  startWordProofAction,
   submitVocabAttemptAction,
 }));
 // The dialog has its own tests; here only the ref it is opened with matters.
@@ -89,10 +97,10 @@ const answered = (over: Partial<VocabFeedback> = {}) => ({
   } satisfies VocabFeedback,
 });
 
-function renderPlayer(scope?: ClientVocabScope) {
+function renderPlayer(scope?: ClientVocabScope, proveSlug?: string) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <VocabPlayer scope={scope} />
+      <VocabPlayer scope={scope} proveSlug={proveSlug} />
     </NextIntlClientProvider>,
   );
 }
@@ -121,6 +129,7 @@ beforeEach(() => {
   sessionStorage.clear();
   nextVocabCardAction.mockReset();
   startVocabProofAction.mockReset();
+  startWordProofAction.mockReset();
   submitVocabAttemptAction.mockReset();
   nextVocabCardAction.mockResolvedValue(served(l1ToEn('ref-2')));
   submitVocabAttemptAction.mockResolvedValue(answered());
@@ -629,14 +638,86 @@ describe('the intro card (B6.5)', () => {
     }
   });
 
-  it('K ("I know this word") also opens the question (B6.5)', async () => {
+  it.each([
+    ['K', () => key('k', document.body)],
+    [
+      'the button',
+      () => fireEvent.click(screen.getByRole('button', { name: /^I know this word/ })),
+    ],
+  ])('%s ("I know this word") opens the proof of the intro’s word, not its question (B6.6)', async (_, press) => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
+    startVocabProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    renderPlayer();
+    await onIntro();
+    press();
+    await onTextCard();
+    expect(startVocabProofAction).toHaveBeenCalledExactlyOnceWith({ vocabRef: 'intro-k' });
+    expect(afterIntroCalls()).toHaveLength(0);
+    expect(screen.getByText(p.proofBadge)).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'house' })).toBeNull();
+  });
+
+  it('a proof from the intro joins the recent refs: a failed one is not served straight back', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
+    startVocabProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    submitVocabAttemptAction.mockResolvedValueOnce(answered({ verdict: 'incorrect' }));
+    renderPlayer();
+    await onIntro();
+    key('k', document.body);
+    const field = await onTextCard();
+    fireEvent.change(field, { target: { value: 'hose' } });
+    key('Enter', field);
+    await onFeedback();
+    key('Enter');
+    await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(2));
+    expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({
+      recentVocabRefs: ['ref-proof'],
+    });
+  });
+
+  it('a lost proof start keeps the intro and offers Retry, which asks for the proof again', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
+    startVocabProofAction.mockRejectedValueOnce(new Error('offline'));
+    startVocabProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    renderPlayer();
+    await onIntro();
+    key('k', document.body);
+    const retry = await screen.findByRole('button', { name: /^Retry/ });
+    await waitFor(() => expect(retry).toHaveFocus());
+    expect(screen.getByText(p.proofFailed)).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'house' })).toBeVisible();
+    fireEvent.click(retry);
+    await onTextCard();
+    expect(startVocabProofAction.mock.calls).toEqual([
+      [{ vocabRef: 'intro-k' }],
+      [{ vocabRef: 'intro-k' }],
+    ]);
+  });
+
+  it('Continue after a lost proof start clears its Retry and opens the question', async () => {
     nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
     nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+    startVocabProofAction.mockRejectedValueOnce(new Error('offline'));
+    renderPlayer();
+    await onIntro();
+    key('k', document.body);
+    await screen.findByRole('button', { name: /^Retry/ });
+    fireEvent.click(screen.getByRole('button', { name: /^Continue/ }));
+    await onChoiceCard();
+    expect(screen.queryByRole('button', { name: /^Retry/ })).toBeNull();
+    expect(afterIntroCalls()).toHaveLength(1);
+  });
+
+  it('a word answered since (another tab) moves on to the next card', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+    startVocabProofAction.mockResolvedValueOnce({ ok: true, value: { status: 'stale' } });
     renderPlayer();
     await onIntro();
     key('k', document.body);
     await onChoiceCard();
-    expect(afterIntroCalls()).toHaveLength(1);
+    expect(screen.getByText(p.stale)).toBeVisible();
+    expect(nextVocabCardAction.mock.lastCall?.[0]).not.toHaveProperty('afterIntro');
   });
 
   it.each([
@@ -654,6 +735,7 @@ describe('the intro card (B6.5)', () => {
       fireEvent.keyDown(document.body, { ...us('k'), ...over });
     });
     expect(afterIntroCalls()).toHaveLength(0);
+    expect(startVocabProofAction).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -672,6 +754,7 @@ describe('the intro card (B6.5)', () => {
       fireEvent.keyDown(field, us('k'));
     });
     expect(afterIntroCalls()).toHaveLength(0);
+    expect(startVocabProofAction).not.toHaveBeenCalled();
     host.remove();
   });
 
@@ -684,14 +767,33 @@ describe('the intro card (B6.5)', () => {
     // All in one tick: no re-render between them, so only the ref set before
     // the call can stop the rest (phase state would still read 'intro').
     act(() => {
-      fireEvent.keyDown(document.body, us('k'));
+      fireEvent.keyDown(document.body, us('Enter'));
       fireEvent.keyDown(document.body, us('k'));
       fireEvent.keyDown(document.body, us('Enter'));
       fireEvent.click(screen.getByRole('button', { name: /^Continue/ }));
     });
     expect(afterIntroCalls()).toHaveLength(1);
+    expect(startVocabProofAction).not.toHaveBeenCalled();
     await act(async () => reply(served(l1ToEn('q-1'))));
     await onChoiceCard();
+  });
+
+  it('one request in flight: K first, then Continue / K before the reply sends nothing', async () => {
+    let reply: (v: unknown) => void = () => {};
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    startVocabProofAction.mockImplementationOnce(() => new Promise((r) => (reply = r)));
+    renderPlayer();
+    await onIntro();
+    act(() => {
+      fireEvent.keyDown(document.body, us('k'));
+      fireEvent.keyDown(document.body, us('k'));
+      fireEvent.keyDown(document.body, us('Enter'));
+      fireEvent.click(screen.getByRole('button', { name: /^Continue/ }));
+    });
+    expect(startVocabProofAction).toHaveBeenCalledTimes(1);
+    expect(afterIntroCalls()).toHaveLength(0);
+    await act(async () => reply({ ok: true, value: proofCard('ref-proof') }));
+    await onTextCard();
   });
 
   it('a lost reply keeps the intro and offers Retry, which asks again with the intro ref', async () => {
@@ -723,6 +825,59 @@ describe('the intro card (B6.5)', () => {
     await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(3));
     expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({ recentVocabRefs: ['q-1'] });
     expect(nextVocabCardAction.mock.lastCall?.[0]).not.toHaveProperty('afterIntro');
+  });
+});
+
+describe('"I know" on a word page (B6.6, `?prove=<slug>`)', () => {
+  it('opens the session on that word’s proof — no card is selected first', async () => {
+    startWordProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    renderPlayer({ kind: 'collection', key: 'clothes' }, 'house-noun');
+    await onTextCard();
+    expect(startWordProofAction).toHaveBeenCalledExactlyOnceWith({ slug: 'house-noun' });
+    expect(nextVocabCardAction).not.toHaveBeenCalled();
+    expect(screen.getByText(p.proofBadge)).toBeVisible();
+  });
+
+  it('after the proof the session goes on in its scope, the proof among the recent refs', async () => {
+    startWordProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    renderPlayer({ kind: 'collection', key: 'clothes' }, 'house-noun');
+    const field = await onTextCard();
+    fireEvent.change(field, { target: { value: 'house' } });
+    key('Enter', field);
+    await onFeedback();
+    key('Enter');
+    await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(1));
+    expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({
+      scope: { kind: 'collection', key: 'clothes' },
+      recentVocabRefs: ['ref-proof'],
+    });
+  });
+
+  it.each([
+    ['refused (unknown or unpublished word)', { ok: false, error: 'NOT_FOUND' }],
+    ['stale (being learned since)', { ok: true, value: { status: 'stale' } }],
+  ])('%s: the session simply starts, without a notice', async (_, reply) => {
+    startWordProofAction.mockResolvedValueOnce(reply);
+    renderPlayer(undefined, 'house-noun');
+    await onChoiceCard();
+    expect(nextVocabCardAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(p.stale)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('a lost reply offers Retry (no loading line), which asks for the same word again', async () => {
+    startWordProofAction.mockRejectedValueOnce(new Error('offline'));
+    startWordProofAction.mockResolvedValueOnce({ ok: true, value: proofCard('ref-proof') });
+    renderPlayer(undefined, 'house-noun');
+    const retry = await screen.findByRole('button', { name: /^Retry/ });
+    await waitFor(() => expect(retry).toHaveFocus());
+    expect(screen.queryByText(p.loading)).toBeNull();
+    fireEvent.click(retry);
+    await onTextCard();
+    expect(startWordProofAction.mock.calls).toEqual([
+      [{ slug: 'house-noun' }],
+      [{ slug: 'house-noun' }],
+    ]);
   });
 });
 
