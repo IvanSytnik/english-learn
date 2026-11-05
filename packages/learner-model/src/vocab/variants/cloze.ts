@@ -8,14 +8,15 @@ import {
   surfaceShape,
 } from '../text';
 import type { VocabLexeme } from '../types';
-import { cardRng, choice, gradeChoice, pickFor, VocabCardError } from './shared';
+import { cardRng, choice, gradeChoice, pickFor, rotatedExample, VocabCardError } from './shared';
 import type { VocabCard, VocabCardInput, VocabVariant } from './types';
 
 /**
- * Mode 3 (7 ≤ S < 21): a sentence with a gap, choose what fills it. A blank
- * whose form no three other words share (`kind-hearted`) is no fair choice:
- * the variant is not eligible and l1_to_en is served instead — the served
- * mode is `view.mode`, and that is what the payload records.
+ * Mode 3 (7 ≤ S < 21): a sentence with a gap, choose what fills it. The
+ * sentence is one of the word's examples, rotated by card seed (B6.5). A
+ * blank whose form no three other words share (`kind-hearted`) is no fair
+ * choice: the variant is not eligible and l1_to_en is served instead — the
+ * served mode is `view.mode`, and that is what the payload records.
  */
 export const cloze: VocabVariant<'cloze'> = {
   id: 'cloze',
@@ -36,7 +37,8 @@ export const cloze: VocabVariant<'cloze'> = {
 function clozeCard(input: VocabCardInput): VocabCard | null {
   const { target } = input;
   const rng = cardRng(input, 'cloze');
-  const example = target.examples[0];
+  // Rotates over the word's examples by card seed (B6.5); one example → it.
+  const example = rotatedExample(target, input.seed);
   if (!example) throw new VocabCardError(`"${target.lemma}" has no example sentence`);
 
   const span = findClozeSpan(example.sentence, example.clozeTarget);

@@ -1,8 +1,9 @@
+import { countWholeWord } from '@englishlearn/db/schemas';
 import { makeRng, type Rng, seedFromString } from '../../policy/rng';
 import { DISTRACTOR_COUNT, pickDistractors, shuffle } from '../distractors';
 import type { VocabAnswer, VocabGrade, VocabGradingKey } from '../grade';
 import { containsWholeWord, glossKey, glossOf, normalizeAnswer } from '../text';
-import type { VocabLexeme, VocabLocale, VocabMode } from '../types';
+import type { VocabExample, VocabLexeme, VocabLocale, VocabMode } from '../types';
 import type { VocabAnswerKey, VocabCard, VocabCardInput, VocabCardView } from './types';
 
 /** Helpers every variant shares: the RNG of a card, distractors, the choice shuffle, grading. */
@@ -14,6 +15,18 @@ export class VocabCardError extends Error {
 /** The card's own draws: seeded by the served question and the variant id. */
 export const cardRng = (input: { seed: string }, id: VocabMode): Rng =>
   makeRng(seedFromString(`${input.seed}:${id}`));
+
+/**
+ * The example sentence of one served card (B6.5 rotation): index
+ * `seedFromString(cardSeed) mod n` over the examples whose clozeTarget occurs
+ * exactly once as a whole word (LexemeExampleSchema's rule). The same card
+ * seed, the same sentence — a reload and the grader see what was shown; the
+ * next review of the word (a new seed) may show another. Null: none.
+ */
+export function rotatedExample(target: VocabLexeme, seed: string): VocabExample | null {
+  const valid = target.examples.filter((ex) => countWholeWord(ex.sentence, ex.clozeTarget) === 1);
+  return valid[seedFromString(seed) % valid.length] ?? null;
+}
 
 /**
  * The gloss shown as a prompt (modes 2, 4, 5). A cognate gloss that contains

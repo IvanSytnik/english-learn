@@ -33,19 +33,19 @@
   },
   "cloze/ru": {
     "count": 200,
-    "sha256": "490bce1532d79d4da2b26a3bf9ca0a752839fa3b89a4f3668f9ffdbcc92bc1be"
+    "sha256": "b74c454b3cc849dffad344581fb4cbca24e5117c398bded302ade4303527d7f5"
   },
   "cloze/uk": {
     "count": 200,
-    "sha256": "b339f45b7cbfcedc56a3fc14100a4b95403f3b35df4508fed0fc460f6d0eb806"
+    "sha256": "01b7a5492e2def55d48922c74165d7a6f069a20a7aedf90c99bfee2d6f63da77"
   },
   "cloze/de": {
     "count": 200,
-    "sha256": "24e26f890e8cdf8a8c8d37feb70352dedb9d10063b4b9e6a2d9ba270290df66e"
+    "sha256": "9c1c4825e4e08163820b4a856aeae76bc97080d1c9395edb223cc8e934d7e678"
   },
   "cloze/en": {
     "count": 200,
-    "sha256": "302f562bfebbb2f7904ea2df396a8cf590e8bfbff1a57a99793605c375a81f9c"
+    "sha256": "fe2ea920bbaa005efeaa6986aa0b97301f56645dba3558a25fabd71b929bed17"
   },
   "cued_recall/ru": {
     "count": 200,
