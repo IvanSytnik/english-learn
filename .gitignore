@@ -59,6 +59,15 @@ CLAUDE.md
 AGENTS.md
 HANDOFF.md
 PROJECT_MEMORY.md
+ROADMAP.md
 AUDIT_REPORT.md
 .claude/
 .playwright-mcp/
+
+# split HANDOFF (local notes)
+docs/PITFALLS.md
+docs/DECISIONS.md
+docs/ARCHITECTURE.md
+docs/LOG.md
+docs/archive/
+docs/
