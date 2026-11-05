@@ -1,5 +1,7 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
-import IRREGULAR from '../../../data/irregular-forms.json';
+// The attribute is required: Node's ESM loader (Playwright e2e helpers import
+// this package) refuses a JSON module without it; bundlers accept it.
+import IRREGULAR from '../../../data/irregular-forms.json' with { type: 'json' };
 
 /**
  * Word forms for the paste import's reverse matcher (B6.7, B6-SPEC §5).
