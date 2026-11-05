@@ -76,3 +76,35 @@ describe('nextVocab', () => {
     expect(await next(['gone'])).toMatchObject({ itemId: 'food-1' });
   });
 });
+
+describe('B6.5: the learner level and the allowance', () => {
+  const rows = [word('food-1', 'vocab.food_drink.a1', 1)];
+  const port = (assessedLevel: 'A2' | 'B1' | null, count: number): VocabSessionDb => ({
+    getVocabCandidates: async () => rows,
+    newVocabSince: async () => ({ count, lemmaKeys: [] }),
+    getVocabProfile: async () => ({ dailyLimit: 10, assessedLevel }),
+  });
+
+  it('nextVocab returns the assessed level with the selection (null = none)', async () => {
+    for (const level of ['B1', 'A2', null] as const) {
+      const out = await createVocabSessionService(port(level, 0)).nextVocab({
+        userId: 'u1',
+        timeZone: 'UTC',
+        nowMs: NOW,
+      });
+      expect(out).toMatchObject({ ok: true, itemId: 'food-1', learnerLevel: level });
+    }
+  });
+
+  it('remainingNew: the daily limit minus today’s first attempts, never below 0', async () => {
+    const left = (count: number) =>
+      createVocabSessionService(port(null, count)).remainingNew({
+        userId: 'u1',
+        timeZone: 'UTC',
+        nowMs: NOW,
+      });
+    expect(await left(0)).toBe(10);
+    expect(await left(7)).toBe(3);
+    expect(await left(12)).toBe(0);
+  });
+});

@@ -19,6 +19,7 @@ export {
   type VocabGrade,
   type VocabGradingKey,
 } from './grade';
+export { buildVocabIntro, INTRO_COLLOCATIONS, type VocabIntroView } from './intro';
 export { LADDER_THRESHOLDS, PROOF_MODE, vocabModeFor } from './ladder';
 export {
   type StageCounts,

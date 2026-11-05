@@ -75,6 +75,19 @@ export function createVocabSessionService(db: VocabSessionDb) {
       };
     },
 
+    /**
+     * Today's new-word allowance left, without selecting: the question after
+     * an intro card is served for its word, not chosen (B6.5).
+     */
+    async remainingNew(input: { userId: string; timeZone: unknown; nowMs?: number }) {
+      const dayStart = localDayStartMs(input.nowMs ?? Date.now(), input.timeZone);
+      const [{ count }, profile] = await Promise.all([
+        db.newVocabSince(input.userId, dayStart),
+        db.getVocabProfile(input.userId),
+      ]);
+      return Math.max(0, profile.dailyLimit - count);
+    },
+
     async nextVocab(input: NextVocabInput): Promise<VocabNext> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
