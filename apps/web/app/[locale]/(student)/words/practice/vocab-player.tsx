@@ -14,6 +14,7 @@ import {
   useTransition,
 } from 'react';
 import { useRouter } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { focusKind } from '@/lib/exercise/shortcuts';
 import type { Verdict } from '@/lib/exercise/view';
 import { RECENT_EXCLUDE } from '@/lib/recent-refs';
@@ -148,12 +149,15 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof nextVocabCardAction>>;
         try {
-          res = await nextVocabCardAction({
-            timeZone: browserTimeZone(),
-            scope,
-            recentVocabRefs: recentRefs,
-            ...(afterIntro === undefined ? {} : { afterIntro }),
-          });
+          // A page from before a deploy reloads once instead (V2-15).
+          res = await callServerAction(() =>
+            nextVocabCardAction({
+              timeZone: browserTimeZone(),
+              scope,
+              recentVocabRefs: recentRefs,
+              ...(afterIntro === undefined ? {} : { afterIntro }),
+            }),
+          );
         } catch {
           // No reply: nothing changed on the server, loading again is safe.
           busy.current = false;
@@ -222,7 +226,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof submitVocabAttemptAction>>;
         try {
-          res = await submitVocabAttemptAction(request);
+          res = await callServerAction(() => submitVocabAttemptAction(request));
         } catch {
           // No reply: recorded or not, resending with the same key is safe.
           busy.current = false;
@@ -279,7 +283,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof startVocabProofAction>>;
       try {
-        res = await startVocabProofAction({ vocabRef });
+        res = await callServerAction(() => startVocabProofAction({ vocabRef }));
       } catch {
         // No reply: nothing is written by starting a proof, asking again is safe.
         busy.current = false;

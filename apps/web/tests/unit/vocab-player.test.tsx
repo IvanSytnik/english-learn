@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,14 +9,15 @@ import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 import en from '../../messages/en.json';
 import { us } from './keys';
 
-const { nextVocabCardAction, startVocabProofAction, submitVocabAttemptAction, push } = vi.hoisted(
-  () => ({
+const { nextVocabCardAction, startVocabProofAction, submitVocabAttemptAction, push, hardReload } =
+  vi.hoisted(() => ({
     nextVocabCardAction: vi.fn(),
     startVocabProofAction: vi.fn(),
     submitVocabAttemptAction: vi.fn(),
     push: vi.fn(),
-  }),
-);
+    hardReload: vi.fn(),
+  }));
+vi.mock('@/lib/hard-reload', () => ({ hardReload }));
 vi.mock('@/app/[locale]/(student)/actions/vocab', () => ({
   nextVocabCardAction,
   startVocabProofAction,
@@ -116,6 +118,7 @@ const lastSubmit = () => submitVocabAttemptAction.mock.lastCall?.[0];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
   nextVocabCardAction.mockReset();
   startVocabProofAction.mockReset();
   submitVocabAttemptAction.mockReset();
@@ -720,5 +723,43 @@ describe('the intro card (B6.5)', () => {
     await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(3));
     expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({ recentVocabRefs: ['q-1'] });
     expect(nextVocabCardAction.mock.lastCall?.[0]).not.toHaveProperty('afterIntro');
+  });
+});
+
+describe('deployment skew (V2-15)', () => {
+  // What Next 16.2 throws when the server does not know the action's id.
+  const unknownAction = () =>
+    new UnrecognizedActionError('Server Action "7f00aa" was not found on the server.');
+
+  it('an unknown action reloads the page once; failing again after the reload shows Retry', async () => {
+    nextVocabCardAction.mockRejectedValueOnce(unknownAction());
+    renderPlayer();
+    await waitFor(() => expect(hardReload).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // The reloaded page (same tab, same sessionStorage), still out of step.
+    cleanup();
+    nextVocabCardAction.mockRejectedValueOnce(unknownAction());
+    renderPlayer();
+    expect(await screen.findByRole('alert')).toHaveTextContent(p.nextFailed);
+    expect(hardReload).toHaveBeenCalledTimes(1);
+  });
+
+  it('an answer sent to an unknown action reloads once too, before anything shows', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('ref-1')));
+    submitVocabAttemptAction.mockRejectedValueOnce(unknownAction());
+    renderPlayer();
+    await onChoiceCard();
+    await key('1');
+    await key('Enter');
+    await waitFor(() => expect(hardReload).toHaveBeenCalledTimes(1));
+  });
+
+  it('a successful call clears the guard, so the next deploy may reload again', async () => {
+    sessionStorage.setItem('englishlearn:action-skew-reload', String(Date.now()));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('ref-1')));
+    renderPlayer();
+    await onChoiceCard();
+    expect(sessionStorage.getItem('englishlearn:action-skew-reload')).toBeNull();
   });
 });
