@@ -15,6 +15,7 @@ export function lex(
     en?: string;
     examples?: VocabExample[];
     variants?: string[];
+    collocations?: string[];
     id?: string;
   } = {},
 ): VocabLexeme {
@@ -36,6 +37,7 @@ export function lex(
       { sentence: `I see the ${lemma} here.`, translation: { ru: 'x' }, clozeTarget: lemma },
     ],
     variants: opts.variants ?? [],
+    ...(opts.collocations ? { collocations: opts.collocations } : {}),
   };
 }
 

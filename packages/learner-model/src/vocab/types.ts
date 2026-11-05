@@ -72,6 +72,7 @@ export type VocabMode = (typeof VOCAB_MODES)[number];
 export const VOCAB_CARD_VARIANTS = Object.freeze([
   ...VOCAB_MODES,
   'definition_to_en',
+  'collocation',
 ] as const satisfies readonly VocabVariantValue[]);
 export type VocabVariantId = (typeof VOCAB_CARD_VARIANTS)[number];
 

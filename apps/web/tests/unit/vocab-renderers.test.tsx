@@ -60,7 +60,15 @@ const choiceOptions = ['дом', 'кот', 'стол', 'окно'];
 describe('VOCAB_RENDERERS', () => {
   it('has one renderer per variant', () => {
     expect(Object.keys(VOCAB_RENDERERS).sort()).toEqual(
-      ['cloze', 'cued_recall', 'definition_to_en', 'en_to_l1', 'full_recall', 'l1_to_en'].sort(),
+      [
+        'cloze',
+        'collocation',
+        'cued_recall',
+        'definition_to_en',
+        'en_to_l1',
+        'full_recall',
+        'l1_to_en',
+      ].sort(),
     );
   });
 
@@ -101,5 +109,38 @@ describe('VOCAB_RENDERERS', () => {
     unmount();
     answer(view, { answered: true });
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('B6.5: definition_to_en shows the English definition; collocation fills its gap once answered', () => {
+    const definition: View = {
+      mode: 'definition_to_en',
+      definition: 'a place to live',
+      options: ['house', 'cat', 'table', 'window'],
+    };
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <VocabCardPrompt view={definition} card={payload(definition)} feedback={null} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText('a place to live')).toHaveAttribute('lang', 'en');
+
+    const phrase: View = {
+      mode: 'collocation',
+      phrase: 'build ___',
+      options: ['a house', 'a cat', 'a table', 'a window'],
+    };
+    const prompt = (fb: VocabFeedback | null) =>
+      render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <VocabCardPrompt view={phrase} card={payload(phrase)} feedback={fb} />
+        </NextIntlClientProvider>,
+      );
+    const before = prompt(null);
+    const gap = before.container.querySelector('[data-collocation]');
+    expect(gap).toHaveAttribute('lang', 'en');
+    expect(gap?.textContent).not.toContain('a house');
+    before.unmount();
+    const after = prompt(feedback);
+    expect(after.container.querySelector('[data-collocation]')?.textContent).toContain('a house');
   });
 });

@@ -3,6 +3,7 @@ export {
   buildVocabVariant,
   type ChoiceVariantId,
   cardSeed,
+  pickVariantIndex,
   type VocabAnswerKey,
   type VocabBuildInput,
   type VocabCard,

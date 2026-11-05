@@ -36,34 +36,49 @@ export const cloze: VocabRungVariant<'cloze'> = {
 
 /** Null when fewer than three other words share the blank's form. */
 function clozeCard(input: VocabBuildInput): VocabCard | null {
-  const { target } = input;
-  const rng = cardRng(input, 'cloze');
   // Rotates over the word's examples by card seed (B6.5); one example → it.
-  const example = rotatedExample(target, input.seed);
-  if (!example) throw new VocabCardError(`"${target.lemma}" has no example sentence`);
+  const example = rotatedExample(input.target, input.seed);
+  if (!example) throw new VocabCardError(`"${input.target.lemma}" has no example sentence`);
+  return gappedChoice(input, 'cloze', example.sentence, example.clozeTarget);
+}
 
-  const span = findClozeSpan(example.sentence, example.clozeTarget);
-  const surface = example.sentence.slice(span.start, span.end);
+/**
+ * A choice over a gap cut in `text` where `form` (one whole-word occurrence)
+ * was — a cloze sentence or a collocation (B6.5). The options are the form
+ * and other words' forms of the same shape; null when fewer than three other
+ * words share it.
+ */
+export function gappedChoice(
+  input: VocabBuildInput,
+  id: 'cloze' | 'collocation',
+  text: string,
+  form: string,
+): VocabCard | null {
+  const { target } = input;
+  const rng = cardRng(input, id);
+
+  const span = findClozeSpan(text, form);
+  const surface = text.slice(span.start, span.end);
   const shape = surfaceShape(surface, target.lemmaKey, target.pos);
   // With an article right before the blank, the blank takes it in: "___ pear"
   // after "an" would give the answer away (`an ___` -> a vowel).
   const article = span.article;
-  const withArticle = (form: string) =>
-    article ? `${matchInitialCase(articleFor(form), article.text)} ${form}` : form;
-  const asOption = (form: string) => withArticle(matchInitialCase(form, surface));
+  const withArticle = (f: string) =>
+    article ? `${matchInitialCase(articleFor(f), article.text)} ${f}` : f;
+  const asOption = (f: string) => withArticle(matchInitialCase(f, surface));
 
-  // The sentence's own article for the answer; distractors get theirs by spelling.
+  // The text's own article for the answer; distractors get theirs by spelling.
   const correct = article ? `${article.text} ${surface}` : surface;
   const distractors = pickFor(input, rng, correct, (l) => {
-    const form = formWithShape(l, shape);
-    return form === null ? null : asOption(form);
+    const f = formWithShape(l, shape);
+    return f === null ? null : asOption(f);
   });
   if (distractors.length < DISTRACTOR_COUNT) return null;
 
   const gapStart = article ? article.start : span.start;
-  const sentence = `${example.sentence.slice(0, gapStart)}${PRACTICE_GAP}${example.sentence.slice(span.end)}`;
+  const gapped = `${text.slice(0, gapStart)}${PRACTICE_GAP}${text.slice(span.end)}`;
   return choice(
-    { mode: 'cloze', sentence },
+    id === 'cloze' ? { mode: 'cloze', sentence: gapped } : { mode: 'collocation', phrase: gapped },
     { option: correct, lexemeId: target.id },
     distractors,
     rng,

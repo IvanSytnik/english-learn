@@ -95,6 +95,7 @@ describe('vocabModeFor (the word ladder)', () => {
       full_recall: 'recall',
       // B6.5: served on the l1_to_en rung, recorded like it.
       definition_to_en: 'recognition',
+      collocation: 'cloze',
     });
   });
 });

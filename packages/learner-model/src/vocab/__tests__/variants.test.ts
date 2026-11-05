@@ -26,7 +26,7 @@ describe('VOCAB_VARIANTS', () => {
     expect(RUNG_VARIANTS).toEqual({
       en_to_l1: ['en_to_l1'],
       l1_to_en: ['l1_to_en', 'definition_to_en'],
-      cloze: ['cloze'],
+      cloze: ['cloze', 'collocation'],
       cued_recall: ['cued_recall'],
       full_recall: ['full_recall'],
     });

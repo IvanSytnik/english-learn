@@ -343,6 +343,7 @@
           "l1_to_en": "Choose the English word.",
           "definition_to_en": "Choose the English word for this definition.",
           "cloze": "Choose the word that fits the gap.",
+          "collocation": "Choose the word that completes the phrase.",
           "cued_recall": "Type the English word. The first letter is shown.",
           "full_recall": "Type the English word."
         },

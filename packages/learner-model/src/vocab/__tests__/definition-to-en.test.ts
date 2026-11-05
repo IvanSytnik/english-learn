@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seedFromString } from '../../policy/rng';
-import { buildVocabCard } from '../card';
+import { buildVocabCard, pickVariantIndex } from '../card';
 import { gradeVocabAnswer } from '../grade';
 import { containsWholeWord, surfaceForms } from '../text';
 import type { VocabLexeme } from '../types';
@@ -108,9 +107,9 @@ describe('definition_to_en distractors: the pool is filtered once, before pickin
 });
 
 describe('the variant inside rung 2 is picked by card seed', () => {
-  it('index seedFromString(`${seed}:variant`) mod n over the eligible ones', () => {
+  it('index pickVariantIndex(cardSeed, n) over the eligible ones', () => {
     for (const seed of SEEDS) {
-      const want = ['l1_to_en', 'definition_to_en'][seedFromString(`${seed}:variant`) % 2];
+      const want = ['l1_to_en', 'definition_to_en'][pickVariantIndex(seed, 2)];
       expect(rung2(purchase, POOL, seed).view.mode, seed).toBe(want);
     }
   });

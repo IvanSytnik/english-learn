@@ -51,6 +51,21 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const wholeWordRe = (word: string) =>
   new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(word)}(?![\\p{L}\\p{N}])`, 'iu');
 
+/**
+ * Every whole-word occurrence in `text` of any of `words` (case-insensitive,
+ * the longest word first where two start at one place), in order.
+ */
+export function wholeWordMatches(text: string, words: readonly string[]): RegExpExecArray[] {
+  const alternatives = [...new Set(words)].filter((w) => w.length > 0);
+  if (alternatives.length === 0) return [];
+  alternatives.sort((a, b) => b.length - a.length);
+  const re = new RegExp(
+    `(?<![\\p{L}\\p{N}])(?:${alternatives.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}])`,
+    'giu',
+  );
+  return [...text.matchAll(re)];
+}
+
 /** `word` occurs in `text` as a whole word, case-insensitively (`Bank` in `die Bank`). */
 export const containsWholeWord = (text: string, word: string) => wholeWordRe(word).test(text);
 

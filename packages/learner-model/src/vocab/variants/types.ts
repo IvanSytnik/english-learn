@@ -19,6 +19,8 @@ export type VocabCardView =
   | { mode: 'definition_to_en'; definition: string; options: string[] }
   /** Mode 3: a sentence with a gap, choose what fills it. */
   | { mode: 'cloze'; sentence: string; options: string[] }
+  /** Mode 3, a B1+ learner (B6.5): a collocation with a gap (`make a ___`), choose what fills it. */
+  | { mode: 'collocation'; phrase: string; options: string[] }
   /** Mode 4: the meaning and a first-letter cue (`l___ u_`), type the word. */
   | { mode: 'cued_recall'; gloss: string; cue: string }
   /** Mode 5: the meaning, type the word. */
@@ -45,7 +47,12 @@ export type VocabAnswerKey =
     };
 
 /** The variants answered by choosing one of four options. */
-export type ChoiceVariantId = 'en_to_l1' | 'l1_to_en' | 'definition_to_en' | 'cloze';
+export type ChoiceVariantId =
+  | 'en_to_l1'
+  | 'l1_to_en'
+  | 'definition_to_en'
+  | 'cloze'
+  | 'collocation';
 
 export type VocabCard = { view: VocabCardView; key: VocabAnswerKey };
 

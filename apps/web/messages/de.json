@@ -343,6 +343,7 @@
           "l1_to_en": "Wähle das englische Wort.",
           "definition_to_en": "Wähle das englische Wort zu dieser Definition.",
           "cloze": "Wähle das Wort, das in die Lücke passt.",
+          "collocation": "Wähle das Wort, das die Wendung vervollständigt.",
           "cued_recall": "Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
           "full_recall": "Schreib das englische Wort."
         },

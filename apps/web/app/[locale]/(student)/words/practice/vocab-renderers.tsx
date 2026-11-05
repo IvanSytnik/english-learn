@@ -72,6 +72,20 @@ export const VOCAB_RENDERERS: { readonly [M in VocabVariantId]: VocabRenderer<M>
     ),
     Answer: (props) => <ChoiceAnswer {...props} optionLang="en" />,
   },
+  collocation: {
+    // A collocation with a gap (B1+, B6.5), filled in once the answer is in.
+    Prompt: ({ view, feedback }) => (
+      <p lang="en" className="font-content text-[1.5rem] leading-snug text-ink" data-collocation="">
+        <ClozeSentence
+          sentence={view.phrase}
+          fill={
+            feedback?.correctIndex != null ? (view.options[feedback.correctIndex] ?? null) : null
+          }
+        />
+      </p>
+    ),
+    Answer: (props) => <ChoiceAnswer {...props} optionLang="en" />,
+  },
   cued_recall: {
     Prompt: ({ view }) => (
       <>

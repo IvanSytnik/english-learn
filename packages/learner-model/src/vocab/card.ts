@@ -1,4 +1,4 @@
-import { seedFromString } from '../policy/rng';
+import { makeRng, seedFromString } from '../policy/rng';
 import type { VocabVariantId } from './types';
 import { RUNG_VARIANTS, VocabCardError, vocabVariant } from './variants';
 import type { VocabBuildInput, VocabCard, VocabCardInput, VocabVariant } from './variants/types';
@@ -30,17 +30,25 @@ export const cardSeed = (args: { userId: string; itemId: string; lastReviewAt: b
   `${args.userId}:${args.itemId}:${args.lastReviewAt ?? 'new'}`;
 
 /**
+ * Which of `n` eligible variants a card serves: the first draw of the card's
+ * own `variant` RNG. Not `seedFromString(seed) mod n` — djb2's low bits move
+ * together for seeds that share a prefix, so that index would decide the
+ * example and collocation indexes (also taken mod n of the card seed) with it.
+ */
+export const pickVariantIndex = (seed: string, n: number): number =>
+  Math.floor(makeRng(seedFromString(`${seed}:variant`)).next() * n);
+
+/**
  * The card for the rung `input.mode`: one of the rung's eligible variants,
- * picked by card seed (`seedFromString(seed:variant) mod n` — a rung with one
- * eligible variant serves it, as before B6.5). When none is eligible, the
- * rung's own fallback chain (cloze → l1_to_en). The served variant is
- * `view.mode`.
+ * picked by card seed (pickVariantIndex — a rung with one eligible variant
+ * serves it, as before B6.5). When none is eligible, the rung's own
+ * fallback chain (cloze → l1_to_en). The served variant is `view.mode`.
  */
 export function buildVocabCard(input: VocabCardInput): VocabCard {
   const eligible = RUNG_VARIANTS[input.mode].filter((id) =>
     vocabVariant(id).eligible(input.target, input),
   );
-  const picked = eligible[seedFromString(`${input.seed}:variant`) % eligible.length];
+  const picked = eligible[pickVariantIndex(input.seed, eligible.length)];
   if (picked !== undefined) return buildVocabVariant(input, picked);
 
   let variant: VocabVariant = vocabVariant(input.mode);

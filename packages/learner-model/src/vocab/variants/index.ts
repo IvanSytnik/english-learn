@@ -1,5 +1,6 @@
 import { VOCAB_CARD_VARIANTS, VOCAB_MODES, type VocabMode, type VocabVariantId } from '../types';
 import { cloze } from './cloze';
+import { collocation } from './collocation';
 import { cuedRecall } from './cued-recall';
 import { definitionToEn } from './definition-to-en';
 import { enToL1 } from './en-to-l1';
@@ -23,6 +24,7 @@ export const VOCAB_VARIANTS: { readonly [M in VocabMode]: VocabRungVariant<M> } 
   cued_recall: cuedRecall,
   full_recall: fullRecall,
   definition_to_en: definitionToEn,
+  collocation,
 });
 
 export const vocabVariant = <M extends VocabVariantId>(id: M): VocabVariant<M> =>
