@@ -161,13 +161,46 @@ export function shadowedIdentities(
 }
 
 /**
+ * Entries the secondary-sense rule gets wrong, made primary by name (V2-10,
+ * Ivan's review of the 58 shadowed entries, 2026-11-05): data with a reason
+ * each, never a heuristic. Applied after the shadowed flag — an entry listed
+ * here is primary whatever (a) and (b) say.
+ */
+export const SECONDARY_SENSE_OVERRIDES: readonly {
+  readonly lemmaKey: string;
+  readonly pos: PartOfSpeechValue;
+  readonly sense: string;
+  readonly reason: string;
+}[] = Object.freeze([
+  {
+    lemmaKey: 'need',
+    pos: 'VERB',
+    sense: '',
+    reason:
+      'Shadowed by the modal `need` (`need not`), which is rare in modern English; the main verb (`I need help`) carries the form.',
+  },
+  {
+    lemmaKey: 'little',
+    pos: 'ADJECTIVE',
+    sense: '',
+    reason:
+      'Shadowed by the determiner (`a little milk`), but the adjective (`a little house`) is a core A1 sense of the form, not a second one.',
+  },
+]);
+
+const OVERRIDDEN_PRIMARY: ReadonlySet<string> = new Set(
+  SECONDARY_SENSE_OVERRIDES.map(lexemeIdentity),
+);
+
+/**
  * The secondary senses among the PUBLISHED rows (B6-SPEC §2, revised in
  * B6.2b). A row is secondary when
  * (a) another PUBLISHED row of its lemmaKey has a strictly lower CEFR level
  *     — equal levels are both primary (`wash` noun A1 and verb A1); or
  * (b) its identity is in `shadowed`: the source lists the headword under a
  *     left-out POS, so the form's frequency belongs to an entry the catalogue
- *     doesn't have (`can` noun, `being` noun).
+ *     doesn't have (`can` noun, `being` noun);
+ * and it is not in SECONDARY_SENSE_OVERRIDES (`need` verb, `little` adjective).
  * Only PUBLISHED rows are compared (a DRAFT/REVIEW neighbour changes nothing).
  */
 export function secondarySenseIds(
@@ -184,8 +217,9 @@ export function secondarySenseIds(
     published
       .filter(
         (r) =>
-          CEFR_ORDER.indexOf(r.cefrLevel) > (lowest.get(r.lemmaKey) as number) ||
-          shadowed.has(lexemeIdentity(r)),
+          (CEFR_ORDER.indexOf(r.cefrLevel) > (lowest.get(r.lemmaKey) as number) ||
+            shadowed.has(lexemeIdentity(r))) &&
+          !OVERRIDDEN_PRIMARY.has(lexemeIdentity(r)),
       )
       .map((r) => r.id),
   );

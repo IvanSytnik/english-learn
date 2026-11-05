@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import type { PartOfSpeechValue } from '../../schemas/lexeme';
+import { lexemeIdentity, loadCefrJDataset } from '../dataset';
 import {
   CLOSED_CLASS_POS,
   type FrequencyRow,
@@ -8,6 +9,7 @@ import {
   isClosedClass,
   loadFrequencyDataset,
   planFrequency,
+  SECONDARY_SENSE_OVERRIDES,
   secondarySenseIds,
   shadowedIdentities,
 } from '../frequency';
@@ -145,6 +147,59 @@ describe('planFrequency', () => {
     expect(rank()).toEqual({ c: 1, w: 2 });
   });
 
+  it('B6.5a overrides on the committed dataset: need (verb) and little (adjective) are primary; May, can, being (nouns) stay secondary', () => {
+    const { lexemes } = loadCefrJDataset();
+    const rows = lexemes.map((l) =>
+      row(lexemeIdentity(l), l.lemmaKey, 'PUBLISHED', {
+        pos: l.pos,
+        sense: l.sense,
+        cefrLevel: l.cefrLevel,
+      }),
+    );
+    const shadowed = shadowedIdentities(lexemes);
+    const secondary = secondarySenseIds(rows, shadowed);
+    const id = (lemmaKey: string, pos: PartOfSpeechValue) =>
+      lexemeIdentity({ lemmaKey, pos, sense: '' });
+    expect(secondary.has(id('need', 'VERB'))).toBe(false);
+    expect(secondary.has(id('little', 'ADJECTIVE'))).toBe(false);
+    for (const key of ['may', 'can', 'being']) {
+      expect(secondary.has(id(key, 'NOUN')), key).toBe(true);
+    }
+    // The rank reads it: need (verb) among the primary content words.
+    const z = Object.fromEntries(lexemes.map((l) => [l.lemmaKey, 3]));
+    const plan = new Map(
+      planFrequency(rows, { ...z, need: 5.5, can: 6 }, shadowed).map((p) => [p.id, p]),
+    );
+    const needRank = plan.get(id('need', 'VERB'))?.frequencyRank ?? Infinity;
+    const canRank = plan.get(id('can', 'NOUN'))?.frequencyRank ?? -Infinity;
+    expect(needRank).toBeLessThan(canRank);
+  });
+
+  it('an override beats both rules: a lower level of the key (a) and the shadowed flag (b)', () => {
+    const rows = [
+      row('need-n', 'need', 'PUBLISHED', { cefrLevel: 'A1' }), // makes need (verb) secondary by (a)
+      row('need-v', 'need', 'PUBLISHED', { pos: 'VERB', cefrLevel: 'A2' }),
+      row('little-adj', 'little', 'PUBLISHED', { pos: 'ADJECTIVE' }),
+      row('can-n', 'can', 'PUBLISHED', { cefrLevel: 'A2' }),
+    ];
+    const shadowed = shadowedIdentities([
+      { lemmaKey: 'need', pos: 'VERB', sense: '', shadowedByExcludedPos: true },
+      { lemmaKey: 'little', pos: 'ADJECTIVE', sense: '', shadowedByExcludedPos: true },
+      { lemmaKey: 'can', pos: 'NOUN', sense: '', shadowedByExcludedPos: true },
+    ]);
+    expect([...secondarySenseIds(rows, shadowed)]).toEqual(['can-n']);
+  });
+
+  it('SECONDARY_SENSE_OVERRIDES: each names a shadowed entry of the dataset, with a reason', () => {
+    const { lexemes } = loadCefrJDataset();
+    const shadowed = shadowedIdentities(lexemes);
+    expect(SECONDARY_SENSE_OVERRIDES.length).toBeGreaterThan(0);
+    for (const o of SECONDARY_SENSE_OVERRIDES) {
+      expect(shadowed.has(lexemeIdentity(o)), `${o.lemmaKey} ${o.pos}`).toBe(true);
+      expect(o.reason.trim().length, o.lemmaKey).toBeGreaterThan(20);
+    }
+  });
+
   it('closed class = preposition, conjunction, pronoun, other — not interjection', () => {
     expect([...CLOSED_CLASS_POS].sort()).toEqual([
       'CONJUNCTION',
@@ -220,7 +275,8 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2'] as const;
 const rowsArb = fc
   .array(
     fc.record({
-      key: fc.constantFrom('a', 'b', 'c', 'd', 'e', 'f', 'not'),
+      // `need` (VERB, sense '') is in SECONDARY_SENSE_OVERRIDES.
+      key: fc.constantFrom('a', 'b', 'c', 'd', 'e', 'f', 'not', 'need'),
       pos: fc.constantFrom(...POS),
       sense: fc.constantFrom('', 'x'),
       cefrLevel: fc.constantFrom(...LEVELS),
@@ -264,7 +320,7 @@ describe('planFrequency properties (B6.2a)', () => {
     );
   });
 
-  it('secondary ⇔ PUBLISHED and (a strictly lower PUBLISHED level of the key, or shadowed)', () => {
+  it('secondary ⇔ PUBLISHED, not overridden and (a strictly lower PUBLISHED level of the key, or shadowed)', () => {
     fc.assert(
       fc.property(rowsArb, fc.array(fc.nat(29), { maxLength: 5 }), (rows, picks) => {
         const flagged = picks.flatMap((i) => (rows[i] ? [rows[i]] : []));
@@ -277,7 +333,11 @@ describe('planFrequency properties (B6.2a)', () => {
           const lower = rows.some(
             (o) => o.status === 'PUBLISHED' && o.lemmaKey === r.lemmaKey && level(o) < level(r),
           );
-          const expected = r.status === 'PUBLISHED' && (lower || flagged.includes(r));
+          const overridden = SECONDARY_SENSE_OVERRIDES.some(
+            (o) => lexemeIdentity(o) === lexemeIdentity(r),
+          );
+          const expected =
+            r.status === 'PUBLISHED' && !overridden && (lower || flagged.includes(r));
           expect(secondary.has(r.id)).toBe(expected);
         }
       }),
