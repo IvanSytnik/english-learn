@@ -120,6 +120,45 @@ describe('B6.1 analytics fields are never folded', () => {
     expect(snapshot(a.memory)).toBe(snapshot(b.memory));
   });
 
+  it('B6.5 variant ids (schema-first) fold like the rung they replace', async () => {
+    const renamed: Partial<Record<string, string>> = {
+      en_to_l1: 'audio_to_l1',
+      l1_to_en: 'definition_to_en',
+      cloze: 'collocation',
+      cued_recall: 'dictation',
+      full_recall: 'level_up',
+    };
+    const later = withAnalytics.map((p) => {
+      const variant = p.variant && !p.proof ? renamed[p.variant] : p.variant;
+      const mode = p.variant === 'full_recall' && !p.proof ? 'cloze' : p.mode;
+      const { answerText: _, ...rest } = p;
+      return ItemAttemptedPayloadSchema.parse({
+        ...(variant === 'level_up' ? rest : p),
+        variant,
+        mode,
+      });
+    });
+    expect(new Set(later.map((p) => p.variant))).toEqual(
+      new Set([
+        'audio_to_l1',
+        'definition_to_en',
+        'collocation',
+        'dictation',
+        'level_up',
+        'cued_recall',
+        undefined,
+      ]),
+    );
+    const plain = withoutAnalytics.map((p, i) =>
+      later[i]?.mode === p.mode
+        ? p
+        : ItemAttemptedPayloadSchema.parse({ ...p, mode: later[i]?.mode }),
+    );
+    const a = await replayed(later);
+    const b = await replayed(plain);
+    expect(snapshot(a.memory)).toBe(snapshot(b.memory));
+  });
+
   it('one fold step ignores them too, whatever the prior state', () => {
     let prev = { bkt: null, fsrs: null, stage: null } as Parameters<typeof applyItemAttempted>[0];
     for (const [i, payload] of withAnalytics.entries()) {

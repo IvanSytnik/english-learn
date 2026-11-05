@@ -191,6 +191,32 @@ describe('ItemAttemptedPayloadSchema — vocabulary analytics (B6.1)', () => {
     ).toBe(false);
   });
 
+  it('B6.5 ids are accepted schema-first, each with its coarse mode', () => {
+    const added = {
+      definition_to_en: 'recognition',
+      collocation: 'cloze',
+      audio_to_l1: 'recognition',
+      dictation: 'recall',
+      level_up: 'cloze',
+    } as const;
+    expect(VocabVariantValue.options.slice(5)).toEqual(Object.keys(added));
+    for (const [variant, mode] of Object.entries(added)) {
+      const payload = { ...vocab, mode, variant, locale: 'ru' };
+      expect(ItemAttemptedPayloadSchema.parse(payload), variant).toEqual(payload);
+      const wrongMode = mode === 'recall' ? 'recognition' : 'recall';
+      expect(issuePath({ ...payload, mode: wrongMode }), variant).toEqual(['mode']);
+    }
+    // choice ids take a confused distractor, the typed one takes its text
+    for (const variant of ['definition_to_en', 'collocation', 'audio_to_l1', 'level_up'] as const) {
+      const wrong = { ...vocab, mode: added[variant], variant, chosenItemId: 'item.vocab.pear' };
+      expect(ItemAttemptedPayloadSchema.safeParse(wrong).success, variant).toBe(true);
+      expect(issuePath({ ...wrong, answerText: 'pear' }), variant).toEqual(['answerText']);
+    }
+    const dictation = { ...vocab, mode: 'recall', variant: 'dictation', answerText: 'appel' };
+    expect(ItemAttemptedPayloadSchema.parse(dictation)).toEqual(dictation);
+    expect(issuePath({ ...dictation, chosenItemId: 'item.vocab.pear' })).toEqual(['chosenItemId']);
+  });
+
   it('a proof is a cued recall card', () => {
     const proof = { ...vocab, correct: true, rating: 'EASY', mode: 'recall', proof: true };
     expect(issuePath({ ...proof, variant: 'full_recall' })).toEqual(['variant']);

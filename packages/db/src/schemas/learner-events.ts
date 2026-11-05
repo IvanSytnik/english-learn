@@ -37,9 +37,11 @@ export const PracticeModeSchema = z.enum(['recognition', 'recall', 'cloze']);
 export type PracticeModeValue = z.infer<typeof PracticeModeSchema>;
 
 /**
- * The exact vocabulary card shown (B6.1) — the five rungs of the word ladder
- * (B2.5). Canonical here; learner-model's VOCAB_MODES is this enum. `mode`
- * stays the coarse view of it (VOCAB_VARIANT_MODE).
+ * The exact vocabulary card shown (B6.1): the five rungs of the word ladder
+ * (B2.5) and the variants inside a rung (B6-SPEC §3). Canonical here;
+ * learner-model's ladder rungs (VOCAB_MODES) are the first five. `mode`
+ * stays the coarse view of it (VOCAB_VARIANT_MODE). B6.5 accepts every
+ * remaining B6 id schema-first, before anything writes it (expand deploy).
  */
 export const VocabVariantValue = z.enum([
   'en_to_l1',
@@ -47,6 +49,12 @@ export const VocabVariantValue = z.enum([
   'cloze',
   'cued_recall',
   'full_recall',
+  // B6.5, schema-first: rung 2, 3, 1, 4 and 5 variants.
+  'definition_to_en',
+  'collocation',
+  'audio_to_l1',
+  'dictation',
+  'level_up',
 ]);
 export type VocabVariantValue = z.infer<typeof VocabVariantValue>;
 
@@ -58,13 +66,22 @@ export const VOCAB_VARIANT_MODE: Readonly<Record<VocabVariantValue, PracticeMode
     cloze: 'cloze',
     cued_recall: 'recall',
     full_recall: 'recall',
+    definition_to_en: 'recognition',
+    collocation: 'cloze',
+    audio_to_l1: 'recognition',
+    dictation: 'recall',
+    level_up: 'cloze',
   });
 
-/** Variants answered by choosing one of four options. */
+/** Variants answered by choosing one of four options (the rest are typed). */
 export const CHOICE_VOCAB_VARIANTS: readonly VocabVariantValue[] = Object.freeze([
   'en_to_l1',
   'l1_to_en',
   'cloze',
+  'definition_to_en',
+  'collocation',
+  'audio_to_l1',
+  'level_up',
 ]);
 
 export const isChoiceVocabVariant = (v: VocabVariantValue) => CHOICE_VOCAB_VARIANTS.includes(v);
