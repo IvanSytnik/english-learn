@@ -37,6 +37,22 @@ export default async function CreditsPage() {
           {t('pronunciationLicence')}
         </pre>
       </section>
+      <section aria-labelledby="word-forms" className="mt-12">
+        <h2 id="word-forms" className="font-content text-2xl text-ink">
+          {t('wordnetTitle')}
+        </h2>
+        <p className="mt-3 leading-relaxed text-ink-muted">{t('wordnetText')}</p>
+        <p className="mt-3 leading-relaxed text-ink">
+          <cite>{t('wordnetCitation')}</cite>
+        </p>
+        <pre
+          lang="en"
+          data-licence="wordnet"
+          className="mt-3 whitespace-pre-wrap font-mono text-xs leading-relaxed text-ink-muted"
+        >
+          {t('wordnetLicence')}
+        </pre>
+      </section>
       <section aria-labelledby="ai-content" className="mt-12">
         <h2 id="ai-content" className="font-content text-2xl text-ink">
           {t('aiTitle')}

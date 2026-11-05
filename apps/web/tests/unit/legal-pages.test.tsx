@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { createTranslator } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import cmudict from '../../../../packages/db/data/ipa-cmudict-us.json';
+import wordnet from '../../../../packages/learner-model/data/irregular-forms.json';
 import de from '../../messages/de.json';
 import en from '../../messages/en.json';
 import ru from '../../messages/ru.json';
@@ -83,6 +84,14 @@ describe.each(Object.keys(MESSAGES) as Locale[])('legal pages (%s)', (locale) =>
     expect(licence.textContent).toContain('IN NO EVENT SHALL CARNEGIE MELLON UNIVERSITY');
     // ICU would turn the licence's '' into ': the shown text is the file's, byte for byte.
     expect(licence.textContent).toBe(cmudict.source.licenceText);
+    // B6.7: WordNet 3.0 (paste import's irregular forms), its notice and disclaimer in full.
+    expect(heading(2, credits.wordnetTitle)).toBeInTheDocument();
+    expect(screen.getByText(credits.wordnetCitation).tagName).toBe('CITE');
+    const wordnetLicence = document.querySelector('[data-licence="wordnet"]') as HTMLElement;
+    expect(wordnetLicence).toHaveAttribute('lang', 'en');
+    expect(wordnetLicence.textContent).toContain(wordnet.source.copyright);
+    expect(wordnetLicence.textContent).toContain('THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS"');
+    expect(wordnetLicence.textContent).toBe(wordnet.source.licenceText);
     expect(screen.getByText(credits.frequencyText)).toBeInTheDocument();
     for (const credit of ['wordfreq', 'CC BY-SA 4.0', 'OpenSubtitles', 'SUBTLEX', 'Brysbaert']) {
       expect(credits.frequencyText).toContain(credit);
