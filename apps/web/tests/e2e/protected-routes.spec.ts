@@ -1,6 +1,11 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { login, STUDENT } from './helpers/auth';
 
+// B6.2b run 3 lost the session right after login in `signed-in student` (4
+// failures, not reproduced). Auth is fail-open on a DB error, so the cause is
+// open: keep the trace of every failure here, not only of a retry.
+test.use({ trace: 'retain-on-failure' });
+
 /** Follows redirects by hand; fails on a loop instead of hanging or hitting a generic limit. */
 async function followRedirects(request: APIRequestContext, start: string, maxHops = 3) {
   const hops: string[] = [start];
