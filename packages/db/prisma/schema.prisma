@@ -52,6 +52,8 @@ model User {
   itemReviewStates ItemReviewState[]
   learnerEvents LearnerEvent[]
   betaFeedbacks BetaFeedback[]
+  lexemePreferences StudentLexemePreference[]
+  wordLists         WordList[]
 
 
   // Content authorship
@@ -546,10 +548,76 @@ model Lexeme {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  items Item[]
+  items       Item[]
+  preferences StudentLexemePreference[]
+  listEntries WordListEntry[]
 
   @@unique([lemmaKey, pos, sense])
   @@index([status, cefrLevel, pos])
+}
+
+enum LexemePreferenceState {
+  PRIORITIZED
+  HIDDEN
+}
+
+/// A learner's choice about one word (B6.6): put it first among new words,
+/// or hide it from every tier of the session (B6-SPEC V2-13). A mutable
+/// preference that steers selection only — NOT learner state: never folded,
+/// never an event, and the projections of a hidden word stay as they are.
+/// One row per user and word: prioritizing a hidden word unhides it.
+model StudentLexemePreference {
+  userId    String
+  lexemeId  String
+  state     LexemePreferenceState
+  updatedAt DateTime              @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lexeme Lexeme @relation(fields: [lexemeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lexemeId])
+  @@index([userId, state])
+}
+
+enum WordListSource {
+  CUSTOM
+  IMPORT
+  TUTOR
+}
+
+/// A learner's own word list (B6.6 model, UI in B6.7). Limits in the
+/// queries: <= 50 active (not archived) lists per owner, <= 500 entries per
+/// list. Raw-SQL CHECK (migration 20261105120000_word_lists_preferences):
+/// title is 1..80 characters and not blank.
+model WordList {
+  id         String         @id @default(cuid())
+  ownerId    String
+  title      String
+  source     WordListSource
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  archivedAt DateTime?
+
+  owner   User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  entries WordListEntry[]
+
+  @@index([ownerId, archivedAt])
+}
+
+/// One word of a list. Raw-SQL CHECKs (same migration): position >= 0,
+/// note <= 200 characters.
+model WordListEntry {
+  listId   String
+  lexemeId String
+  position Int
+  note     String?
+  addedAt  DateTime @default(now())
+
+  list   WordList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  lexeme Lexeme   @relation(fields: [lexemeId], references: [id], onDelete: Cascade)
+
+  @@id([listId, lexemeId])
+  @@index([lexemeId])
 }
 
 /// Per-user FSRS memory state for a single Item.
