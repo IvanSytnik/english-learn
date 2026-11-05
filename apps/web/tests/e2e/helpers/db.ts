@@ -158,3 +158,24 @@ export async function conceptTitle(id: string, locale: Locale) {
   });
   return getConceptTitle(concept, locale);
 }
+
+/** The learner's word lists (B6.7), oldest first: title, source, archived, headwords in order. */
+export async function wordLists(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const lists = await db().wordList.findMany({
+    where: { ownerId: user.id },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      title: true,
+      source: true,
+      archivedAt: true,
+      entries: { orderBy: { position: 'asc' }, select: { lexeme: { select: { lemma: true } } } },
+    },
+  });
+  return lists.map((l) => ({
+    title: l.title,
+    source: l.source,
+    archived: l.archivedAt !== null,
+    words: l.entries.map((e) => e.lexeme.lemma),
+  }));
+}
