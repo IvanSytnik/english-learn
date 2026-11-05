@@ -22,8 +22,9 @@ export default defineConfig({
     },
   ],
   // Always a production build: `next dev` compiles routes on demand, which made e2e flaky.
+  // scripts/e2e-serve.ts stops the server if `.next` is rebuilt during the run (pitfall 86).
   webServer: {
-    command: `pnpm build && pnpm start -p ${PORT}`,
+    command: `pnpm build && pnpm exec tsx scripts/e2e-serve.ts -- pnpm start -p ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: false,
     timeout: 240_000,
