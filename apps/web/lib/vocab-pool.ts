@@ -27,6 +27,8 @@ export type VocabPool = {
    * never the wrong word.
    */
   bySlug: ReadonlyMap<string, VocabLexemeRow>;
+  /** Item id → its public slug, for every word `bySlug` addresses. */
+  slugByItemId: ReadonlyMap<string, string>;
 };
 
 let cached: { expiresAt: number; value: Promise<VocabPool> } | null = null;
@@ -44,6 +46,7 @@ export function getVocabPool(nowMs: number = Date.now()): Promise<VocabPool> {
       byItemId: new Map(rows.map((r) => [r.itemId, r])),
       itemIdByLexemeId: new Map(rows.map((r) => [r.id, r.itemId])),
       bySlug,
+      slugByItemId: new Map([...bySlug].map(([slug, row]) => [row.itemId, slug])),
     };
   });
   const entry = { expiresAt: nowMs + VOCAB_POOL_TTL_MS, value };

@@ -1,7 +1,12 @@
 import type { CEFRLevel } from '../core/graph/types';
 import { localDayStartMs } from '../vocab/day';
 import { summarizeVocab, type VocabSummary } from '../vocab/overview';
-import { selectVocab, type VocabScope, type VocabSelection } from '../vocab/select';
+import {
+  selectVocab,
+  type VocabCandidate,
+  type VocabScope,
+  type VocabSelection,
+} from '../vocab/select';
 import type { VocabSessionDb } from './db-port';
 
 /**
@@ -52,6 +57,14 @@ export type VocabOverview = VocabSummary & {
   newToday: number;
   dailyLimit: number;
   remainingNew: number;
+};
+
+/** Per word (item id): the learner's review state and preferences (B6.6). */
+export type VocabWordStates = {
+  /** Every published word; null = never answered. */
+  reviews: ReadonlyMap<string, VocabCandidate['review']>;
+  prioritizedItemIds: ReadonlySet<string>;
+  hiddenItemIds: ReadonlySet<string>;
 };
 
 const NO_ITEMS: ReadonlySet<string> = new Set();
@@ -105,6 +118,23 @@ export function createVocabSessionService(db: VocabSessionDb) {
         db.getVocabProfile(input.userId),
       ]);
       return Math.max(0, profile.dailyLimit - count);
+    },
+
+    /**
+     * Every word's state for this learner (B6.6 word pages and the bulk
+     * "Prioritize this level"): its review state (null = never answered) and
+     * the learner's preferences. The session's own reads, not selected.
+     */
+    async wordStates(userId: string): Promise<VocabWordStates> {
+      const [candidates, preferences] = await Promise.all([
+        db.getVocabCandidates(userId),
+        db.getVocabPreferences(userId),
+      ]);
+      return {
+        reviews: new Map(candidates.map((c) => [c.itemId, c.review])),
+        prioritizedItemIds: new Set(preferences.prioritizedItemIds),
+        hiddenItemIds: new Set(preferences.hiddenItemIds),
+      };
     },
 
     async nextVocab(input: NextVocabInput): Promise<VocabNext> {

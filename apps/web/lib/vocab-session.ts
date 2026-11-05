@@ -117,7 +117,8 @@ export type VocabSubmitOutcome =
 
 const toVocabLocale = (locale: Locale): VocabLocale => locale;
 
-async function learnerLocale(userId: string, uiLocale: Locale): Promise<VocabLocale> {
+/** The language a learner reads glosses in: their native language, else the UI's. */
+export async function learnerLocale(userId: string, uiLocale: Locale): Promise<VocabLocale> {
   return toVocabLocale(contentLocale(await getNativeLanguage(prisma, userId), uiLocale));
 }
 

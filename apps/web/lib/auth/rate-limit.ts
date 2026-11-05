@@ -16,6 +16,8 @@ export const AUTH_LIMITS = {
   'delete:user': { limit: 5, windowMs: 15 * MINUTE },
   // Per user: room for a tester flagging every question of a long session, not for a flood.
   'feedback:user': { limit: 20, windowMs: HOUR },
+  // Per user (B6.6): word preferences — a bulk "Prioritize this level" of n words costs n.
+  'vocab-pref:user': { limit: 300, windowMs: HOUR },
 } as const;
 
 export type AuthLimitName = keyof typeof AUTH_LIMITS;
@@ -37,18 +39,20 @@ export function clientIp(headers: Headers): string {
 export const emailSubject = (email: string) => email.trim().toLowerCase();
 
 /**
- * Count one hit against every given limit; false when any is exhausted. All
- * are consumed even when one is already over, so a blocked IP cannot probe
- * an email's budget for free.
+ * Count a hit against every given limit — `cost` hits for a bulk write
+ * (default 1); false when any is exhausted. All are consumed even when one
+ * is already over, so a blocked IP cannot probe an email's budget for free.
  */
 export async function withinAuthLimits(
-  checks: ReadonlyArray<readonly [AuthLimitName, string]>,
+  checks: ReadonlyArray<
+    readonly [AuthLimitName, string] | readonly [AuthLimitName, string, number]
+  >,
 ): Promise<boolean> {
   // e2e: skip the DB round trip too (see rateLimitDisabled).
   if (rateLimitDisabled()) return true;
   const results = await Promise.all(
-    checks.map(([name, subject]) =>
-      consumeRateLimit(prisma, { key: `${name}:${subject}`, ...AUTH_LIMITS[name] }),
+    checks.map(([name, subject, cost]) =>
+      consumeRateLimit(prisma, { key: `${name}:${subject}`, ...AUTH_LIMITS[name], cost }),
     ),
   );
   return results.every((r) => r.allowed);

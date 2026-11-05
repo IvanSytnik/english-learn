@@ -183,6 +183,23 @@ describe('B6.6: preferences and list sessions', () => {
     });
   });
 
+  it('wordStates: each word’s review state (null = never answered) and the preferences', async () => {
+    const due = started('due', NOW_BIG - DAY);
+    const states = await createVocabSessionService(
+      port([...rows, due], {
+        getVocabPreferences: async () => ({
+          prioritizedItemIds: ['rare'],
+          hiddenItemIds: ['due'],
+        }),
+      }),
+    ).wordStates('u1');
+    expect(states.reviews.get('freq-1')).toBeNull();
+    expect(states.reviews.get('due')).toEqual(due.review);
+    expect(states.reviews.has('unknown')).toBe(false);
+    expect([...states.prioritizedItemIds]).toEqual(['rare']);
+    expect([...states.hiddenItemIds]).toEqual(['due']);
+  });
+
   it('the overview counts no hidden word as due', async () => {
     const svc = createVocabSessionService(
       port([started('due', NOW_BIG - DAY), started('due-2', NOW_BIG - DAY)], {

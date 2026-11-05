@@ -53,4 +53,5 @@ export {
   type VocabOverview,
   type VocabSessionScope,
   type VocabSessionService,
+  type VocabWordStates,
 } from './vocab-session-service';
