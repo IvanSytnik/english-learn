@@ -22,19 +22,26 @@ export function issuedBeforePasswordChange(
   return iat < Math.floor(passwordChangedAt.getTime() / 1000);
 }
 
-/** The token, or null (Auth.js then clears the cookie) when its user changed password or is gone. */
+/**
+ * The token, or null (Auth.js then clears the cookie) when its user changed
+ * password or is gone. The same read refreshes the role (B6-SPEC V2-15): a
+ * user demoted or promoted in the database carries the new role from the
+ * next request on, not from the next sign-in. Every gate reads the role from
+ * the session, i.e. from this token.
+ */
 export async function revokeIfStale(token: JWT): Promise<JWT | null> {
   if (!token.id) return token;
   try {
     const user = await prisma.user.findUnique({
       where: { id: token.id },
-      select: { passwordChangedAt: true },
+      select: { passwordChangedAt: true, role: true },
     });
     if (!user) return null;
-    return issuedBeforePasswordChange(token.iat, user.passwordChangedAt) ? null : token;
+    if (issuedBeforePasswordChange(token.iat, user.passwordChangedAt)) return null;
+    return user.role === token.role ? token : { ...token, role: user.role };
   } catch (err) {
     // Fail open: a throwing jwt callback clears the cookie, and a DB blip must
-    // not sign every user out.
+    // not sign every user out. The role stays the token's until the DB answers.
     console.error('session revocation check failed', err);
     return token;
   }
