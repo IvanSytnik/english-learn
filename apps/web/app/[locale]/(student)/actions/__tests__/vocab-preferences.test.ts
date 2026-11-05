@@ -205,7 +205,7 @@ describe('prioritizeLevelAction', () => {
     );
     expect(await prioritizeLevelAction(FOOD_A1)).toEqual({
       ok: true,
-      value: { prioritized: 2, remaining: 0 },
+      value: { prioritized: 2, remaining: 0, slugs: ['dates-noun', 'eggs-noun'] },
     });
     expect(setLexemePreferences).toHaveBeenCalledExactlyOnceWith(
       { tag: 'prisma' },
@@ -227,7 +227,7 @@ describe('prioritizeLevelAction', () => {
     getVocabPool.mockResolvedValue(poolOf(many));
     expect(await prioritizeLevelAction(FOOD_A1)).toEqual({
       ok: true,
-      value: { prioritized: 200, remaining: 30 },
+      value: expect.objectContaining({ prioritized: 200, remaining: 30 }),
     });
     const ids = setLexemePreferences.mock.lastCall?.[1].lexemeIds;
     expect(ids).toHaveLength(200);
@@ -239,7 +239,7 @@ describe('prioritizeLevelAction', () => {
     wordStates.mockResolvedValue(states({ p: ['item-soup'] }));
     expect(
       await prioritizeLevelAction({ page: { kind: 'topic', topic: 'food_drink' }, level: 'A2' }),
-    ).toEqual({ ok: true, value: { prioritized: 0, remaining: 0 } });
+    ).toEqual({ ok: true, value: { prioritized: 0, remaining: 0, slugs: [] } });
     nothingWritten();
   });
 

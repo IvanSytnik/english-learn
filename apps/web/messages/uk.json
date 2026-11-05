@@ -328,14 +328,67 @@
         "title": "Теми",
         "progress": "Розпочато {started} з {total, plural, one {# слова} few {# слів} many {# слів} other {# слова}}",
         "practiceLevel": "{topic}, рівень {level}: практикувати",
-        "levelProgress": "{started} / {total}"
+        "levelProgress": "{started} / {total}",
+        "browse": "{topic}: усі слова",
+        "browseShort": "Усі слова"
       },
       "collections": {
         "title": "Добірки",
         "hint": "Тематичні набори слів із різних тем. Нові слова — з добірки, але спершу — повторення, яким настав час.",
         "progress": "Розпочато {started} з {total, plural, one {# слова} few {# слів} many {# слів} other {# слова}}",
         "practice": "{collection}: тренувати",
-        "practiceShort": "Тренувати"
+        "practiceShort": "Тренувати",
+        "browse": "{collection}: усі слова",
+        "browseShort": "Усі слова"
+      },
+      "browse": {
+        "back": "Назад до слів",
+        "count": "{count, plural, one {# слово} few {# слова} many {# слів} other {# слова}}",
+        "level": "Рівень {level}",
+        "practiseLevel": "Тренувати рівень {level}",
+        "practise": "Тренувати цю добірку",
+        "empty": "Тут поки немає слів.",
+        "badge": {
+          "notStarted": "Не розпочато",
+          "learning": "Вивчається",
+          "reviewing": "Повторюється",
+          "known": "Вивчено"
+        },
+        "prioritized": "У пріоритеті",
+        "hidden": "Приховано",
+        "actions": {
+          "prioritize": "У пріоритет",
+          "unprioritize": "Зняти пріоритет",
+          "know": "Я знаю",
+          "hide": "Приховати",
+          "unhide": "Показати"
+        },
+        "actionLabels": {
+          "prioritize": "У пріоритет: «{word}»",
+          "unprioritize": "Зняти пріоритет: «{word}»",
+          "know": "Я знаю «{word}»: довести",
+          "hide": "Приховати «{word}»",
+          "unhide": "Показати «{word}»"
+        },
+        "prioritizeLevel": "Весь рівень у пріоритет ({count})",
+        "levelDone": "{count, plural, =0 {Немає нових слів для пріоритету.} one {# слово в пріоритеті.} few {# слова в пріоритеті.} many {# слів у пріоритеті.} other {# слова в пріоритеті.}}",
+        "levelMore": "Залишилося ще {count} — натисніть ще раз.",
+        "failed": "Не вдалося зберегти. Перевірте з'єднання й спробуйте ще раз.",
+        "rateLimited": "Забагато змін за годину. Спробуйте пізніше.",
+        "notFound": "Це слово більше недоступне.",
+        "retry": "Повторити",
+        "announce": {
+          "prioritize": "{word}: у пріоритеті",
+          "unprioritize": "{word}: пріоритет знято",
+          "hide": "{word}: приховано",
+          "unhide": "{word}: знову показано"
+        },
+        "pages": {
+          "label": "Сторінки",
+          "previous": "Попередня сторінка",
+          "next": "Наступна сторінка",
+          "status": "Сторінка {page} з {count}"
+        }
       },
       "player": {
         "instruction": {

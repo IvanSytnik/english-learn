@@ -48,6 +48,23 @@ describe('/words/practice page', () => {
     expect(page.props).toEqual({ scope: { kind: 'collection', key: 'work_jobs' } });
   });
 
+  it('`?prove=<slug>` opens the session on that word’s proof, in its scope (B6.6)', async () => {
+    const page = await open({ prove: 'house-noun', collection: 'clothes' });
+    expect(page.props).toEqual({
+      scope: { kind: 'collection', key: 'clothes' },
+      proveSlug: 'house-noun',
+    });
+  });
+
+  it.each([
+    ['an id-like value with upper case', { prove: 'Cm1abc' }],
+    ['a repeated slug', { prove: ['house-noun', 'home-noun'] }],
+    ['a path', { prove: '../admin' }],
+  ])('`?prove=` with %s is ignored', async (_, searchParams) => {
+    const page = await open(searchParams);
+    expect(page.props.proveSlug).toBeUndefined();
+  });
+
   it.each([
     ['no concept', {}],
     ['an unknown concept', { concept: 'vocab.nowhere.a2' }],

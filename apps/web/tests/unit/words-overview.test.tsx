@@ -183,6 +183,18 @@ describe('/words page', () => {
     );
   });
 
+  it('each topic and collection card links to its word page (B6.6); Practise is unchanged', async () => {
+    await renderPage();
+    expect(screen.getByRole('link', { name: 'Travel: all words' })).toHaveAttribute(
+      'href',
+      '/words/topics/travel',
+    );
+    expect(screen.getByRole('link', { name: 'Work and jobs: all words' })).toHaveAttribute(
+      'href',
+      '/words/collections/work_jobs',
+    );
+  });
+
   it('shows no collections section when there is none', async () => {
     loadVocabOverview.mockResolvedValue({ ...OVERVIEW, collections: [] });
     vocabOverviewAction.mockResolvedValue({ ok: true, value: { ...OVERVIEW, collections: [] } });

@@ -328,14 +328,67 @@
         "title": "Темы",
         "progress": "Начато {started} из {total, plural, one {# слова} few {# слов} many {# слов} other {# слова}}",
         "practiceLevel": "{topic}, уровень {level}: практиковать",
-        "levelProgress": "{started} / {total}"
+        "levelProgress": "{started} / {total}",
+        "browse": "{topic}: все слова",
+        "browseShort": "Все слова"
       },
       "collections": {
         "title": "Подборки",
         "hint": "Тематические наборы слов из разных тем. Новые слова — из подборки, но сначала — повторения, которым пришёл срок.",
         "progress": "Начато {started} из {total, plural, one {# слова} few {# слов} many {# слов} other {# слова}}",
         "practice": "{collection}: тренировать",
-        "practiceShort": "Тренировать"
+        "practiceShort": "Тренировать",
+        "browse": "{collection}: все слова",
+        "browseShort": "Все слова"
+      },
+      "browse": {
+        "back": "Назад к словам",
+        "count": "{count, plural, one {# слово} few {# слова} many {# слов} other {# слова}}",
+        "level": "Уровень {level}",
+        "practiseLevel": "Тренировать уровень {level}",
+        "practise": "Тренировать эту подборку",
+        "empty": "Здесь пока нет слов.",
+        "badge": {
+          "notStarted": "Не начато",
+          "learning": "Изучается",
+          "reviewing": "Повторяется",
+          "known": "Выучено"
+        },
+        "prioritized": "В приоритете",
+        "hidden": "Скрыто",
+        "actions": {
+          "prioritize": "В приоритет",
+          "unprioritize": "Снять приоритет",
+          "know": "Я знаю",
+          "hide": "Скрыть",
+          "unhide": "Показать"
+        },
+        "actionLabels": {
+          "prioritize": "В приоритет: «{word}»",
+          "unprioritize": "Снять приоритет: «{word}»",
+          "know": "Я знаю «{word}»: доказать",
+          "hide": "Скрыть «{word}»",
+          "unhide": "Показать «{word}»"
+        },
+        "prioritizeLevel": "Весь уровень в приоритет ({count})",
+        "levelDone": "{count, plural, =0 {Нет новых слов для приоритета.} one {# слово в приоритете.} few {# слова в приоритете.} many {# слов в приоритете.} other {# слова в приоритете.}}",
+        "levelMore": "Осталось ещё {count} — нажмите ещё раз.",
+        "failed": "Не удалось сохранить. Проверьте соединение и попробуйте ещё раз.",
+        "rateLimited": "Слишком много изменений за час. Попробуйте позже.",
+        "notFound": "Это слово больше недоступно.",
+        "retry": "Повторить",
+        "announce": {
+          "prioritize": "{word}: в приоритете",
+          "unprioritize": "{word}: приоритет снят",
+          "hide": "{word}: скрыто",
+          "unhide": "{word}: снова показано"
+        },
+        "pages": {
+          "label": "Страницы",
+          "previous": "Предыдущая страница",
+          "next": "Следующая страница",
+          "status": "Страница {page} из {count}"
+        }
       },
       "player": {
         "instruction": {

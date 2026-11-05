@@ -328,14 +328,67 @@
         "title": "Topics",
         "progress": "{started} of {total, plural, one {# word} other {# words}} started",
         "practiceLevel": "{topic}, level {level}: practise",
-        "levelProgress": "{started} / {total}"
+        "levelProgress": "{started} / {total}",
+        "browse": "{topic}: all words",
+        "browseShort": "All words"
       },
       "collections": {
         "title": "Collections",
         "hint": "Themed word sets across topics. New words come from the collection; your due reviews still come first.",
         "progress": "{started} of {total, plural, one {# word} other {# words}} started",
         "practice": "{collection}: practise",
-        "practiceShort": "Practise"
+        "practiceShort": "Practise",
+        "browse": "{collection}: all words",
+        "browseShort": "All words"
+      },
+      "browse": {
+        "back": "Back to words",
+        "count": "{count, plural, one {# word} other {# words}}",
+        "level": "Level {level}",
+        "practiseLevel": "Practise level {level}",
+        "practise": "Practise this collection",
+        "empty": "No words here yet.",
+        "badge": {
+          "notStarted": "Not started",
+          "learning": "Learning",
+          "reviewing": "Reviewing",
+          "known": "Known"
+        },
+        "prioritized": "Prioritized",
+        "hidden": "Hidden",
+        "actions": {
+          "prioritize": "Prioritize",
+          "unprioritize": "Unprioritize",
+          "know": "I know",
+          "hide": "Hide",
+          "unhide": "Unhide"
+        },
+        "actionLabels": {
+          "prioritize": "Prioritize “{word}”",
+          "unprioritize": "Unprioritize “{word}”",
+          "know": "I know “{word}”: prove it",
+          "hide": "Hide “{word}”",
+          "unhide": "Unhide “{word}”"
+        },
+        "prioritizeLevel": "Prioritize this level ({count})",
+        "levelDone": "{count, plural, =0 {Nothing new to prioritize.} one {# word prioritized.} other {# words prioritized.}}",
+        "levelMore": "{count} more left — press again.",
+        "failed": "Couldn't save. Check your connection and try again.",
+        "rateLimited": "Too many changes in the last hour. Try again later.",
+        "notFound": "This word is no longer available.",
+        "retry": "Retry",
+        "announce": {
+          "prioritize": "{word}: prioritized",
+          "unprioritize": "{word}: no longer prioritized",
+          "hide": "{word}: hidden",
+          "unhide": "{word}: shown again"
+        },
+        "pages": {
+          "label": "Pages",
+          "previous": "Previous page",
+          "next": "Next page",
+          "status": "Page {page} of {count}"
+        }
       },
       "player": {
         "instruction": {

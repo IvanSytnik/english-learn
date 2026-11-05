@@ -19,7 +19,13 @@ import {
   VOCAB_TOPIC_IDS,
   vocabConceptId,
 } from '@englishlearn/db/vocab/topics';
-import { CEFR_RANK, glossOf, type WordStage, wordStage } from '@englishlearn/learner-model';
+import {
+  CEFR_RANK,
+  glossOf,
+  type VocabLocale,
+  type WordStage,
+  wordStage,
+} from '@englishlearn/learner-model';
 import type { VocabWordStates } from '@englishlearn/learner-model/service';
 import { z } from 'zod';
 import { withinAuthLimits } from '@/lib/auth/rate-limit';
@@ -97,6 +103,8 @@ export type WordLevelGroup = {
 
 export type WordsPageView = {
   title: string;
+  /** The language of the glosses (`lang` on them): the learner's, not always the UI's. */
+  glossLang: VocabLocale;
   total: number;
   /** 1-based. */
   page: number;
@@ -202,6 +210,7 @@ export async function loadWordsPage(args: {
 
   return {
     title: pageTitle(page, args.uiLocale),
+    glossLang: locale,
     total: words.length,
     page: pageNumber,
     pageCount,
@@ -213,6 +222,15 @@ export type WordPreferenceChange = 'prioritize' | 'unprioritize' | 'hide' | 'unh
 export const WordPreferenceChangeSchema = z.enum(['prioritize', 'unprioritize', 'hide', 'unhide']);
 
 export type WordPreferenceError = 'NOT_FOUND' | 'RATE_LIMITED';
+
+export type PrioritizedLevel = {
+  /** Rows written (a word unpublished meanwhile is skipped). */
+  prioritized: number;
+  /** Words of the level still to prioritize (beyond this call's 200). */
+  remaining: number;
+  /** The batch's words, by public slug. */
+  slugs: string[];
+};
 
 const PREFERENCE_LIMIT = 'vocab-pref:user';
 
@@ -262,13 +280,14 @@ export async function setWordPreference(args: {
  * not hidden and not prioritized yet, at most MAX_PREFERENCE_BATCH (200) per
  * call in page order; `remaining` is what a next call would take. n words
  * cost n of the `vocab-pref:user` budget — all or nothing. Hidden words stay
- * hidden; nothing to do costs nothing.
+ * hidden; nothing to do costs nothing. `slugs` names the words of the batch,
+ * so a page can mark exactly those rows.
  */
 export async function prioritizeLevel(args: {
   userId: string;
   page: WordsPage;
   level: CefrLevelValue;
-}): Promise<Result<{ prioritized: number; remaining: number }, WordPreferenceError>> {
+}): Promise<Result<PrioritizedLevel, WordPreferenceError>> {
   const { userId } = args;
   const [pool, states] = await Promise.all([
     getVocabPool(),
@@ -278,7 +297,7 @@ export async function prioritizeLevel(args: {
     (row) => row.cefrLevel === args.level && isPrioritizable(states, row.itemId),
   );
   const batch = eligible.slice(0, MAX_PREFERENCE_BATCH);
-  if (batch.length === 0) return { ok: true, value: { prioritized: 0, remaining: 0 } };
+  if (batch.length === 0) return { ok: true, value: { prioritized: 0, remaining: 0, slugs: [] } };
   if (!(await withinAuthLimits([[PREFERENCE_LIMIT, userId, batch.length]]))) {
     return { ok: false, error: 'RATE_LIMITED' };
   }
@@ -287,5 +306,12 @@ export async function prioritizeLevel(args: {
     lexemeIds: batch.map((row) => row.id),
     state: 'PRIORITIZED',
   });
-  return { ok: true, value: { prioritized: changed, remaining: eligible.length - batch.length } };
+  return {
+    ok: true,
+    value: {
+      prioritized: changed,
+      remaining: eligible.length - batch.length,
+      slugs: batch.map((row) => pool.slugByItemId.get(row.itemId) ?? ''),
+    },
+  };
 }

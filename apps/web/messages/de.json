@@ -328,14 +328,67 @@
         "title": "Themen",
         "progress": "{started} von {total, plural, one {# Wort} other {# Wörtern}} begonnen",
         "practiceLevel": "{topic}, Niveau {level}: üben",
-        "levelProgress": "{started} / {total}"
+        "levelProgress": "{started} / {total}",
+        "browse": "{topic}: alle Wörter",
+        "browseShort": "Alle Wörter"
       },
       "collections": {
         "title": "Sammlungen",
         "hint": "Thematische Wortsammlungen quer durch die Themen. Neue Wörter kommen aus der Sammlung, fällige Wiederholungen aber zuerst.",
         "progress": "{started} von {total, plural, one {# Wort} other {# Wörtern}} begonnen",
         "practice": "{collection}: üben",
-        "practiceShort": "Üben"
+        "practiceShort": "Üben",
+        "browse": "{collection}: alle Wörter",
+        "browseShort": "Alle Wörter"
+      },
+      "browse": {
+        "back": "Zurück zu den Wörtern",
+        "count": "{count, plural, one {# Wort} other {# Wörter}}",
+        "level": "Niveau {level}",
+        "practiseLevel": "Niveau {level} üben",
+        "practise": "Diese Sammlung üben",
+        "empty": "Hier gibt es noch keine Wörter.",
+        "badge": {
+          "notStarted": "Nicht begonnen",
+          "learning": "Im Lernen",
+          "reviewing": "In Wiederholung",
+          "known": "Gelernt"
+        },
+        "prioritized": "Priorisiert",
+        "hidden": "Ausgeblendet",
+        "actions": {
+          "prioritize": "Priorisieren",
+          "unprioritize": "Nicht mehr priorisieren",
+          "know": "Kenne ich",
+          "hide": "Ausblenden",
+          "unhide": "Einblenden"
+        },
+        "actionLabels": {
+          "prioritize": "Priorisieren: „{word}“",
+          "unprioritize": "Nicht mehr priorisieren: „{word}“",
+          "know": "Kenne ich: „{word}“ beweisen",
+          "hide": "Ausblenden: „{word}“",
+          "unhide": "Einblenden: „{word}“"
+        },
+        "prioritizeLevel": "Dieses Niveau priorisieren ({count})",
+        "levelDone": "{count, plural, =0 {Keine neuen Wörter zum Priorisieren.} one {# Wort priorisiert.} other {# Wörter priorisiert.}}",
+        "levelMore": "Noch {count} übrig – drück noch einmal.",
+        "failed": "Speichern fehlgeschlagen. Prüfe deine Verbindung und versuch es noch einmal.",
+        "rateLimited": "Zu viele Änderungen in der letzten Stunde. Versuch es später noch einmal.",
+        "notFound": "Dieses Wort ist nicht mehr verfügbar.",
+        "retry": "Erneut versuchen",
+        "announce": {
+          "prioritize": "{word}: priorisiert",
+          "unprioritize": "{word}: nicht mehr priorisiert",
+          "hide": "{word}: ausgeblendet",
+          "unhide": "{word}: wieder eingeblendet"
+        },
+        "pages": {
+          "label": "Seiten",
+          "previous": "Vorherige Seite",
+          "next": "Nächste Seite",
+          "status": "Seite {page} von {count}"
+        }
       },
       "player": {
         "instruction": {

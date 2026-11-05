@@ -38,6 +38,9 @@ export function collectionHref(key: string) {
   return { pathname: '/words/practice', query: { collection: key } };
 }
 
+const browseLink =
+  'inline-flex w-fit items-center text-sm text-ink-muted underline underline-offset-4 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent';
+
 /**
  * `/words`: today's allowance and reviews, the learner's words by semantic
  * stage, and the topics with their levels — counts only, never an FSRS
@@ -164,6 +167,13 @@ function TopicCard({ topic }: { topic: VocabTopicProgress }) {
       <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-line">
         <div className="h-full bg-accent" style={{ width: `${share}%` }} />
       </div>
+      <Link
+        href={`/words/topics/${topic.topicId}`}
+        aria-label={t('browse', { topic: topic.title })}
+        className={browseLink}
+      >
+        {t('browseShort')}
+      </Link>
       <ul className="mt-auto flex flex-wrap gap-2">
         {topic.levels.map((level) => (
           <li key={level.conceptId}>
@@ -198,6 +208,13 @@ function CollectionCard({ collection }: { collection: VocabCollectionView }) {
       <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-line">
         <div className="h-full bg-accent" style={{ width: `${share}%` }} />
       </div>
+      <Link
+        href={`/words/collections/${collection.key}`}
+        aria-label={t('browse', { collection: collection.title })}
+        className={browseLink}
+      >
+        {t('browseShort')}
+      </Link>
       <Link
         href={collectionHref(collection.key)}
         aria-label={t('practice', { collection: collection.title })}

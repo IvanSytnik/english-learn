@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { authorizeAction } from '@/lib/authz';
 import type { Result } from '@/lib/result';
 import {
+  type PrioritizedLevel,
   prioritizeLevel,
   setWordPreference,
   type WordPreference,
@@ -67,7 +68,7 @@ export async function setWordPreferenceAction(
 /** "Prioritize this level" on a topic or collection page (≤ 200 words a call). */
 export async function prioritizeLevelAction(
   input: z.input<typeof LevelSchema>,
-): Promise<Result<{ prioritized: number; remaining: number }, WordPreferenceActionError>> {
+): Promise<Result<PrioritizedLevel, WordPreferenceActionError>> {
   const user = await authorizeAction('STUDENT');
   if (!user.ok) return user;
   const parsed = LevelSchema.safeParse(input);
