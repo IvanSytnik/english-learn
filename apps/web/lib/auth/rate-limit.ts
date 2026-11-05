@@ -25,6 +25,8 @@ export const AUTH_LIMITS = {
   'vocab-pref:user': { limit: 300, windowMs: HOUR },
   // Per user (B6.7): word list writes, metered by rows written (a paste import adds up to 500).
   'vocab-list:user': { limit: 1000, windowMs: HOUR },
+  // Per user (B6.7): catalogue reads — a debounced search query or a paste preview, 1 each.
+  'vocab-search:user': { limit: 600, windowMs: HOUR },
 } as const;
 
 export type AuthLimitName = keyof typeof AUTH_LIMITS;

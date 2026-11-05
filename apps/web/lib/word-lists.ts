@@ -31,7 +31,7 @@ import {
   type VocabLocale,
 } from '@englishlearn/learner-model';
 import type { VocabWordStates } from '@englishlearn/learner-model/service';
-import { meteredLimit } from '@/lib/auth/rate-limit';
+import { meteredLimit, withinAuthLimits } from '@/lib/auth/rate-limit';
 import { vocabSessionService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 import { getVocabPool, type VocabPool } from '@/lib/vocab-pool';
@@ -421,17 +421,22 @@ export async function moveWord(args: {
   );
 }
 
+/** One catalogue read (a search query, a paste preview) against the hourly budget. */
+export const withinSearchBudget = (userId: string) =>
+  withinAuthLimits([['vocab-search:user', userId]]);
+
 /**
  * Catalogue search for a list's "Add words" box: PUBLISHED words only (the
  * pool), ≤ 20, each marked when it is already in the list. NOT_FOUND for a
- * list that is not the learner's.
+ * list that is not the learner's; RATE_LIMITED past `vocab-search:user`.
  */
 export async function searchWords(args: {
   userId: string;
   uiLocale: Locale;
   query: string;
   listId?: string;
-}): Promise<Result<WordSearchResult[], 'NOT_FOUND'>> {
+}): Promise<Result<WordSearchResult[], 'NOT_FOUND' | 'RATE_LIMITED'>> {
+  if (!(await withinSearchBudget(args.userId))) return { ok: false, error: 'RATE_LIMITED' };
   const [pool, locale, list] = await Promise.all([
     getVocabPool(),
     learnerLocale(args.userId, args.uiLocale),

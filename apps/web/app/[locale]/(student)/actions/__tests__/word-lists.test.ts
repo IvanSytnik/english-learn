@@ -18,13 +18,15 @@ const q = vi.hoisted(() => ({
   getWordList: vi.fn(),
   listWordLists: vi.fn(),
 }));
-const { auth, getVocabPool, meteredLimit, budget, getNativeLanguage } = vi.hoisted(() => ({
-  auth: vi.fn(),
-  getVocabPool: vi.fn(),
-  meteredLimit: vi.fn(),
-  getNativeLanguage: vi.fn(),
-  budget: { left: 1000, charged: [] as number[], names: [] as string[] },
-}));
+const { auth, getVocabPool, meteredLimit, withinAuthLimits, budget, getNativeLanguage } =
+  vi.hoisted(() => ({
+    auth: vi.fn(),
+    getVocabPool: vi.fn(),
+    meteredLimit: vi.fn(),
+    withinAuthLimits: vi.fn(),
+    getNativeLanguage: vi.fn(),
+    budget: { left: 1000, charged: [] as number[], names: [] as string[] },
+  }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
 vi.mock('@englishlearn/db/queries/word-lists', () => q);
@@ -32,7 +34,7 @@ vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }
 vi.mock('@englishlearn/db/queries/vocab-session', () => ({ hasItemReviewState: vi.fn() }));
 vi.mock('@englishlearn/db/queries/lexeme-preferences', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth }));
-vi.mock('@/lib/auth/rate-limit', () => ({ meteredLimit }));
+vi.mock('@/lib/auth/rate-limit', () => ({ meteredLimit, withinAuthLimits }));
 vi.mock('@/lib/learner', () => ({
   vocabSessionService: {
     wordStates: async () => ({
@@ -104,6 +106,7 @@ beforeEach(() => {
     budget.charged.push(written);
     return { ok: true, value };
   });
+  withinAuthLimits.mockResolvedValue(true);
   q.createWordList.mockResolvedValue(ok({ id: LIST, title: 'Trip' }));
   q.addWordListEntries.mockImplementation(async (_tx, args) =>
     ok({ added: args.lexemeIds.length, alreadyIn: 0, notFound: [], didNotFit: 0 }),
@@ -316,6 +319,20 @@ describe('searchWordsAction', () => {
   it('another learner’s list is NOT_FOUND', async () => {
     q.getWordList.mockResolvedValueOnce(NF);
     expect(await actions.searchWordsAction({ query: 'ap', listId: LIST })).toEqual(NF);
+  });
+
+  it('each query is one of `vocab-search:user`; past the budget it is RATE_LIMITED, nothing read', async () => {
+    await actions.searchWordsAction({ query: 'ap' });
+    expect(withinAuthLimits).toHaveBeenCalledWith([['vocab-search:user', USER]]);
+    withinAuthLimits.mockResolvedValueOnce(false);
+    getVocabPool.mockClear();
+    q.getWordList.mockClear();
+    expect(await actions.searchWordsAction({ query: 'ap', listId: LIST })).toEqual({
+      ok: false,
+      error: 'RATE_LIMITED',
+    });
+    expect(getVocabPool).not.toHaveBeenCalled();
+    expect(q.getWordList).not.toHaveBeenCalled();
   });
 });
 

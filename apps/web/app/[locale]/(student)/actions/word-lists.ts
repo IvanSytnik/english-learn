@@ -173,7 +173,7 @@ export async function moveWordInListAction(
   return run('moveWordInList', MoveSchema, input, (userId, data) => moveWord({ userId, ...data }));
 }
 
-/** Catalogue search (≥ 2 characters, ≤ 20 results, PUBLISHED only); read-only, not metered. */
+/** Catalogue search (≥ 2 characters, ≤ 20 results, PUBLISHED only); 1 of `vocab-search:user` a query. */
 export async function searchWordsAction(
   input: z.input<typeof SearchSchema>,
 ): Promise<ActionResult<{ results: WordSearchResult[] }>> {
