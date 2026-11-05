@@ -14,7 +14,9 @@ import { validateLocalizedBatch } from '../validator';
  * by validateLocalizedBatch (gloss length, scripts, DE articles, cloze).
  */
 describe.skipIf(!existsSync(LOCALIZATION_SNAPSHOT_URL))('the committed snapshot', () => {
-  it('passes the localization gate, entry by entry', () => {
+  // 4944 entries through the full gate: 0.15 s alone, but 7.4 s once in a
+  // parallel turbo run — past the 5 s default. Same budget as the card snapshot.
+  it('passes the localization gate, entry by entry', { timeout: 60_000 }, () => {
     const lemmas = new Map(loadCefrJDataset().lexemes.map((l) => [lexemeIdentity(l), l]));
     const { entries } = loadLocalizationSnapshot();
     const requested: PendingLexeme[] = entries.map((e, i) => {
