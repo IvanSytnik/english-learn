@@ -35,6 +35,20 @@ export {
   type VocabGrade,
   type VocabGradingKey,
 } from './grade';
+export {
+  buildCatalogueIndex,
+  type CatalogueIndex,
+  type CatalogueWord,
+  type ImportEntry,
+  type ImportMatch,
+  MULTIWORD_MAX_TOKENS,
+  matchCandidates,
+  PASTE_MAX_CANDIDATES,
+  PASTE_MAX_CHARS,
+  type PasteCandidate,
+  type PasteTokens,
+  tokenizePaste,
+} from './import';
 export { buildVocabIntro, INTRO_COLLOCATIONS, type VocabIntroView } from './intro';
 export { LADDER_THRESHOLDS, PROOF_MODE, vocabModeFor } from './ladder';
 export {
