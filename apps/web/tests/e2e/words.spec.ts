@@ -1,9 +1,27 @@
+import { PRACTICE_GAP } from '@englishlearn/db/schemas';
 import { VOCAB_TOPICS } from '@englishlearn/db/vocab/topics';
+import {
+  buildVocabCard,
+  cardSeed,
+  PAYLOAD_MODE,
+  PROOF_MODE,
+  type VocabMode,
+  vocabModeFor,
+} from '@englishlearn/learner-model';
 import { expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
-import { closeDb, itemAttempts, vocabItemCollections, vocabItemWord } from './helpers/db';
+import {
+  closeDb,
+  diagnosticFootprint,
+  itemAttempts,
+  vocabItemCollections,
+  vocabItemWord,
+} from './helpers/db';
+import { answer, start } from './helpers/diagnostic';
+import { closeSeedDb, recordVocabAnswer, reviewState, userIdOf, vocabPool } from './helpers/seed';
 
 test.afterAll(closeDb);
+test.afterAll(closeSeedDb);
 
 const STAGES = ['new', 'learning', 'familiar', 'known', 'mastered'];
 
@@ -190,4 +208,116 @@ test('/ru/words: a collection card starts a session of that collection’s new w
   for (const attempt of attempts) {
     expect(await vocabItemCollections(attempt.itemId as string)).toContain('work_jobs');
   }
+});
+
+test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a definition on rung 2 (B6.5)', async ({
+  page,
+}) => {
+  // Sign-up, two seeded answers, the whole diagnostic, two cards.
+  test.setTimeout(120_000);
+  const email = await registerFreshLearner(page, 'words-b1');
+  const userId = await userIdOf(email);
+
+  // Two words answered before today, at moments the test fixes: it knows each
+  // card's seed, so which word serves which variant, before seeding.
+  //   - proved known 9 days ago (EASY: S ≈ 8.3, +8 d) → a review due now, rung 3;
+  //   - right once an hour ago (GOOD: S ≈ 2.3, a 10-min step) → a learning step
+  //     due now, rung 2.
+  // Seeded first: an explicit moment must come before the diagnostic's events.
+  const HOUR = 3_600_000n;
+  const now = BigInt(Date.now());
+  const provedAt = now - 9n * 24n * HOUR;
+  const learntAt = now - HOUR;
+  const pool = await vocabPool();
+  const cardFor = (word: (typeof pool)[number], mode: VocabMode, lastReviewAt: bigint) =>
+    buildVocabCard({
+      target: word,
+      pool,
+      mode,
+      locale: 'ru',
+      learnerLevel: 'B1',
+      seed: cardSeed({ userId, itemId: word.itemId, lastReviewAt }),
+    });
+  const reviewed = pool.find((w) => cardFor(w, 'cloze', provedAt).view.mode === 'collocation');
+  const learning = pool.find(
+    (w) => w !== reviewed && cardFor(w, 'l1_to_en', learntAt).view.mode === 'definition_to_en',
+  );
+  if (!reviewed || !learning) throw new Error('no word serves the variant for these seeds');
+  await recordVocabAnswer({
+    userId,
+    itemId: reviewed.itemId,
+    mode: PAYLOAD_MODE[PROOF_MODE],
+    correct: true,
+    proof: true,
+    occurredAtMs: provedAt,
+  });
+  await recordVocabAnswer({
+    userId,
+    itemId: learning.itemId,
+    mode: PAYLOAD_MODE.en_to_l1,
+    correct: true,
+    occurredAtMs: learntAt,
+  });
+  for (const [word, rung, at] of [
+    [reviewed, 'cloze', provedAt],
+    [learning, 'l1_to_en', learntAt],
+  ] as const) {
+    const state = await reviewState(userId, word.itemId);
+    expect(vocabModeFor(state), word.lemma).toBe(rung);
+    expect(state.lastReviewAt).toBe(at);
+    expect(state.dueAt).toBeLessThanOrEqual(now);
+  }
+
+  // Assessed B1: right and wrong in turn on each axis (odd and even positions)
+  // — never two alike in a row, so both ladders hold B1 for all eight questions.
+  await start(page);
+  for (let n = 1; n <= 16; n++) {
+    await answer(page, n, Math.floor((n - 1) / 2) % 2 === 0 ? 'right' : 'wrong');
+  }
+  await expect(page.getByRole('heading', { name: 'Ваш уровень' })).toBeVisible(AFTER_SUBMIT);
+  expect((await diagnosticFootprint(email)).attempts).toMatchObject([
+    { status: 'COMPLETED', assessedLevel: 'B1' },
+  ]);
+
+  const options = page.locator('[data-player-option] span.font-content');
+  async function answerRight(card: ReturnType<typeof cardFor>) {
+    if (card.key.kind !== 'choice') throw new Error('choice');
+    if (!('options' in card.view)) throw new Error('options');
+    await expect(options).toHaveText(card.view.options);
+    await page.keyboard.press(String(card.key.correctIndex + 1));
+    await page.keyboard.press('Enter');
+    await expect(page.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
+  }
+
+  // The review comes first: rung 3 serves the gapped collocation (no intro —
+  // the word was answered before).
+  await page.goto('/ru/words/practice');
+  const collocation = cardFor(reviewed, 'cloze', provedAt);
+  if (collocation.view.mode !== 'collocation') throw new Error('collocation');
+  await expect(page.locator('[data-mode="collocation"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('[data-intro]')).toHaveCount(0);
+  for (const part of collocation.view.phrase.split(PRACTICE_GAP)) {
+    if (part.trim() !== '') {
+      await expect(page.locator('#vocab-prompt [data-collocation]')).toContainText(part.trim());
+    }
+  }
+  await answerRight(collocation);
+  await page.keyboard.press('Enter');
+
+  // Then the learning step: rung 2 serves the English definition.
+  const definition = cardFor(learning, 'l1_to_en', learntAt);
+  if (definition.view.mode !== 'definition_to_en') throw new Error('definition_to_en');
+  await expect(page.locator('[data-mode="definition_to_en"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('#vocab-prompt [data-definition]')).toHaveText(
+    definition.view.definition,
+  );
+  await answerRight(definition);
+
+  // Both recorded with the card shown.
+  const attempts = await itemAttempts(email);
+  expect(attempts).toHaveLength(4);
+  expect(attempts.slice(2)).toMatchObject([
+    { itemId: reviewed.itemId, correct: true, variant: 'collocation', locale: 'ru' },
+    { itemId: learning.itemId, correct: true, variant: 'definition_to_en', locale: 'ru' },
+  ]);
 });
