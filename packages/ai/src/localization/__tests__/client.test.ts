@@ -1,10 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createExamplesCaller } from '../../examples';
 import {
+  callParsed,
   createLocalizationCaller,
   LocalizationChunkError,
   LocalizationFatalError,
   resolveLocalizationModel,
+  withoutRateLimitRetry,
 } from '../client';
 import type { LocalizationRequestItem } from '../types';
 
@@ -75,6 +78,57 @@ describe('createLocalizationCaller', () => {
       model: 'm',
     });
     await expect(call(items)).rejects.toThrow(LocalizationChunkError);
+  });
+});
+
+describe('stopOnRateLimit (B6.4a spend cap)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  const rateLimited = () =>
+    new Response(
+      JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'quota' } }),
+      { status: 429, headers: { 'content-type': 'application/json', 'retry-after-ms': '0' } },
+    );
+  const params = {
+    model: 'm',
+    max_tokens: 10,
+    messages: [{ role: 'user' as const, content: 'x' }],
+  };
+
+  it('turns a 429 into a stop of the run', async () => {
+    const client = fakeClient(async () => {
+      throw new Anthropic.RateLimitError(429, undefined, 'quota', new Headers());
+    });
+    await expect(callParsed(client, params, { stopOnRateLimit: true })).rejects.toThrow(
+      LocalizationFatalError,
+    );
+    await expect(callParsed(client, params)).rejects.toThrow(LocalizationChunkError);
+  });
+
+  it('marks only a 429 as not retryable', async () => {
+    const wrapped = withoutRateLimitRetry(async () => rateLimited());
+    expect((await wrapped('https://x')).headers.get('x-should-retry')).toBe('false');
+    const overloaded = withoutRateLimitRetry(async () => new Response('', { status: 529 }));
+    expect((await overloaded('https://x')).headers.get('x-should-retry')).toBeNull();
+  });
+
+  it('the SDK sends a 429 once with the flag, and retries it without (no network)', async () => {
+    const stub = vi.fn(async () => rateLimited());
+    vi.stubGlobal('fetch', stub);
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key-not-real');
+    const ask = [{ key: '1' }] as unknown as Parameters<ReturnType<typeof createExamplesCaller>>[0];
+
+    const stopping = createExamplesCaller({ model: 'm', maxRetries: 2, stopOnRateLimit: true });
+    await expect(stopping(ask)).rejects.toThrow(LocalizationFatalError);
+    expect(stub).toHaveBeenCalledTimes(1);
+
+    stub.mockClear();
+    const retrying = createExamplesCaller({ model: 'm', maxRetries: 2 });
+    await expect(retrying(ask)).rejects.toThrow(LocalizationChunkError);
+    expect(stub).toHaveBeenCalledTimes(3);
   });
 });
 

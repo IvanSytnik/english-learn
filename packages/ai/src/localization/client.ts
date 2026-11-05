@@ -12,6 +12,9 @@ import type { LocalizationRequestItem } from './types';
  *     every chunk would fail the same way, so the run stops;
  *   - anything else fails only this chunk (its words stay DRAFT and are
  *     retried by the next run).
+ * With `stopOnRateLimit` (a run under a tight spend limit, B6.4a) a 429 is
+ * neither retried by the SDK nor skipped: it stops the run at once — every
+ * job is resumable, and a quota error would only repeat on every chunk.
  */
 
 export const DEFAULT_LOCALIZATION_MODEL = 'claude-haiku-5-5';
@@ -37,6 +40,43 @@ export function resolveLocalizationModel(flag?: string): string {
   return flag || process.env.VOCAB_LLM_MODEL || DEFAULT_LOCALIZATION_MODEL;
 }
 
+/** Options of a caller's own client (tests inject `client`). */
+export type CallerClientOptions = {
+  client?: Anthropic;
+  maxRetries?: number;
+  /** A 429 stops the run, without SDK retries (see the file header). */
+  stopOnRateLimit?: boolean;
+};
+
+/**
+ * `fetchImpl` with every 429 marked `x-should-retry: false`, which the SDK
+ * obeys: its other retries (408, 409, 5xx, connection errors) stay as they are.
+ */
+export function withoutRateLimitRetry(fetchImpl: typeof fetch = fetch): typeof fetch {
+  return async (input, init) => {
+    const response = await fetchImpl(input, init);
+    if (response.status !== 429) return response;
+    const headers = new Headers(response.headers);
+    headers.set('x-should-retry', 'false');
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
+}
+
+/** The caller's client: injected, or a new one with the SDK's retries. */
+export function callerClient(options: CallerClientOptions): Anthropic {
+  return (
+    options.client ??
+    new Anthropic({
+      maxRetries: options.maxRetries ?? 6,
+      ...(options.stopOnRateLimit ? { fetch: withoutRateLimitRetry() } : {}),
+    })
+  );
+}
+
 /**
  * One structured-output call, its failures classified (see the file header).
  * Shared by every offline content job (localization B2.4, examples B6.4a).
@@ -44,11 +84,17 @@ export function resolveLocalizationModel(flag?: string): string {
 export async function callParsed(
   client: Anthropic,
   params: Anthropic.MessageCreateParamsNonStreaming,
+  options: { stopOnRateLimit?: boolean } = {},
 ): Promise<LocalizationCallResult> {
   let response: Awaited<ReturnType<typeof client.messages.parse>>;
   try {
     response = await client.messages.parse(params);
   } catch (error) {
+    if (options.stopOnRateLimit && error instanceof Anthropic.APIError && error.status === 429) {
+      throw new LocalizationFatalError(
+        `Anthropic API 429: ${error.message} (stopped; the run is resumable)`,
+      );
+    }
     if (
       error instanceof Anthropic.APIError &&
       error.status !== undefined &&
@@ -75,8 +121,8 @@ export async function callParsed(
 }
 
 export function createLocalizationCaller(
-  options: LocalizationRequestOptions & { client?: Anthropic; maxRetries?: number },
+  options: LocalizationRequestOptions & CallerClientOptions,
 ): LocalizationCaller {
-  const client = options.client ?? new Anthropic({ maxRetries: options.maxRetries ?? 6 });
-  return (items) => callParsed(client, buildLocalizationRequest(items, options));
+  const client = callerClient(options);
+  return (items) => callParsed(client, buildLocalizationRequest(items, options), options);
 }

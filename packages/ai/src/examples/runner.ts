@@ -1,9 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
 import type { CefrLevelValue, LexemeExample, PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { lexemeIdentity } from '@englishlearn/db/vocab/dataset';
 import { INFLECTING_POS, targetPosition } from '@englishlearn/db/vocab/example-checks';
 import type { ExamplesSnapshotEntry } from '@englishlearn/db/vocab/examples-snapshot';
 import {
+  type CallerClientOptions,
+  callerClient,
   callParsed,
   type LocalizationCallResult,
   LocalizationChunkError,
@@ -26,10 +27,10 @@ export type ExamplesCaller = (
 ) => Promise<LocalizationCallResult>;
 
 export function createExamplesCaller(
-  options: LocalizationRequestOptions & { client?: Anthropic; maxRetries?: number },
+  options: LocalizationRequestOptions & CallerClientOptions,
 ): ExamplesCaller {
-  const client = options.client ?? new Anthropic({ maxRetries: options.maxRetries ?? 6 });
-  return (items) => callParsed(client, buildExamplesRequest(items, options));
+  const client = callerClient(options);
+  return (items) => callParsed(client, buildExamplesRequest(items, options), options);
 }
 
 /** A published lexeme as the localization snapshot and the dataset know it. */

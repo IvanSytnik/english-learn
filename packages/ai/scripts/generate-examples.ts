@@ -15,6 +15,7 @@
 //   pnpm vocab:examples --dry-run --limit 40   # counts + first prompt, no API
 //   pnpm vocab:examples --limit 40             # pilot
 //   pnpm vocab:examples [--level A1|A2|B1|B2] [--model …] [--batch-size 20] [--concurrency 3]
+//   pnpm vocab:examples --stop-on-rate-limit   # a 429 stops the run, no SDK retries (spend cap)
 
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
@@ -52,6 +53,7 @@ const ArgsSchema = z.object({
   model: z.string().min(1).optional(),
   effort: z.enum(['low', 'medium', 'high']).optional(),
   'dry-run': z.boolean().default(false),
+  'stop-on-rate-limit': z.boolean().default(false),
 });
 
 const emptyUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -73,6 +75,7 @@ async function main(): Promise<void> {
       model: { type: 'string' },
       effort: { type: 'string' },
       'dry-run': { type: 'boolean' },
+      'stop-on-rate-limit': { type: 'boolean' },
     },
   });
   const args = ArgsSchema.parse(values);
@@ -143,7 +146,11 @@ async function main(): Promise<void> {
   const shares: number[] = [];
   const report = await runExamples({
     chunks: plan.chunks,
-    call: createExamplesCaller({ model, effort: args.effort }),
+    call: createExamplesCaller({
+      model,
+      effort: args.effort,
+      stopOnRateLimit: args['stop-on-rate-limit'],
+    }),
     concurrency: args.concurrency,
     onChunk: (accepted, rejected, usage) => {
       const now = new Date().toISOString();

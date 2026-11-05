@@ -132,7 +132,9 @@ describe('the examples request', () => {
     expect(req.messages).toEqual([
       {
         role: 'user',
-        content: expect.stringContaining('"existingForm":"in","existingPlace":"middle","vary":false'),
+        content: expect.stringContaining(
+          '"existingForm":"in","existingPlace":"middle","vary":false',
+        ),
       },
     ]);
   });
