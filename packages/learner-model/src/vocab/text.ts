@@ -30,7 +30,10 @@ export function payloadAnswerText(text: string, max = ANSWER_TEXT_MAX): string |
  * The learner-side text of a word: its gloss in `locale`, or — for `en`, or a
  * lexeme without that gloss — its English definition.
  */
-export function glossOf(lexeme: VocabLexeme, locale: VocabLocale): string {
+export function glossOf(
+  lexeme: Pick<VocabLexeme, 'translations' | 'definitions'>,
+  locale: VocabLocale,
+): string {
   return (locale === 'en' ? undefined : lexeme.translations[locale]) ?? lexeme.definitions.en;
 }
 

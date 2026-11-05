@@ -48,6 +48,13 @@ export {
   wordStage,
 } from './overview';
 export {
+  SEARCH_MAX_CHARS,
+  SEARCH_MAX_RESULTS,
+  SEARCH_MIN_CHARS,
+  type SearchableWord,
+  searchCatalogue,
+} from './search';
+export {
   CONCEPT_SPREAD_RECENT,
   CONCEPT_SPREAD_WINDOW,
   MAX_CONCEPT_RUN,
