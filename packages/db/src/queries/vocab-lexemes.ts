@@ -33,6 +33,8 @@ export type VocabLexemeRow = {
   definitions: { en: string };
   translations: z.infer<typeof TranslationMapSchema>;
   examples: z.infer<typeof LexemeExampleSchema>[];
+  /** Lexeme.collocations (B6.5: the collocation card and the intro card). */
+  collocations: string[];
   variants: string[];
 };
 
@@ -68,6 +70,7 @@ export async function getPublishedVocabLexemes(
           definitions: true,
           translations: true,
           examples: true,
+          collocations: true,
         },
       },
     },
@@ -95,6 +98,7 @@ export async function getPublishedVocabLexemes(
       definitions: { en: json.data.definitions.en },
       translations: json.data.translations,
       examples: json.data.examples,
+      collocations: lexeme.collocations,
       variants: json.data.content.variants,
     });
   }

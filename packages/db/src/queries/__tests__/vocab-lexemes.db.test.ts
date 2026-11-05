@@ -30,6 +30,7 @@ describe.skipIf(!url)('published vocabulary for cards (real Postgres)', () => {
       lexemeStatus?: 'PUBLISHED' | 'REVIEW';
       itemStatus?: 'PUBLISHED' | 'ARCHIVED';
       examples?: unknown[];
+      collocations?: string[];
     } = {},
   ) => {
     const lemma = `${RUN}-${tag}`;
@@ -46,6 +47,7 @@ describe.skipIf(!url)('published vocabulary for cards (real Postgres)', () => {
         examples: (opts.examples ?? [
           { sentence: `The ${lemma} is here.`, translation: { ru: 'x' }, clozeTarget: lemma },
         ]) as object[],
+        collocations: opts.collocations ?? [],
         status: opts.lexemeStatus ?? 'PUBLISHED',
       },
     });
@@ -68,7 +70,8 @@ describe.skipIf(!url)('published vocabulary for cards (real Postgres)', () => {
     await prisma.concept.create({
       data: { id: CONCEPT, name: 'vocab', cefrLevel: 'A2', category: 'VOCAB' },
     });
-    await word('ok');
+    await word('ok', { collocations: [`a ${RUN}-ok`, `${RUN}-ok here`] });
+    await word('bare');
     await word('review', { lexemeStatus: 'REVIEW' });
     await word('archived', { itemStatus: 'ARCHIVED' });
     await word('broken', { examples: [] });
@@ -99,6 +102,15 @@ describe.skipIf(!url)('published vocabulary for cards (real Postgres)', () => {
     });
     expect(ok?.examples).toHaveLength(1);
     expect(ok?.id).not.toBe(ids.ok);
+  });
+
+  it('carries the collocations (B6.5), in order; none → []', async () => {
+    const { rows } = await getPublishedVocabLexemes(prisma);
+    expect(rows.find((r) => r.itemId === ids.ok)?.collocations).toEqual([
+      `a ${RUN}-ok`,
+      `${RUN}-ok here`,
+    ]);
+    expect(rows.find((r) => r.itemId === ids.bare)?.collocations).toEqual([]);
   });
 
   it('leaves out unpublished lexemes and items', async () => {

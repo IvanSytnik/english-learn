@@ -26,6 +26,11 @@ export type VocabLexeme = {
   definitions: { en: string };
   translations: { ru?: string; uk?: string; de?: string };
   examples: readonly VocabExample[];
+  /**
+   * Lexeme.collocations (`make a decision`): the collocation card and the
+   * intro card (B6.5). Absent = none.
+   */
+  collocations?: readonly string[];
   /** Other accepted spellings (Item.content.variants). */
   variants: readonly string[];
 };
