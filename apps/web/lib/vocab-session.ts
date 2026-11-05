@@ -71,7 +71,14 @@ export type NextVocabCard =
    * A new word's intro card (B6.5): no options, no key, nothing recorded.
    * Its `vocabRef` only turns into the word's first question (`afterIntro`).
    */
-  | { status: 'intro'; vocabRef: string; word: VocabIntroView; remainingNew: number }
+  | {
+      status: 'intro';
+      vocabRef: string;
+      word: VocabIntroView;
+      /** The word's public slug, for "Add to list…" (B6.7); null if it has none. */
+      slug: string | null;
+      remainingNew: number;
+    }
   /** Nothing due and no new word allowed: the next due moment (Unix ms), if any. */
   | { status: 'done'; nextDueAt: number | null; remainingNew: number };
 
@@ -225,6 +232,7 @@ export async function loadNextVocabCard(args: {
           learnerLevel: selection.learnerLevel,
           seed: seedOf(userId, intro),
         }),
+        slug: pool.slugByItemId.get(ref.itemId) ?? null,
         remainingNew: selection.remainingNew,
       },
     };

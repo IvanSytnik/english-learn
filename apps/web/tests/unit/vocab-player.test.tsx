@@ -16,6 +16,7 @@ const {
   submitVocabAttemptAction,
   push,
   hardReload,
+  wordListMenuAction,
 } = vi.hoisted(() => ({
   nextVocabCardAction: vi.fn(),
   startVocabProofAction: vi.fn(),
@@ -23,6 +24,7 @@ const {
   submitVocabAttemptAction: vi.fn(),
   push: vi.fn(),
   hardReload: vi.fn(),
+  wordListMenuAction: vi.fn(),
 }));
 vi.mock('@/lib/hard-reload', () => ({ hardReload }));
 vi.mock('@/app/[locale]/(student)/actions/vocab', () => ({
@@ -30,6 +32,11 @@ vi.mock('@/app/[locale]/(student)/actions/vocab', () => ({
   startVocabProofAction,
   startWordProofAction,
   submitVocabAttemptAction,
+}));
+vi.mock('@/app/[locale]/(student)/actions/word-lists', () => ({
+  wordListMenuAction,
+  addWordsToListAction: vi.fn(),
+  createWordListAction: vi.fn(),
 }));
 // The dialog has its own tests; here only the ref it is opened with matters.
 vi.mock('@/app/[locale]/(student)/_components/feedback-dialog', () => ({
@@ -600,7 +607,13 @@ describe('the intro card (B6.5)', () => {
   } as const;
   const intro = (vocabRef = 'intro-1', over = {}) => ({
     ok: true,
-    value: { status: 'intro', vocabRef, word: { ...introWord, ...over }, remainingNew: 5 },
+    value: {
+      status: 'intro',
+      vocabRef,
+      word: { ...introWord, ...over },
+      slug: 'house-noun',
+      remainingNew: 5,
+    },
   });
   const onIntro = async () => {
     await screen.findByRole('heading', { name: 'house' });
@@ -825,6 +838,42 @@ describe('the intro card (B6.5)', () => {
     await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(3));
     expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({ recentVocabRefs: ['q-1'] });
     expect(nextVocabCardAction.mock.lastCall?.[0]).not.toHaveProperty('afterIntro');
+  });
+
+  it('"Add to list…" names the word by slug; Escape in the menu closes it, never pauses; K in its field is typing', async () => {
+    wordListMenuAction.mockResolvedValue({
+      ok: true,
+      value: { lists: [{ id: 'l1', title: 'Trip', count: 2, hasWord: false }], atLimit: false },
+    });
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    renderPlayer();
+    await onIntro();
+    const toggle = screen.getByRole('button', { name: 'Add “house” to a list' });
+    fireEvent.click(toggle);
+    expect(await screen.findByRole('button', { name: 'Add to “Trip”' })).toBeVisible();
+    expect(wordListMenuAction).toHaveBeenCalledWith({ slug: 'house-noun' });
+    const field = screen.getByRole('textbox', { name: 'New list' });
+    act(() => {
+      fireEvent.keyDown(field, us('k'));
+    });
+    expect(startVocabProofAction).not.toHaveBeenCalled();
+    key('Escape', field);
+    expect(screen.queryByRole('button', { name: 'Add to “Trip”' })).toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(push).not.toHaveBeenCalled();
+    // Closed, Escape is the player's again: pause.
+    key('Escape', document.body);
+    expect(push).toHaveBeenCalledWith('/words');
+  });
+
+  it('an intro without a slug offers no list menu', async () => {
+    nextVocabCardAction.mockResolvedValueOnce({
+      ok: true,
+      value: { status: 'intro', vocabRef: 'i', word: introWord, slug: null, remainingNew: 5 },
+    });
+    renderPlayer();
+    await onIntro();
+    expect(screen.queryByRole('button', { name: /to a list$/ })).toBeNull();
   });
 });
 

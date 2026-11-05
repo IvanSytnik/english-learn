@@ -35,6 +35,7 @@ import {
   startWordProofAction,
   submitVocabAttemptAction,
 } from '../../actions/vocab';
+import { AddToListMenu } from '../_components/add-to-list-menu';
 import { IpaTag, VocabCardAnswer, VocabCardPrompt, VocabIntroCard } from './vocab-renderers';
 import { VocabSessionSummary } from './vocab-session-summary';
 
@@ -85,7 +86,11 @@ export function VocabPlayer({
 
   const [card, setCard] = useState<VocabCardPayload | null>(null);
   // A new word's intro card (B6.5), shown instead of a card until Continue / K.
-  const [intro, setIntro] = useState<{ vocabRef: string; word: VocabIntroView } | null>(null);
+  const [intro, setIntro] = useState<{
+    vocabRef: string;
+    word: VocabIntroView;
+    slug: string | null;
+  } | null>(null);
   const [phase, setPhase] = useState<VocabPlayerPhase>('loading');
   const [selected, setSelected] = useState<number | null>(null);
   const [text, setText] = useState('');
@@ -198,12 +203,12 @@ export function VocabPlayer({
         }
         if (res.value.status === 'intro') {
           // Not a card: not in the recent list (its question will be).
-          const { vocabRef, word } = res.value;
+          const { vocabRef, word, slug } = res.value;
           setCard(null);
           setFeedback(null);
           setUnsent(null);
           setError(false);
-          setIntro({ vocabRef, word });
+          setIntro({ vocabRef, word, slug });
           setPhase('intro');
           return;
         }
@@ -603,6 +608,9 @@ export function VocabPlayer({
                 {t('know')}
                 <KeyHint>K</KeyHint>
               </button>
+              {intro.slug !== null ? (
+                <AddToListMenu slug={intro.slug} headword={intro.word.word} />
+              ) : null}
             </div>
           }
         />

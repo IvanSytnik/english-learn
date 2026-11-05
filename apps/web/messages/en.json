@@ -430,6 +430,104 @@
           "again": "Another session",
           "overview": "Back to vocabulary"
         }
+      },
+      "lists": {
+        "title": "My word lists",
+        "navLink": "My word lists",
+        "back": "Back to words",
+        "count": "{count} of {max} lists",
+        "create": {
+          "label": "New list",
+          "placeholder": "e.g. Trip to London",
+          "submit": "Create list",
+          "fromText": "New list from text"
+        },
+        "words": "{count, plural, one {# word} other {# words}}",
+        "updated": "Updated {date}",
+        "stagesLabel": "Stages in this list",
+        "archivedTitle": "Archived lists ({count})",
+        "restore": "Restore",
+        "restoreLabel": "Restore “{title}”",
+        "empty": "No lists yet. Create one, or paste a list of words.",
+        "errors": {
+          "invalidTitle": "Give the list a name (1–80 characters).",
+          "limit": "You already have 50 active lists, the most there can be. Archive one to make room.",
+          "full": "This list already has 500 words, the most it can hold. Remove some first.",
+          "rateLimited": "Too many changes in the last hour. Try again later.",
+          "failed": "Couldn't save. Check your connection and try again.",
+          "notFound": "This list or word is no longer available."
+        },
+        "retry": "Retry",
+        "restored": "“{title}” is back among your lists."
+      },
+      "list": {
+        "back": "All lists",
+        "rename": "Rename",
+        "renameLabel": "List name",
+        "save": "Save",
+        "cancel": "Cancel",
+        "archive": "Archive list",
+        "archivedNote": "This list is archived. Restore it to change or practise it.",
+        "practise": "Practise this list",
+        "count": "{count, plural, one {# word} other {# words}} of {max}",
+        "empty": "No words yet. Find words in the catalogue or paste a list.",
+        "unavailable": "{count, plural, one {# word is} other {# words are}} no longer available and not shown.",
+        "tableLabel": "Words in this list",
+        "columns": {
+          "order": "Order",
+          "word": "Word",
+          "level": "Level",
+          "gloss": "Meaning",
+          "stage": "Stage",
+          "note": "Note",
+          "actions": "Actions"
+        },
+        "moveUp": "Move “{word}” up",
+        "moveDown": "Move “{word}” down",
+        "drag": "Drag “{word}” to reorder",
+        "remove": "Remove",
+        "removeLabel": "Remove “{word}” from the list",
+        "noteAdd": "Add note",
+        "noteEdit": "Edit note",
+        "noteLabel": "Note for “{word}”",
+        "noteSave": "Save note",
+        "noteAddLabel": "Add a note to “{word}”",
+        "noteEditLabel": "Edit the note of “{word}”",
+        "noteCounter": "{count}/{max}",
+        "announce": {
+          "moved": "{word}: moved to position {position}",
+          "movedAway": "{word}: moved to another page",
+          "removed": "{word}: removed from the list",
+          "noteSaved": "{word}: note saved",
+          "renamed": "List renamed to “{title}”"
+        }
+      },
+      "search": {
+        "label": "Add words from the catalogue",
+        "placeholder": "Type a word or its translation",
+        "hint": "Type at least 2 letters.",
+        "none": "Nothing found.",
+        "searching": "Searching…",
+        "add": "Add",
+        "addLabel": "Add “{word}” to the list",
+        "inList": "In list",
+        "results": "{count, plural, one {# result} other {# results}}",
+        "added": "{word}: added to the list"
+      },
+      "addToList": {
+        "button": "Add to list…",
+        "buttonLabel": "Add “{word}” to a list",
+        "title": "Add “{word}” to a list",
+        "loading": "Loading your lists…",
+        "none": "You have no lists yet.",
+        "inList": "In “{title}”",
+        "addTo": "Add to “{title}”",
+        "newList": "New list",
+        "newListPlaceholder": "List name",
+        "create": "Create and add",
+        "added": "Added to “{title}”.",
+        "atLimit": "50 active lists — archive one to create another.",
+        "close": "Close"
       }
     }
   },

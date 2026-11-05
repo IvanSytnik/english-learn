@@ -71,6 +71,9 @@ export function WordsOverview({ initial }: { initial: VocabOverviewView }) {
         <h1 className="text-3xl font-bold text-ink">{t('title')}</h1>
         <div className="flex flex-wrap items-center gap-3">
           <TopBarControls />
+          <Link href="/words/lists" className="text-sm text-ink underline">
+            {t('lists.navLink')}
+          </Link>
           <Link href="/dashboard" className="text-sm text-ink-muted underline">
             {t('backToDashboard')}
           </Link>

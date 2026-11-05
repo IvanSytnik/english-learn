@@ -140,6 +140,7 @@ beforeEach(() => {
     byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
     itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
     bySlug: new Map(LEXEMES.map((l) => [`${l.lemma}-noun`, l])),
+    slugByItemId: new Map(LEXEMES.map((l) => [l.itemId, `${l.lemma}-noun`])),
   });
   hasItemReviewState.mockResolvedValue(false);
   nextVocab.mockResolvedValue(selection());

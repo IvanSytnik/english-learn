@@ -22,14 +22,8 @@ import {
   setWordPreferenceAction,
   type WordPreferenceActionError,
 } from '../../actions/vocab-preferences';
-
-/** Literal class names so Tailwind sees them; decorative, the word carries the meaning. */
-const BADGE_DOT: Record<WordBadge, string> = {
-  not_started: 'bg-mastery-1',
-  learning: 'bg-mastery-2',
-  reviewing: 'bg-mastery-3',
-  known: 'bg-mastery-5',
-};
+import { AddToListMenu } from '../_components/add-to-list-menu';
+import { StageBadge } from '../_components/stage-badge';
 
 const PREFERENCE_AFTER: Record<WordPreferenceChange, WordPreference> = {
   prioritize: 'PRIORITIZED',
@@ -378,13 +372,7 @@ function WordRow({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className="inline-flex items-center gap-1.5 text-xs text-ink-muted"
-            data-badge={word.badge}
-          >
-            <span aria-hidden="true" className={`size-2 rounded-full ${BADGE_DOT[word.badge]}`} />
-            {t(`badge.${word.badge}`)}
-          </span>
+          <StageBadge badge={word.badge} />
           {prioritized ? (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-ink">
               <Star aria-hidden="true" className="size-3.5 fill-current" />
@@ -433,6 +421,8 @@ function WordRow({
         >
           {t(`actions.${hidden ? 'unhide' : 'hide'}`)}
         </button>
+        {/* A hidden word offers Unhide only (B6.6). */}
+        {!hidden ? <AddToListMenu slug={word.slug} headword={word.headword} /> : null}
       </div>
       {failure}
     </li>

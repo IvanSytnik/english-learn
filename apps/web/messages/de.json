@@ -430,6 +430,104 @@
           "again": "Noch eine Sitzung",
           "overview": "Zurück zum Wortschatz"
         }
+      },
+      "lists": {
+        "title": "Meine Wortlisten",
+        "navLink": "Meine Wortlisten",
+        "back": "Zurück zu den Wörtern",
+        "count": "{count} von {max} Listen",
+        "create": {
+          "label": "Neue Liste",
+          "placeholder": "z. B. Reise nach London",
+          "submit": "Liste erstellen",
+          "fromText": "Neue Liste aus Text"
+        },
+        "words": "{count, plural, one {# Wort} other {# Wörter}}",
+        "updated": "Geändert am {date}",
+        "stagesLabel": "Stufen der Wörter in dieser Liste",
+        "archivedTitle": "Archiv ({count})",
+        "restore": "Wiederherstellen",
+        "restoreLabel": "„{title}“ wiederherstellen",
+        "empty": "Noch keine Listen. Erstelle eine oder füge eine Wortliste als Text ein.",
+        "errors": {
+          "invalidTitle": "Gib der Liste einen Namen (1–80 Zeichen).",
+          "limit": "Du hast bereits 50 aktive Listen, mehr geht nicht. Archiviere eine, um Platz zu schaffen.",
+          "full": "Diese Liste hat bereits 500 Wörter, mehr geht nicht. Entferne zuerst einige.",
+          "rateLimited": "Zu viele Änderungen in der letzten Stunde. Versuche es später noch einmal.",
+          "failed": "Speichern fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
+          "notFound": "Diese Liste oder dieses Wort ist nicht mehr verfügbar."
+        },
+        "retry": "Erneut versuchen",
+        "restored": "„{title}“ ist wieder bei deinen Listen."
+      },
+      "list": {
+        "back": "Alle Listen",
+        "rename": "Umbenennen",
+        "renameLabel": "Name der Liste",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "archive": "Liste archivieren",
+        "archivedNote": "Diese Liste ist archiviert. Stelle sie wieder her, um sie zu ändern oder zu üben.",
+        "practise": "Diese Liste üben",
+        "count": "{count, plural, one {# Wort} other {# Wörter}} von {max}",
+        "empty": "Noch keine Wörter. Suche sie im Katalog oder füge eine Liste ein.",
+        "unavailable": "{count, plural, one {# Wort ist} other {# Wörter sind}} nicht mehr verfügbar und werden nicht angezeigt.",
+        "tableLabel": "Wörter in dieser Liste",
+        "columns": {
+          "order": "Reihenfolge",
+          "word": "Wort",
+          "level": "Niveau",
+          "gloss": "Bedeutung",
+          "stage": "Stufe",
+          "note": "Notiz",
+          "actions": "Aktionen"
+        },
+        "moveUp": "„{word}“ nach oben verschieben",
+        "moveDown": "„{word}“ nach unten verschieben",
+        "drag": "„{word}“ ziehen, um die Reihenfolge zu ändern",
+        "remove": "Entfernen",
+        "removeLabel": "„{word}“ aus der Liste entfernen",
+        "noteAdd": "Notiz",
+        "noteEdit": "Notiz bearbeiten",
+        "noteLabel": "Notiz zu „{word}“",
+        "noteSave": "Notiz speichern",
+        "noteAddLabel": "Notiz zu „{word}“ hinzufügen",
+        "noteEditLabel": "Notiz zu „{word}“ bearbeiten",
+        "noteCounter": "{count}/{max}",
+        "announce": {
+          "moved": "{word}: jetzt an Position {position}",
+          "movedAway": "{word}: auf eine andere Seite verschoben",
+          "removed": "{word}: aus der Liste entfernt",
+          "noteSaved": "{word}: Notiz gespeichert",
+          "renamed": "Liste umbenannt in „{title}“"
+        }
+      },
+      "search": {
+        "label": "Wörter aus dem Katalog hinzufügen",
+        "placeholder": "Wort oder Übersetzung eingeben",
+        "hint": "Gib mindestens 2 Buchstaben ein.",
+        "none": "Nichts gefunden.",
+        "searching": "Suche…",
+        "add": "Hinzufügen",
+        "addLabel": "„{word}“ zur Liste hinzufügen",
+        "inList": "In der Liste",
+        "results": "{count, plural, one {# Treffer} other {# Treffer}}",
+        "added": "{word}: zur Liste hinzugefügt"
+      },
+      "addToList": {
+        "button": "Zur Liste…",
+        "buttonLabel": "„{word}“ zu einer Liste hinzufügen",
+        "title": "„{word}“ zu einer Liste hinzufügen",
+        "loading": "Listen werden geladen…",
+        "none": "Du hast noch keine Listen.",
+        "inList": "In „{title}“",
+        "addTo": "Zu „{title}“ hinzufügen",
+        "newList": "Neue Liste",
+        "newListPlaceholder": "Name der Liste",
+        "create": "Erstellen und hinzufügen",
+        "added": "Zu „{title}“ hinzugefügt.",
+        "atLimit": "50 aktive Listen — archiviere eine, um eine neue zu erstellen.",
+        "close": "Schließen"
       }
     }
   },

@@ -78,6 +78,7 @@ const POOL = {
   byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
   itemIdByLexemeId: new Map(LEXEMES.map((l) => [l.id, l.itemId])),
   bySlug: new Map(LEXEMES.map((l) => [`${l.lemma}-noun`, l])),
+  slugByItemId: new Map(LEXEMES.map((l) => [l.itemId, `${l.lemma}-noun`])),
 };
 const APPLE = 'item-apple';
 
@@ -833,6 +834,8 @@ describe('the intro card (B6.5, V2-11)', () => {
     expect(intro).toMatchObject({
       status: 'intro',
       remainingNew: 7,
+      // "Add to list…" on the intro card names the word by its public slug (B6.7).
+      slug: 'apple-noun',
       word: {
         word: 'apple',
         pos: 'NOUN',

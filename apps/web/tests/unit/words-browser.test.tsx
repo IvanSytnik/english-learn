@@ -5,10 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WordRowView, WordsPage, WordsPageView } from '@/lib/vocab-words';
 import en from '../../messages/en.json';
 
-const { setWordPreferenceAction, prioritizeLevelAction, hardReload } = vi.hoisted(() => ({
-  setWordPreferenceAction: vi.fn(),
-  prioritizeLevelAction: vi.fn(),
-  hardReload: vi.fn(),
+const { setWordPreferenceAction, prioritizeLevelAction, hardReload, wordListMenuAction } =
+  vi.hoisted(() => ({
+    setWordPreferenceAction: vi.fn(),
+    prioritizeLevelAction: vi.fn(),
+    hardReload: vi.fn(),
+    wordListMenuAction: vi.fn(),
+  }));
+vi.mock('@/app/[locale]/(student)/actions/word-lists', () => ({
+  wordListMenuAction,
+  addWordsToListAction: vi.fn(),
+  createWordListAction: vi.fn(),
 }));
 vi.mock('@/lib/hard-reload', () => ({ hardReload }));
 vi.mock('@/app/[locale]/(student)/actions/vocab-preferences', () => ({
@@ -134,7 +141,7 @@ describe('rows', () => {
       inRow('dates-noun')
         .getAllByRole('button')
         .map((el) => el.textContent),
-    ).toEqual([b.actions.hide]);
+    ).toEqual([b.actions.hide, en.student.words.addToList.button]);
     expect(inRow('dates-noun').queryByRole('link')).toBeNull();
     expect(inRow('cake-noun').getByText(b.prioritized)).toBeVisible();
     expect(button('cake-noun', 'Unprioritize “cake”')).toBeVisible();
@@ -151,6 +158,15 @@ describe('rows', () => {
         .map((el) => el.textContent),
     ).toEqual([b.actions.unhide]);
     expect(inRow('eggs-noun').queryByRole('link')).toBeNull();
+  });
+
+  it('every visible word offers "Add to list…", named by its slug (B6.7)', async () => {
+    wordListMenuAction.mockResolvedValue({ ok: true, value: { lists: [], atLimit: false } });
+    renderBrowser();
+    fireEvent.click(button('apple-noun', 'Add “apple” to a list'));
+    expect(await screen.findByText(en.student.words.addToList.none)).toBeVisible();
+    expect(wordListMenuAction).toHaveBeenCalledWith({ slug: 'apple-noun' });
+    expect(inRow('eggs-noun').queryByRole('button', { name: 'Add “eggs” to a list' })).toBeNull();
   });
 
   it('a collection page practises in the collection', () => {

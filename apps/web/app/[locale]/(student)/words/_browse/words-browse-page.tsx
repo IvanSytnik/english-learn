@@ -3,20 +3,11 @@ import { notFound } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { Footer } from '@/app/_components/footer';
 import { requireRole } from '@/lib/authz';
+import { pageParam } from '@/lib/page-param';
 import { loadWordsPage, WordsPageSchema } from '@/lib/vocab-words';
 import { WordsBrowser } from './words-browser';
 
 type SearchParams = Record<string, string | string[] | undefined>;
-
-/**
- * `?page=` as a 1-based page number: absent → 1; anything else but a plain
- * positive integer (repeated, `0`, `01`, `2.5`, `-1`) → null (404).
- */
-export function pageParam(value: SearchParams[string]): number | null {
-  if (value === undefined) return 1;
-  if (typeof value !== 'string' || !/^[1-9]\d{0,3}$/.test(value)) return null;
-  return Number(value);
-}
 
 /**
  * A word page (B6.6), rendered on the server for a learner: the topic or
