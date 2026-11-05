@@ -7,14 +7,19 @@ import type { PartOfSpeechValue } from '../schemas/lexeme';
  * scripts/build-ipa-cmudict.ts applies it to the catalogue and commits only
  * the derived `{ lemmaKey: ipa }` file.
  *
- * A word with several CMUdict pronunciations (B6.2b, Ivan's decision 3.a):
+ * A word with several CMUdict pronunciations (V2-9, B6.2c), in this order:
  * 1. a row of the hand-written IPA_HETERONYMS table for [lemmaKey, pos]
- *    wins — heteronyms of one shape (`use` jus / juz, `live`) need it;
- * 2. variants of different shape — another syllable count or another
- *    primary-stress syllable (`record` ˈrɛkɚd / rɪˈkɔrd) — and no row → null,
- *    never a guess;
- * 3. otherwise the strong form: the variant with the fewest reduced vowels
- *    (AH0, IH0, ER0), the first on a tie — `and` ænd, not ənd; `to` tu.
+ *    always wins — heteronyms of one shape (`use` jus / juz, `live`) need it;
+ * 2. variants with another syllable count → null, never a guess;
+ * 3. variants that differ in the primary-stress syllable: a noun or an
+ *    adjective takes the earlier stress (`object` ˈɑbdʒɛkt), a verb the later
+ *    (`object` əbˈdʒɛkt), any other part of speech → null;
+ * 4. a one-syllable word → the strong citation form, the variant with the
+ *    fewest reduced vowels (AH0, IH0, ER0), the first on a tie — `and` ænd,
+ *    `to` tu, `for` fɔr;
+ * 5. two or more syllables → the first CMUdict variant left after 2–3 —
+ *    `remember` rɪˈmɛmbɚ, `today` təˈdeɪ (the strong form is for function
+ *    words, not for the unstressed prefix of a content word).
  */
 
 export type Arpabet = readonly string[];
@@ -190,18 +195,13 @@ export function pronunciationShape(phones: Arpabet): { syllables: number; primar
   return { syllables: vowels.length, primary: vowels.findIndex((v) => stress(v) === 1) };
 }
 
-const sameShape = (a: Arpabet, b: Arpabet) => {
-  const [x, y] = [pronunciationShape(a), pronunciationShape(b)];
-  return x.syllables === y.syllables && x.primary === y.primary;
-};
-
 /** Reduced vowels: schwa `AH0`, `IH0` and `ER0` (all unstressed by their digit). */
 const REDUCED_VOWELS: ReadonlySet<string> = new Set(['AH0', 'IH0', 'ER0']);
 
 export const reducedVowelCount = (phones: Arpabet): number =>
   phones.filter((p) => REDUCED_VOWELS.has(p)).length;
 
-/** The strong form among variants: the fewest reduced vowels, the first on a tie. */
+/** The strong form among one-syllable variants: the fewest reduced vowels, the first on a tie. */
 export function strongestVariant(prons: readonly Arpabet[]): Arpabet {
   let best = prons[0] as Arpabet;
   for (const p of prons.slice(1)) if (reducedVowelCount(p) < reducedVowelCount(best)) best = p;
@@ -210,16 +210,39 @@ export function strongestVariant(prons: readonly Arpabet[]): Arpabet {
 
 /**
  * Heteronyms and free variants of the catalogue: [lemmaKey, pos] → the
- * 1-based CMUdict variant (`record(2)` = 2). Not here → null.
+ * 1-based CMUdict variant (`record(2)` = 2). Not here → rules 2–5.
  */
 export type HeteronymRow = readonly [lemmaKey: string, pos: PartOfSpeechValue, variant: number];
 
 export type IpaLookup = {
   /** The IPA, or null. */
   ipa: string | null;
-  /** Why null: not in CMUdict, or variants of different shape and no table row. */
+  /** Why null: not in CMUdict, or no table row and rules 2–3 leave no variant. */
   reason?: 'not_found' | 'ambiguous';
 };
+
+/** Rule 3: which primary-stress syllable a part of speech takes when variants differ. */
+export const STRESS_SHIFT_BY_POS: Readonly<
+  Partial<Record<PartOfSpeechValue, 'earlier' | 'later'>>
+> = Object.freeze({ NOUN: 'earlier', ADJECTIVE: 'earlier', VERB: 'later' });
+
+/** Rules 2–5 on a word's CMUdict variants (no table row): the chosen one, or null. */
+export function chooseVariant(prons: readonly Arpabet[], pos: PartOfSpeechValue): Arpabet | null {
+  const shapes = prons.map(pronunciationShape);
+  const syllables = shapes[0]?.syllables;
+  if (syllables === undefined || shapes.some((s) => s.syllables !== syllables)) return null;
+  if (syllables === 1) return strongestVariant(prons);
+  let left = prons;
+  const primaries = new Set(shapes.map((s) => s.primary));
+  if (primaries.size > 1) {
+    const shift = STRESS_SHIFT_BY_POS[pos];
+    // A variant without primary stress has no position to order by.
+    if (shift === undefined || primaries.has(-1)) return null;
+    const want = shift === 'earlier' ? Math.min(...primaries) : Math.max(...primaries);
+    left = prons.filter((_, i) => shapes[i]?.primary === want);
+  }
+  return left[0] ?? null;
+}
 
 /** One word (no spaces): its IPA under the rules above. */
 function wordIpa(
@@ -236,9 +259,8 @@ function wordIpa(
     const chosen = prons[variant - 1];
     return chosen ? { ipa: arpabetToIpa(chosen) } : { ipa: null, reason: 'ambiguous' };
   }
-  const first = prons[0] as Arpabet;
-  if (!prons.every((p) => sameShape(first, p))) return { ipa: null, reason: 'ambiguous' };
-  return { ipa: arpabetToIpa(strongestVariant(prons)) };
+  const chosen = chooseVariant(prons, pos);
+  return chosen ? { ipa: arpabetToIpa(chosen) } : { ipa: null, reason: 'ambiguous' };
 }
 
 /**

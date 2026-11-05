@@ -38,9 +38,9 @@ function main(): void {
       licenceText,
       conversion:
         'ARPAbet to General American IPA, stress marks before the stressed syllable (maximal onset); ' +
-        'several pronunciations: a row of packages/db/src/vocab/ipa-heteronyms.ts; else, if all have one shape ' +
-        '(syllable count, primary-stress syllable), the one with the fewest reduced vowels (AH0, IH0, ER0; ' +
-        'first on a tie); else null.',
+        'several pronunciations: a row of packages/db/src/vocab/ipa-heteronyms.ts; else another syllable count -> null; ' +
+        'another primary-stress syllable -> the earlier for a noun or adjective, the later for a verb, null otherwise; ' +
+        'one syllable -> the fewest reduced vowels (AH0, IH0, ER0; first on a tie); two or more -> the first variant left.',
     },
     entries,
     byPos,
