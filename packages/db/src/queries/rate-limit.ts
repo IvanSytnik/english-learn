@@ -6,6 +6,11 @@ export type RateLimitInput = {
   /** Hits allowed per window; the `limit + 1`-th is refused. */
   limit: number;
   windowMs: number;
+  /**
+   * How many hits this call is (a positive integer, default 1): a bulk write
+   * of n words costs n (B6.6 `vocab-pref:user`).
+   */
+  cost?: number;
   /** Injectable clock for tests. */
   now?: Date;
 };
@@ -29,16 +34,17 @@ export function rateLimitDisabled(): boolean {
  */
 export async function consumeRateLimit(
   db: Pick<PrismaClient, '$queryRaw'>,
-  { key, limit, windowMs, now = new Date() }: RateLimitInput,
+  { key, limit, windowMs, cost = 1, now = new Date() }: RateLimitInput,
 ): Promise<RateLimitResult> {
   if (rateLimitDisabled()) return { allowed: true, remaining: 999, resetAt: now };
+  if (!Number.isInteger(cost) || cost < 1) throw new Error(`consumeRateLimit: bad cost ${cost}`);
   const freshExpiry = new Date(now.getTime() + windowMs);
   const [row] = await db.$queryRaw<{ count: number; expiresAt: Date }[]>`
     INSERT INTO "AuthRateLimit" ("key", "count", "expiresAt", "createdAt")
-    VALUES (${key}, 1, ${freshExpiry}, ${now})
+    VALUES (${key}, ${cost}, ${freshExpiry}, ${now})
     ON CONFLICT ("key") DO UPDATE SET
       "count" = CASE WHEN "AuthRateLimit"."expiresAt" <= ${now}
-        THEN 1 ELSE "AuthRateLimit"."count" + 1 END,
+        THEN ${cost} ELSE "AuthRateLimit"."count" + ${cost} END,
       "expiresAt" = CASE WHEN "AuthRateLimit"."expiresAt" <= ${now}
         THEN ${freshExpiry} ELSE "AuthRateLimit"."expiresAt" END
     RETURNING "count", "expiresAt"`;

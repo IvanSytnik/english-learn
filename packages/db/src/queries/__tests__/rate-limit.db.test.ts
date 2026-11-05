@@ -65,6 +65,22 @@ describe.skipIf(!url)('consumeRateLimit (real Postgres)', () => {
     expect(results[3]?.resetAt).toEqual(new Date(T0.getTime() + MINUTE));
   });
 
+  it('a call of cost n counts n hits: 300 per hour as 200 + 100, then refused (B6.6)', async () => {
+    const key = newKey();
+    const hit = (cost: number) =>
+      consumeRateLimit(db, { key, limit: 300, windowMs: 60 * MINUTE, cost, now: T0 });
+    expect(await hit(200)).toMatchObject({ allowed: true, remaining: 100 });
+    expect(await hit(100)).toMatchObject({ allowed: true, remaining: 0 });
+    expect(await hit(1)).toMatchObject({ allowed: false, remaining: 0 });
+    const fresh = newKey();
+    expect(
+      await consumeRateLimit(db, { key: fresh, limit: 300, windowMs: MINUTE, cost: 301, now: T0 }),
+    ).toMatchObject({ allowed: false });
+    await expect(
+      consumeRateLimit(db, { key: fresh, limit: 3, windowMs: MINUTE, cost: 0, now: T0 }),
+    ).rejects.toThrow(/bad cost/);
+  });
+
   it('restarts the count with a fresh window after expiry', async () => {
     const key = newKey();
     for (let i = 0; i < 3; i++) {

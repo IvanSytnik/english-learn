@@ -60,3 +60,17 @@ export {
   type NativeLanguage,
   NativeLanguageSchema,
 } from './native-language';
+export {
+  LexemePreferenceStateSchema,
+  type LexemePreferenceStateValue,
+  MAX_ACTIVE_WORD_LISTS,
+  MAX_PREFERENCE_BATCH,
+  MAX_WORD_LIST_ENTRIES,
+  WORD_LIST_NOTE_MAX,
+  WORD_LIST_TITLE_MAX,
+  WordListNoteSchema,
+  WordListPositionSchema,
+  WordListSourceSchema,
+  type WordListSourceValue,
+  WordListTitleSchema,
+} from './word-list';
