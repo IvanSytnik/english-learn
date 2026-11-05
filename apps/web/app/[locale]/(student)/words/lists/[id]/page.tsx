@@ -1,5 +1,5 @@
 import { isLocale, WordListIdSchema } from '@englishlearn/db/schemas';
-import { SEARCH_MIN_CHARS } from '@englishlearn/learner-model';
+import { PASTE_MAX_CHARS, SEARCH_MIN_CHARS } from '@englishlearn/learner-model';
 import { notFound } from 'next/navigation';
 import { getLocale } from 'next-intl/server';
 import { Footer } from '@/app/_components/footer';
@@ -7,6 +7,7 @@ import { requireRole } from '@/lib/authz';
 import { pageParam } from '@/lib/page-param';
 import { loadWordListPage } from '@/lib/word-lists';
 import { ListEditor } from '../_components/list-editor';
+import { PasteImport } from '../_components/paste-import';
 
 /**
  * `/words/lists/[id]` (B6.7): one of the learner's lists, ≤ 100 rows a page.
@@ -36,7 +37,12 @@ export default async function WordListPage({
   return (
     <>
       {/* A new page starts from its own rows, not the last page's optimistic state. */}
-      <ListEditor key={`${view.id}:${pageNumber}`} view={view} searchMinChars={SEARCH_MIN_CHARS} />
+      <ListEditor
+        key={`${view.id}:${pageNumber}`}
+        view={view}
+        searchMinChars={SEARCH_MIN_CHARS}
+        pasteImport={<PasteImport target={{ listId: view.id }} maxChars={PASTE_MAX_CHARS} />}
+      />
       <Footer />
     </>
   );

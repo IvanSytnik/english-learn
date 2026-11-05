@@ -159,9 +159,9 @@ export function ListsIndex({
             <button type="submit" className={buttonVariants({ size: 'md' })}>
               {t('create.submit')}
             </button>
-            {pasteImport}
           </form>
         )}
+        {atLimit ? null : pasteImport}
         {errorLine('create')}
       </section>
 

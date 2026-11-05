@@ -1,7 +1,9 @@
+import { PASTE_MAX_CHARS } from '@englishlearn/learner-model';
 import { Footer } from '@/app/_components/footer';
 import { requireRole } from '@/lib/authz';
 import { loadWordListsIndex } from '@/lib/word-lists';
 import { ListsIndex } from './_components/lists-index';
+import { PasteImport } from './_components/paste-import';
 
 /**
  * `/words/lists` (B6.7): the learner's word lists — active ones with their
@@ -13,7 +15,10 @@ export default async function WordListsPage() {
   const view = await loadWordListsIndex(user.id);
   return (
     <>
-      <ListsIndex view={view} />
+      <ListsIndex
+        view={view}
+        pasteImport={<PasteImport target={{ newList: true }} maxChars={PASTE_MAX_CHARS} />}
+      />
       <Footer />
     </>
   );

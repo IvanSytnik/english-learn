@@ -23,6 +23,9 @@ vi.mock('@/app/[locale]/(student)/words/lists/_components/list-editor', () => ({
 vi.mock('@/app/[locale]/(student)/words/lists/_components/lists-index', () => ({
   ListsIndex: () => null,
 }));
+vi.mock('@/app/[locale]/(student)/words/lists/_components/paste-import', () => ({
+  PasteImport: () => null,
+}));
 
 const { default: WordListsPage } = await import('@/app/[locale]/(student)/words/lists/page');
 const { default: WordListPage } = await import('@/app/[locale]/(student)/words/lists/[id]/page');
