@@ -85,6 +85,27 @@ export async function newVocabWordsSince(
 }
 
 /**
+ * Items the learner proved known with "I know" (a passed proof, `proof: true`
+ * on an ITEM_ATTEMPTED — B2.5), for the stage badge (B6-SPEC V2-16). The
+ * proof is a word's first answer; whether it lapsed since is the badge's
+ * call (FSRS lapses), not this read's. Walks the learner's attempts via the
+ * (userId, type, occurredAt) index.
+ */
+export async function provenVocabItemIds(
+  db: Pick<PrismaClient, '$queryRaw'>,
+  userId: string,
+): Promise<string[]> {
+  const rows = await db.$queryRaw<{ itemId: string }[]>`
+    SELECT DISTINCT e."payload"->>'itemId' AS "itemId"
+    FROM "LearnerEvent" e
+    WHERE e."userId" = ${userId}
+      AND e."type" = 'ITEM_ATTEMPTED'
+      AND e."payload" @> '{"proof": true}'::jsonb
+    ORDER BY 1`;
+  return rows.map((r) => r.itemId);
+}
+
+/**
  * Whether the learner has answered this word before (an ItemReviewState row
  * exists). A "Know -> prove" check is offered only for a word that has none;
  * the write path re-checks it under the user lock.

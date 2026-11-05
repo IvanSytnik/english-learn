@@ -238,6 +238,8 @@ export type VocabCandidateRow = {
     cardStatus: FsrsCardStatus;
     stability: number;
     lastReviewAt: bigint | null;
+    /** FSRS lapses: the badge of a proven word (B6-SPEC V2-16). Not read by the selector. */
+    lapses: number;
   } | null;
 };
 
@@ -269,4 +271,9 @@ export type VocabSessionDb = {
    * list; null when the list is not theirs, archived, or gone.
    */
   getWordListItemIds(userId: string, listId: string): Promise<string[] | null>;
+  /**
+   * Words with a passed "I know" proof (`proof: true`, B2.5) — the stage
+   * badge (V2-16). Item ids; browsing pages only, never the session.
+   */
+  getProvenVocabItemIds(userId: string): Promise<string[]>;
 };

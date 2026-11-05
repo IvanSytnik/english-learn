@@ -47,7 +47,7 @@ const word = (headword: string, over: Partial<WordRowView> = {}): WordRowView =>
   pos: 'NOUN',
   level: 'A1',
   gloss: `${headword}-uk`,
-  badge: 'notStarted',
+  badge: 'not_started',
   preference: null,
   ...over,
 });
@@ -114,7 +114,7 @@ describe('rows', () => {
     expect(apple.getByText('noun')).toBeVisible();
     expect(apple.getByText('A1')).toBeVisible();
     expect(apple.getByText('apple-uk')).toHaveAttribute('lang', 'uk');
-    expect(apple.getByText(b.badge.notStarted)).toBeVisible();
+    expect(apple.getByText(b.badge.not_started)).toBeVisible();
     expect(inRow('dates-noun').getByText(b.badge.reviewing)).toBeVisible();
     expect(screen.getByText('5 words')).toBeVisible();
   });

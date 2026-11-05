@@ -1,4 +1,12 @@
 export {
+  KNOWN_FROM,
+  REVIEWING_FROM,
+  STAGE_BADGES,
+  type StageBadge,
+  type StageBadgeState,
+  stageBadge,
+} from './badge';
+export {
   buildVocabCard,
   buildVocabVariant,
   type ChoiceVariantId,

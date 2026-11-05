@@ -349,7 +349,7 @@
         "practise": "Diese Sammlung üben",
         "empty": "Hier gibt es noch keine Wörter.",
         "badge": {
-          "notStarted": "Nicht begonnen",
+          "not_started": "Nicht begonnen",
           "learning": "Im Lernen",
           "reviewing": "In Wiederholung",
           "known": "Gelernt"

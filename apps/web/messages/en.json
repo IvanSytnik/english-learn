@@ -349,7 +349,7 @@
         "practise": "Practise this collection",
         "empty": "No words here yet.",
         "badge": {
-          "notStarted": "Not started",
+          "not_started": "Not started",
           "learning": "Learning",
           "reviewing": "Reviewing",
           "known": "Known"

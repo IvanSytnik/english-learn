@@ -22,9 +22,9 @@ import {
 import {
   CEFR_RANK,
   glossOf,
+  type StageBadge,
+  stageBadge,
   type VocabLocale,
-  type WordStage,
-  wordStage,
 } from '@englishlearn/learner-model';
 import type { VocabWordStates } from '@englishlearn/learner-model/service';
 import { z } from 'zod';
@@ -56,23 +56,15 @@ export type WordsPage = z.infer<typeof WordsPageSchema>;
 /** Rows per page (`?page=`). */
 export const WORDS_PAGE_SIZE = 100;
 
-/** The learner-facing stage of a word (B6-SPEC §2): four badges, no numbers. */
-export type WordBadge = 'notStarted' | 'learning' | 'reviewing' | 'known';
+/** The learner-facing stage of a word (B6-SPEC V2-16): four badges, no numbers. */
+export type WordBadge = StageBadge;
 
-/**
- * The overview's five stages folded into the page's four: recognition rungs
- * are "learning", the cloze rung "reviewing", the recall rungs "known".
- */
-const BADGE_OF_STAGE: Readonly<Record<WordStage, WordBadge>> = {
-  new: 'notStarted',
-  learning: 'learning',
-  familiar: 'reviewing',
-  known: 'known',
-  mastered: 'known',
-};
-
-export const wordBadge = (review: Parameters<typeof wordStage>[0]): WordBadge =>
-  BADGE_OF_STAGE[wordStage(review)];
+/** The badge of one word from the learner's states — the one rule every page uses. */
+export const wordBadge = (states: VocabWordStates, itemId: string): WordBadge =>
+  stageBadge({
+    review: states.reviews.get(itemId) ?? null,
+    proven: states.provenItemIds.has(itemId),
+  });
 
 export type WordPreference = 'PRIORITIZED' | 'HIDDEN' | null;
 
@@ -145,8 +137,7 @@ const preferenceOf = (states: VocabWordStates, itemId: string): WordPreference =
 
 /** What "Prioritize this level" takes: a word never answered, neither hidden nor prioritized. */
 const isPrioritizable = (states: VocabWordStates, itemId: string) =>
-  wordBadge(states.reviews.get(itemId) ?? null) === 'notStarted' &&
-  preferenceOf(states, itemId) === null;
+  wordBadge(states, itemId) === 'not_started' && preferenceOf(states, itemId) === null;
 
 const practiceOf = (page: WordsPage, level: CefrLevelValue): WordLevelGroup['practice'] =>
   page.kind === 'topic' ? { concept: vocabConceptId(page.topic, level) } : { collection: page.key };
@@ -203,7 +194,7 @@ export async function loadWordsPage(args: {
       pos: row.pos,
       level: row.cefrLevel,
       gloss: glossOf(row, locale),
-      badge: wordBadge(states.reviews.get(row.itemId) ?? null),
+      badge: wordBadge(states, row.itemId),
       preference: preferenceOf(states, row.itemId),
     });
   }

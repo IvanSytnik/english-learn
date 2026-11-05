@@ -28,6 +28,7 @@ const db = (rows: VocabCandidateRow[], todayKeys: string[] = []): VocabSessionDb
   getVocabProfile: async () => ({ dailyLimit: 10, assessedLevel: null }),
   getVocabPreferences: async () => NO_PREFERENCES,
   getWordListItemIds: async () => null,
+  getProvenVocabItemIds: async () => [],
 });
 
 describe('nextVocab', () => {
@@ -89,6 +90,7 @@ describe('B6.5: the learner level and the allowance', () => {
     getVocabProfile: async () => ({ dailyLimit: 10, assessedLevel }),
     getVocabPreferences: async () => NO_PREFERENCES,
     getWordListItemIds: async () => null,
+    getProvenVocabItemIds: async () => [],
   });
 
   it('nextVocab returns the assessed level with the selection (null = none)', async () => {
@@ -124,7 +126,7 @@ describe('B6.6: preferences and list sessions', () => {
     cardStatus: 'REVIEW' | 'LEARNING' = 'REVIEW',
   ): VocabCandidateRow => ({
     ...word(itemId, 'vocab.travel.a1', 50),
-    review: { dueAt, cardStatus, stability: 30, lastReviewAt: dueAt - DAY },
+    review: { dueAt, cardStatus, stability: 30, lastReviewAt: dueAt - DAY, lapses: 0 },
   });
   const port = (
     rows: VocabCandidateRow[],
@@ -136,6 +138,7 @@ describe('B6.6: preferences and list sessions', () => {
     getVocabProfile: async () => ({ dailyLimit: 10, assessedLevel: null }),
     getVocabPreferences: async () => NO_PREFERENCES,
     getWordListItemIds: async () => null,
+    getProvenVocabItemIds: async () => [],
     ...over,
   });
   const next = (db: VocabSessionDb, scope?: NextVocabInput['scope']) =>

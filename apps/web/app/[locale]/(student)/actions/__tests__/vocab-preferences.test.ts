@@ -68,13 +68,14 @@ const ROWS = [
   lex('soup', 'A2', 6),
   lex('shirt', 'A1', 7, 'travel'),
 ];
-const started = { dueAt: 1n, cardStatus: 'LEARNING', stability: 1, lastReviewAt: 0n };
+const started = { dueAt: 1n, cardStatus: 'LEARNING', stability: 1, lastReviewAt: 0n, lapses: 0 };
 const states = (
   over: Partial<{ reviews: [string, unknown][]; p: string[]; h: string[] }> = {},
 ) => ({
   reviews: new Map(over.reviews ?? []),
   prioritizedItemIds: new Set(over.p ?? []),
   hiddenItemIds: new Set(over.h ?? []),
+  provenItemIds: new Set<string>(),
 });
 const FOOD_A1 = { page: { kind: 'topic', topic: 'food_drink' }, level: 'A1' } as const;
 

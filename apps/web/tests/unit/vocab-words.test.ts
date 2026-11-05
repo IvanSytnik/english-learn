@@ -57,20 +57,23 @@ function poolOf(rows: ReturnType<typeof lex>[]) {
   };
 }
 
-const review = (cardStatus: string, stability: number) => ({
+const review = (cardStatus: string, stability: number, lapses = 0) => ({
   dueAt: 1n,
   cardStatus,
   stability,
   lastReviewAt: 0n,
+  lapses,
 });
 const states = (
   reviews: Record<string, ReturnType<typeof review>> = {},
   prioritized: string[] = [],
   hidden: string[] = [],
+  proven: string[] = [],
 ) => ({
   reviews: new Map(Object.entries(reviews)),
   prioritizedItemIds: new Set(prioritized),
   hiddenItemIds: new Set(hidden),
+  provenItemIds: new Set(proven),
 });
 
 const FOOD = [
@@ -95,17 +98,20 @@ beforeEach(() => {
   wordStates.mockResolvedValue(states());
 });
 
-describe('wordBadge: four badges, from the session’s own stage', () => {
+describe('wordBadge: the shared V2-16 rule over the learner’s states', () => {
   it.each([
-    ['never answered', null, 'notStarted'],
-    ['a NEW card', review('NEW', 0), 'notStarted'],
-    ['in learning steps', review('LEARNING', 0.5), 'learning'],
-    ['on a recognition rung', review('REVIEW', 5), 'learning'],
-    ['on the cloze rung', review('REVIEW', 12), 'reviewing'],
-    ['on cued recall', review('REVIEW', 40), 'known'],
-    ['on full recall', review('REVIEW', 400), 'known'],
-  ])('%s → %s', (_, r, badge) => {
-    expect(wordBadge(r as never)).toBe(badge);
+    ['never answered', 'not_started', undefined, false],
+    ['a NEW card', 'not_started', review('NEW', 0), false],
+    ['in learning steps', 'learning', review('LEARNING', 0.5), false],
+    ['just below the cloze rung', 'learning', review('REVIEW', 6.99), false],
+    ['on the cloze rung', 'reviewing', review('REVIEW', 7), false],
+    ['on cued recall (S 21..60)', 'reviewing', review('REVIEW', 40), false],
+    ['on full recall', 'known', review('REVIEW', 60), false],
+    ['a passed proof (S ≈ 8.3)', 'known', review('REVIEW', 8.3), true],
+    ['a passed proof, lapsed since', 'learning', review('RELEARNING', 2.9, 1), true],
+  ] as const)('%s → %s', (_, badge, r, proven) => {
+    const s = states(r ? { w: r } : {}, [], [], proven ? ['w'] : []);
+    expect(wordBadge(s as never, 'w')).toBe(badge);
   });
 });
 
@@ -139,7 +145,7 @@ describe('loadWordsPage', () => {
       },
       expect.objectContaining({
         slug: 'bread-noun',
-        badge: 'notStarted',
+        badge: 'not_started',
         preference: 'PRIORITIZED',
       }),
       expect.objectContaining({ slug: 'cake-noun', preference: 'HIDDEN' }),

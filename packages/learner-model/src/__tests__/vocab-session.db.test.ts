@@ -14,6 +14,7 @@ import {
   createPrismaVocabSessionDb,
 } from '../service/prisma-db';
 import { createVocabSessionService } from '../service/vocab-session-service';
+import { stageBadge } from '../vocab/badge';
 
 /**
  * The daily new-word limit on real Postgres (B2.5): newVocabWordsSince
@@ -202,6 +203,26 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
     expect(events.map((e) => (e.payload as { proof?: true }).proof ?? null)).toEqual([true, null]);
     // The passed proof is not a new word for the limit, but its headword was met today.
     expect(await today()).toEqual({ count: 1, lemmaKeys: [key(0), key(1)] });
+  });
+
+  it('B6.7 V2-16: word states name passed proofs and carry lapses for the badge', async () => {
+    const [w0, w1, w2] = words as [string, string, string];
+    await answer(w0, DAY_START + MIN, { proof: true });
+    await answer(w1, DAY_START + 2 * MIN, { proof: true, correct: false });
+    await answer(w2, DAY_START + 3 * MIN);
+    const states = await session().wordStates(userId);
+    expect([...states.provenItemIds]).toEqual([w0]);
+    const proofReview = states.reviews.get(w0) ?? null;
+    expect(proofReview?.lapses).toBe(0);
+    expect(stageBadge({ review: proofReview, proven: true })).toBe('known');
+
+    // Forgotten at its due date: one lapse, still a proof — the badge drops it.
+    const due = Number(proofReview?.dueAt ?? 0n);
+    await answer(w0, due + MIN, { correct: false });
+    const after = await session().wordStates(userId);
+    expect([...after.provenItemIds]).toEqual([w0]);
+    expect(after.reviews.get(w0)?.lapses).toBe(1);
+    expect(stageBadge({ review: after.reviews.get(w0) ?? null, proven: true })).toBe('learning');
   });
 
   it('never counts grammar answers', async () => {

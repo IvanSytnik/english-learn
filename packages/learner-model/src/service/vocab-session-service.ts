@@ -1,13 +1,8 @@
 import type { CEFRLevel } from '../core/graph/types';
 import { localDayStartMs } from '../vocab/day';
 import { summarizeVocab, type VocabSummary } from '../vocab/overview';
-import {
-  selectVocab,
-  type VocabCandidate,
-  type VocabScope,
-  type VocabSelection,
-} from '../vocab/select';
-import type { VocabSessionDb } from './db-port';
+import { selectVocab, type VocabScope, type VocabSelection } from '../vocab/select';
+import type { VocabCandidateRow, VocabSessionDb } from './db-port';
 
 /**
  * VocabSessionService: "which word next?" for the vocabulary session (B2.5).
@@ -62,9 +57,11 @@ export type VocabOverview = VocabSummary & {
 /** Per word (item id): the learner's review state and preferences (B6.6). */
 export type VocabWordStates = {
   /** Every published word; null = never answered. */
-  reviews: ReadonlyMap<string, VocabCandidate['review']>;
+  reviews: ReadonlyMap<string, VocabCandidateRow['review']>;
   prioritizedItemIds: ReadonlySet<string>;
   hiddenItemIds: ReadonlySet<string>;
+  /** Words with a passed "I know" proof (stage badge, V2-16). */
+  provenItemIds: ReadonlySet<string>;
 };
 
 const NO_ITEMS: ReadonlySet<string> = new Set();
@@ -126,14 +123,16 @@ export function createVocabSessionService(db: VocabSessionDb) {
      * the learner's preferences. The session's own reads, not selected.
      */
     async wordStates(userId: string): Promise<VocabWordStates> {
-      const [candidates, preferences] = await Promise.all([
+      const [candidates, preferences, proven] = await Promise.all([
         db.getVocabCandidates(userId),
         db.getVocabPreferences(userId),
+        db.getProvenVocabItemIds(userId),
       ]);
       return {
         reviews: new Map(candidates.map((c) => [c.itemId, c.review])),
         prioritizedItemIds: new Set(preferences.prioritizedItemIds),
         hiddenItemIds: new Set(preferences.hiddenItemIds),
+        provenItemIds: new Set(proven),
       };
     },
 

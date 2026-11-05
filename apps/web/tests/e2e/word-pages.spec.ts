@@ -194,10 +194,10 @@ test('a topic page from its /words card; "I know" on a row opens that word’s p
   expect(attempts[0]).toMatchObject({ proof: true, correct: true, conceptId: 'vocab.travel.a1' });
   expect((await vocabItemWord(attempts[0]?.itemId as string)).lemma).toBe(word);
 
-  // Back on the page the word is started: no "I know", no Prioritize.
+  // Back on the page the word is known (V2-16: a passed proof), so no "I know", no Prioritize.
   await page.goto('/ru/words/topics/travel');
   const proven = rows(page).first();
-  await expect(proven.locator('[data-badge]')).not.toHaveText('Не начато');
+  await expect(proven.locator('[data-badge]')).toHaveText('Выучено');
   await expect(proven.getByRole('link')).toHaveCount(0);
   await expect(proven.getByRole('button')).toHaveText(['Скрыть']);
 });

@@ -25,7 +25,7 @@ import {
 
 /** Literal class names so Tailwind sees them; decorative, the word carries the meaning. */
 const BADGE_DOT: Record<WordBadge, string> = {
-  notStarted: 'bg-mastery-1',
+  not_started: 'bg-mastery-1',
   learning: 'bg-mastery-2',
   reviewing: 'bg-mastery-3',
   known: 'bg-mastery-5',
@@ -40,7 +40,7 @@ const PREFERENCE_AFTER: Record<WordPreferenceChange, WordPreference> = {
 
 /** "Prioritize this level" takes a word never answered, neither hidden nor prioritized. */
 const eligible = (badge: WordBadge, preference: WordPreference) =>
-  badge === 'notStarted' && preference === null;
+  badge === 'not_started' && preference === null;
 
 type RowsState = {
   preferences: ReadonlyMap<string, WordPreference>;
@@ -357,7 +357,7 @@ function WordRow({
   const t = useTranslations('student.words.browse');
   const hidden = preference === 'HIDDEN';
   const prioritized = preference === 'PRIORITIZED';
-  const isNew = word.badge === 'notStarted';
+  const isNew = word.badge === 'not_started';
   return (
     <li
       className={cn('flex flex-col gap-2 px-4 py-3', hidden ? 'bg-surface' : 'bg-surface-2')}

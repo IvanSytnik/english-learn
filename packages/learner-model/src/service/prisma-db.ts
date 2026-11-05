@@ -1,6 +1,10 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
 import { getVocabPreferences } from '@englishlearn/db/queries/lexeme-preferences';
-import { getDailyVocabLimit, newVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
+import {
+  getDailyVocabLimit,
+  newVocabWordsSince,
+  provenVocabItemIds,
+} from '@englishlearn/db/queries/vocab-session';
 import { getWordListItemIds } from '@englishlearn/db/queries/word-lists';
 import {
   type AttemptOutcomeRow,
@@ -478,6 +482,7 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
             cardStatus: true,
             stability: true,
             lastReviewAt: true,
+            lapses: true,
           },
         }),
       ]);
@@ -511,6 +516,9 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
     },
     getWordListItemIds(userId, listId) {
       return getWordListItemIds(prisma, { ownerId: userId, listId });
+    },
+    getProvenVocabItemIds(userId) {
+      return provenVocabItemIds(prisma, userId);
     },
   };
 }
