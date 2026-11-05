@@ -72,6 +72,7 @@ export function pickFor(
   rng: Rng,
   targetOption: string,
   optionOf: (l: VocabLexeme) => string | null,
+  opts: { avoidGlossOverlap?: boolean } = {},
 ): ChoiceOption[] {
   const picked = pickDistractors({
     target: input.target,
@@ -80,6 +81,7 @@ export function pickFor(
     rng,
     optionOf,
     targetOption,
+    avoidGlossOverlap: opts.avoidGlossOverlap,
   });
   return picked.map((d) => ({ option: d.option, lexemeId: d.lexeme.id }));
 }

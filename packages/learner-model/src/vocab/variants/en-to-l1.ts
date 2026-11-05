@@ -18,7 +18,8 @@ export const enToL1: VocabRungVariant<'en_to_l1'> = {
     return choice(
       { mode: 'en_to_l1', word: target.lemma, ipa: target.ipa ?? null },
       { option: correct, lexemeId: target.id },
-      pickFor(input, rng, correct, (l) => glossOf(l, locale)),
+      // V2-14: no distractor whose gloss shares a content word with this one.
+      pickFor(input, rng, correct, (l) => glossOf(l, locale), { avoidGlossOverlap: true }),
       rng,
     );
   },

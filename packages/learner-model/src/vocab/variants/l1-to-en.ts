@@ -16,7 +16,8 @@ export const l1ToEn: VocabRungVariant<'l1_to_en'> = {
     return choice(
       { mode: 'l1_to_en', gloss: promptGloss(target, locale) },
       { option: target.lemma, lexemeId: target.id },
-      pickFor(input, rng, target.lemma, (l) => l.lemma),
+      // V2-14: a distractor whose gloss overlaps the prompt would also fit it.
+      pickFor(input, rng, target.lemma, (l) => l.lemma, { avoidGlossOverlap: true }),
       rng,
     );
   },
