@@ -32,5 +32,11 @@ export const WordListNoteSchema = z
   .max(WORD_LIST_NOTE_MAX)
   .transform((note) => (note.length === 0 ? null : note));
 
+/**
+ * A list id as a client may send it (B6.7: list ids appear in URLs and action
+ * inputs — the owner is checked on every read and write). Prisma `cuid()`.
+ */
+export const WordListIdSchema = z.string().regex(/^[a-z0-9]{20,40}$/);
+
 /** CHECK `WordListEntry_position_nonnegative`. */
 export const WordListPositionSchema = z.number().int().min(0);

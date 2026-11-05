@@ -68,6 +68,7 @@ export {
   MAX_WORD_LIST_ENTRIES,
   WORD_LIST_NOTE_MAX,
   WORD_LIST_TITLE_MAX,
+  WordListIdSchema,
   WordListNoteSchema,
   WordListPositionSchema,
   WordListSourceSchema,

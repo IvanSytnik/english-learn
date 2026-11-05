@@ -23,6 +23,8 @@ export const AUTH_LIMITS = {
   'feedback:user': { limit: 20, windowMs: HOUR },
   // Per user (B6.6): word preferences, metered by rows written (B6.7, #30).
   'vocab-pref:user': { limit: 300, windowMs: HOUR },
+  // Per user (B6.7): word list writes, metered by rows written (a paste import adds up to 500).
+  'vocab-list:user': { limit: 1000, windowMs: HOUR },
 } as const;
 
 export type AuthLimitName = keyof typeof AUTH_LIMITS;
