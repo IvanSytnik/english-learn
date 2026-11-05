@@ -1,6 +1,11 @@
 import 'server-only';
 import { prisma } from '@englishlearn/db';
-import { consumeRateLimit, rateLimitDisabled } from '@englishlearn/db/queries/rate-limit';
+import {
+  consumeRateLimit,
+  type MeteredTx,
+  meteredWrite,
+  rateLimitDisabled,
+} from '@englishlearn/db/queries/rate-limit';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -16,7 +21,7 @@ export const AUTH_LIMITS = {
   'delete:user': { limit: 5, windowMs: 15 * MINUTE },
   // Per user: room for a tester flagging every question of a long session, not for a flood.
   'feedback:user': { limit: 20, windowMs: HOUR },
-  // Per user (B6.6): word preferences — a bulk "Prioritize this level" of n words costs n.
+  // Per user (B6.6): word preferences, metered by rows written (B6.7, #30).
   'vocab-pref:user': { limit: 300, windowMs: HOUR },
 } as const;
 
@@ -56,4 +61,24 @@ export async function withinAuthLimits(
     ),
   );
   return results.every((r) => r.allowed);
+}
+
+/**
+ * A write charged by the rows it actually writes (B6.7, HANDOFF #30): `write`
+ * runs in one transaction with the budget of `name:subject` locked and
+ * reports `written`; only that is charged. Past the budget the write is
+ * rolled back and nothing is charged (`ok: false`); writing nothing costs
+ * nothing.
+ */
+export async function meteredLimit<T>(
+  name: AuthLimitName,
+  subject: string,
+  write: (tx: MeteredTx) => Promise<{ written: number; value: T }>,
+): Promise<{ ok: true; value: T } | { ok: false }> {
+  const res = await meteredWrite(
+    prisma,
+    { key: `${name}:${subject}`, ...AUTH_LIMITS[name] },
+    write,
+  );
+  return res.allowed ? { ok: true, value: res.value } : { ok: false };
 }

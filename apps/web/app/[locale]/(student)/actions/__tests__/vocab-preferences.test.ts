@@ -6,14 +6,17 @@ const {
   getVocabPool,
   setLexemePreferences,
   clearLexemePreferences,
-  withinAuthLimits,
+  meteredLimit,
+  budget,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   wordStates: vi.fn(),
   getVocabPool: vi.fn(),
   setLexemePreferences: vi.fn(),
   clearLexemePreferences: vi.fn(),
-  withinAuthLimits: vi.fn(),
+  meteredLimit: vi.fn(),
+  /** The fake `vocab-pref:user` budget: rows left and what each write was charged. */
+  budget: { left: 300, charged: [] as number[] },
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
@@ -24,7 +27,7 @@ vi.mock('@englishlearn/db/queries/lexeme-preferences', () => ({
   clearLexemePreferences,
 }));
 vi.mock('@/lib/auth', () => ({ auth }));
-vi.mock('@/lib/auth/rate-limit', () => ({ withinAuthLimits }));
+vi.mock('@/lib/auth/rate-limit', () => ({ meteredLimit }));
 vi.mock('@/lib/learner', () => ({ vocabSessionService: { wordStates } }));
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
@@ -35,6 +38,7 @@ const { prioritizeLevelAction, setWordPreferenceAction } = await import(
 const { slugIndex } = await import('@englishlearn/db/vocab/slug');
 
 const USER = 'user_1';
+const TX = { tag: 'tx' };
 const lex = (lemma: string, level: 'A1' | 'A2', frequencyRank: number, topic = 'food_drink') => ({
   itemId: `item-${lemma}`,
   id: `lex-${lemma}`,
@@ -84,7 +88,16 @@ beforeEach(() => {
   auth.mockResolvedValue({ user: { id: USER, role: 'STUDENT' } });
   getVocabPool.mockResolvedValue(poolOf(ROWS));
   wordStates.mockResolvedValue(states());
-  withinAuthLimits.mockResolvedValue(true);
+  budget.left = 300;
+  budget.charged = [];
+  // The real rule (meteredWrite, DB-tested): charged what was written; past the budget, nothing.
+  meteredLimit.mockImplementation(async (_name, _subject, write) => {
+    const { written, value } = await write(TX);
+    if (written > 0 && written > budget.left) return { ok: false };
+    budget.left -= written;
+    budget.charged.push(written);
+    return { ok: true, value };
+  });
   setLexemePreferences.mockImplementation(async (_db, args) => ({
     changed: args.lexemeIds.length,
     notFound: [],
@@ -95,7 +108,7 @@ beforeEach(() => {
 const nothingWritten = () => {
   expect(setLexemePreferences).not.toHaveBeenCalled();
   expect(clearLexemePreferences).not.toHaveBeenCalled();
-  expect(withinAuthLimits).not.toHaveBeenCalled();
+  expect(meteredLimit).not.toHaveBeenCalled();
 };
 
 describe('only learners (S5)', () => {
@@ -120,16 +133,45 @@ describe('setWordPreferenceAction', () => {
   it.each([
     ['prioritize', 'PRIORITIZED'],
     ['hide', 'HIDDEN'],
-  ] as const)('%s writes %s for the slug’s lexeme, one hit of the budget', async (change, state) => {
+  ] as const)('%s writes %s for the slug’s lexeme in the metered transaction, one row charged', async (change, state) => {
     expect(await setWordPreferenceAction({ slug: 'bread-noun', change })).toEqual({
       ok: true,
       value: { preference: state },
     });
-    expect(setLexemePreferences).toHaveBeenCalledExactlyOnceWith(
-      { tag: 'prisma' },
-      { userId: USER, lexemeIds: ['lex-bread'], state },
+    expect(setLexemePreferences).toHaveBeenCalledExactlyOnceWith(TX, {
+      userId: USER,
+      lexemeIds: ['lex-bread'],
+      state,
+    });
+    expect(meteredLimit).toHaveBeenCalledExactlyOnceWith(
+      'vocab-pref:user',
+      USER,
+      expect.any(Function),
     );
-    expect(withinAuthLimits).toHaveBeenCalledExactlyOnceWith([['vocab-pref:user', USER]]);
+    expect(budget.charged).toEqual([1]);
+  });
+
+  it('#30: a repeat writes no row and costs nothing', async () => {
+    setLexemePreferences.mockResolvedValueOnce({ changed: 0, notFound: [] });
+    expect(await setWordPreferenceAction({ slug: 'bread-noun', change: 'hide' })).toEqual({
+      ok: true,
+      value: { preference: 'HIDDEN' },
+    });
+    clearLexemePreferences.mockResolvedValueOnce({ cleared: 0 });
+    expect(await setWordPreferenceAction({ slug: 'bread-noun', change: 'unprioritize' })).toEqual({
+      ok: true,
+      value: { preference: null },
+    });
+    expect(budget.charged).toEqual([0, 0]);
+    expect(budget.left).toBe(300);
+  });
+
+  it('#30: with the budget spent, a repeat still answers (it costs nothing)', async () => {
+    budget.left = 0;
+    setLexemePreferences.mockResolvedValueOnce({ changed: 0, notFound: [] });
+    expect(await setWordPreferenceAction({ slug: 'bread-noun', change: 'hide' })).toMatchObject({
+      ok: true,
+    });
   });
 
   it.each([
@@ -140,11 +182,13 @@ describe('setWordPreferenceAction', () => {
       ok: true,
       value: { preference: null },
     });
-    expect(clearLexemePreferences).toHaveBeenCalledExactlyOnceWith(
-      { tag: 'prisma' },
-      { userId: USER, lexemeIds: ['lex-bread'], state },
-    );
+    expect(clearLexemePreferences).toHaveBeenCalledExactlyOnceWith(TX, {
+      userId: USER,
+      lexemeIds: ['lex-bread'],
+      state,
+    });
     expect(setLexemePreferences).not.toHaveBeenCalled();
+    expect(budget.charged).toEqual([1]);
   });
 
   it.each([
@@ -167,13 +211,13 @@ describe('setWordPreferenceAction', () => {
     });
   });
 
-  it('over the hourly budget: RATE_LIMITED, nothing written', async () => {
-    withinAuthLimits.mockResolvedValueOnce(false);
+  it('over the hourly budget: RATE_LIMITED, nothing charged (the write is rolled back)', async () => {
+    budget.left = 0;
     expect(await setWordPreferenceAction({ slug: 'bread-noun', change: 'hide' })).toEqual({
       ok: false,
       error: 'RATE_LIMITED',
     });
-    expect(setLexemePreferences).not.toHaveBeenCalled();
+    expect(budget.charged).toEqual([]);
   });
 
   it.each([
@@ -208,12 +252,22 @@ describe('prioritizeLevelAction', () => {
       ok: true,
       value: { prioritized: 2, remaining: 0, slugs: ['dates-noun', 'eggs-noun'] },
     });
-    expect(setLexemePreferences).toHaveBeenCalledExactlyOnceWith(
-      { tag: 'prisma' },
-      { userId: USER, lexemeIds: ['lex-dates', 'lex-eggs'], state: 'PRIORITIZED' },
-    );
-    // n words cost n.
-    expect(withinAuthLimits).toHaveBeenCalledExactlyOnceWith([['vocab-pref:user', USER, 2]]);
+    expect(setLexemePreferences).toHaveBeenCalledExactlyOnceWith(TX, {
+      userId: USER,
+      lexemeIds: ['lex-dates', 'lex-eggs'],
+      state: 'PRIORITIZED',
+    });
+    expect(budget.charged).toEqual([2]);
+  });
+
+  it('#30: charged the rows written, not the batch (a word unpublished meanwhile is free)', async () => {
+    setLexemePreferences.mockResolvedValueOnce({ changed: 4, notFound: ['lex-apple'] });
+    expect(await prioritizeLevelAction(FOOD_A1)).toMatchObject({
+      ok: true,
+      value: { prioritized: 4 },
+    });
+    expect(setLexemePreferences.mock.lastCall?.[1].lexemeIds).toHaveLength(5);
+    expect(budget.charged).toEqual([4]);
   });
 
   it('a collection page’s level: only its tagged words', async () => {
@@ -233,7 +287,7 @@ describe('prioritizeLevelAction', () => {
     const ids = setLexemePreferences.mock.lastCall?.[1].lexemeIds;
     expect(ids).toHaveLength(200);
     expect([ids[0], ids[199]]).toEqual(['lex-w000', 'lex-w199']);
-    expect(withinAuthLimits).toHaveBeenCalledWith([['vocab-pref:user', USER, 200]]);
+    expect(budget.charged).toEqual([200]);
   });
 
   it('nothing left to prioritize costs nothing', async () => {
@@ -244,10 +298,11 @@ describe('prioritizeLevelAction', () => {
     nothingWritten();
   });
 
-  it('over the budget: RATE_LIMITED, all or nothing', async () => {
-    withinAuthLimits.mockResolvedValueOnce(false);
+  it('#30: a batch past the budget is refused whole and costs nothing', async () => {
+    budget.left = 4;
     expect(await prioritizeLevelAction(FOOD_A1)).toEqual({ ok: false, error: 'RATE_LIMITED' });
-    expect(setLexemePreferences).not.toHaveBeenCalled();
+    expect(budget.charged).toEqual([]);
+    expect(budget.left).toBe(4);
   });
 
   it.each([

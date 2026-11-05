@@ -18,8 +18,8 @@ import {
  * The word pages' preference actions (B6.6): prioritize / unprioritize /
  * hide / unhide one word, and "Prioritize this level". Learners only (S5).
  * A word is named by its public slug, never an Item or Lexeme id (Axiom 3).
- * Every write counts against the learner's `vocab-pref:user` budget
- * (≤ 300 an hour; a bulk of n words costs n).
+ * Every row actually written counts against the learner's `vocab-pref:user`
+ * budget (≤ 300 an hour; B6.7 #30: a repeat or a refused batch costs nothing).
  */
 
 export type WordPreferenceActionError =

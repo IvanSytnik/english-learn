@@ -1,5 +1,4 @@
 import 'server-only';
-import { prisma } from '@englishlearn/db';
 import {
   clearLexemePreferences,
   setLexemePreferences,
@@ -28,7 +27,7 @@ import {
 } from '@englishlearn/learner-model';
 import type { VocabWordStates } from '@englishlearn/learner-model/service';
 import { z } from 'zod';
-import { withinAuthLimits } from '@/lib/auth/rate-limit';
+import { meteredLimit } from '@/lib/auth/rate-limit';
 import { vocabSessionService } from '@/lib/learner';
 import type { Result } from '@/lib/result';
 import { getVocabPool, type VocabPool } from '@/lib/vocab-pool';
@@ -226,11 +225,12 @@ export type PrioritizedLevel = {
 const PREFERENCE_LIMIT = 'vocab-pref:user';
 
 /**
- * Prioritize, hide, or undo either, for the word `slug` names. One write
- * against the learner's `vocab-pref:user` budget (≤ 300 an hour). Setting a
- * state replaces the other one (prioritizing a hidden word unhides it);
- * clearing touches only its own state. An unknown, ambiguous or unpublished
- * slug is NOT_FOUND and costs nothing.
+ * Prioritize, hide, or undo either, for the word `slug` names. Charged to
+ * the learner's `vocab-pref:user` budget (≤ 300 rows an hour) only when a
+ * row actually changes (B6.7, #30): a repeat costs nothing. Setting a state
+ * replaces the other one (prioritizing a hidden word unhides it); clearing
+ * touches only its own state. An unknown, ambiguous or unpublished slug is
+ * NOT_FOUND and costs nothing.
  */
 export async function setWordPreference(args: {
   userId: string;
@@ -240,37 +240,40 @@ export async function setWordPreference(args: {
   const { userId, change } = args;
   const word = (await getVocabPool()).bySlug.get(args.slug);
   if (!word) return { ok: false, error: 'NOT_FOUND' };
-  if (!(await withinAuthLimits([[PREFERENCE_LIMIT, userId]]))) {
-    return { ok: false, error: 'RATE_LIMITED' };
-  }
   const lexemeIds = [word.id];
-  switch (change) {
-    case 'prioritize':
-    case 'hide': {
-      const state = change === 'hide' ? 'HIDDEN' : 'PRIORITIZED';
-      // PUBLISHED is re-checked in the statement: the pool may be a minute old.
-      const { notFound } = await setLexemePreferences(prisma, { userId, lexemeIds, state });
-      if (notFound.length > 0) return { ok: false, error: 'NOT_FOUND' };
-      return { ok: true, value: { preference: state } };
+  const res = await meteredLimit(PREFERENCE_LIMIT, userId, async (tx) => {
+    switch (change) {
+      case 'prioritize':
+      case 'hide': {
+        const state = change === 'hide' ? 'HIDDEN' : 'PRIORITIZED';
+        // PUBLISHED is re-checked in the statement: the pool may be a minute old.
+        const { changed, notFound } = await setLexemePreferences(tx, { userId, lexemeIds, state });
+        const value: WordPreference | 'NOT_FOUND' = notFound.length > 0 ? 'NOT_FOUND' : state;
+        return { written: changed, value };
+      }
+      case 'unprioritize':
+      case 'unhide': {
+        const state = change === 'unhide' ? 'HIDDEN' : 'PRIORITIZED';
+        const { cleared } = await clearLexemePreferences(tx, { userId, lexemeIds, state });
+        return { written: cleared, value: null };
+      }
+      default: {
+        const never: never = change;
+        throw new Error(`Unknown preference change: ${String(never)}`);
+      }
     }
-    case 'unprioritize':
-    case 'unhide': {
-      const state = change === 'unhide' ? 'HIDDEN' : 'PRIORITIZED';
-      await clearLexemePreferences(prisma, { userId, lexemeIds, state });
-      return { ok: true, value: { preference: null } };
-    }
-    default: {
-      const never: never = change;
-      throw new Error(`Unknown preference change: ${String(never)}`);
-    }
-  }
+  });
+  if (!res.ok) return { ok: false, error: 'RATE_LIMITED' };
+  if (res.value === 'NOT_FOUND') return { ok: false, error: 'NOT_FOUND' };
+  return { ok: true, value: { preference: res.value } };
 }
 
 /**
  * "Prioritize this level": the page's words of `level` that are not started,
  * not hidden and not prioritized yet, at most MAX_PREFERENCE_BATCH (200) per
- * call in page order; `remaining` is what a next call would take. n words
- * cost n of the `vocab-pref:user` budget — all or nothing. Hidden words stay
+ * call in page order; `remaining` is what a next call would take. Charged
+ * the rows actually written (B6.7, #30), all or nothing: a batch past the
+ * `vocab-pref:user` budget writes and costs nothing. Hidden words stay
  * hidden; nothing to do costs nothing. `slugs` names the words of the batch,
  * so a page can mark exactly those rows.
  */
@@ -289,18 +292,19 @@ export async function prioritizeLevel(args: {
   );
   const batch = eligible.slice(0, MAX_PREFERENCE_BATCH);
   if (batch.length === 0) return { ok: true, value: { prioritized: 0, remaining: 0, slugs: [] } };
-  if (!(await withinAuthLimits([[PREFERENCE_LIMIT, userId, batch.length]]))) {
-    return { ok: false, error: 'RATE_LIMITED' };
-  }
-  const { changed } = await setLexemePreferences(prisma, {
-    userId,
-    lexemeIds: batch.map((row) => row.id),
-    state: 'PRIORITIZED',
+  const res = await meteredLimit(PREFERENCE_LIMIT, userId, async (tx) => {
+    const { changed } = await setLexemePreferences(tx, {
+      userId,
+      lexemeIds: batch.map((row) => row.id),
+      state: 'PRIORITIZED',
+    });
+    return { written: changed, value: changed };
   });
+  if (!res.ok) return { ok: false, error: 'RATE_LIMITED' };
   return {
     ok: true,
     value: {
-      prioritized: changed,
+      prioritized: res.value,
       remaining: eligible.length - batch.length,
       slugs: batch.map((row) => pool.slugByItemId.get(row.itemId) ?? ''),
     },
