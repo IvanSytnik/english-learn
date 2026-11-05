@@ -347,6 +347,10 @@
           "cued_recall": "Напишите английское слово. Первая буква подсказана.",
           "full_recall": "Напишите английское слово."
         },
+        "intro": {
+          "badge": "Новое слово",
+          "collocations": "Частые сочетания"
+        },
         "proofInstruction": "Докажите: напишите английское слово. Первая буква подсказана.",
         "proofBadge": "Проверка знакомого слова",
         "pos": "{pos, select, NOUN {существительное} VERB {глагол} ADJECTIVE {прилагательное} ADVERB {наречие} PRONOUN {местоимение} PREPOSITION {предлог} CONJUNCTION {союз} PHRASAL_VERB {фразовый глагол} IDIOM {идиома} INTERJECTION {междометие} OTHER {другое} other {другое}}",

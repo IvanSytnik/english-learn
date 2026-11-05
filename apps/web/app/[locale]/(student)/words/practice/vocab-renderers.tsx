@@ -1,11 +1,16 @@
 'use client';
 
 import { PRACTICE_GAP } from '@englishlearn/db/schemas';
-import type { ChoiceVariantId, VocabCardView, VocabVariantId } from '@englishlearn/learner-model';
+import type {
+  ChoiceVariantId,
+  VocabCardView,
+  VocabIntroView,
+  VocabVariantId,
+} from '@englishlearn/learner-model';
 import { cn, KeyHint } from '@englishlearn/ui';
 import { Check, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ComponentType, RefObject } from 'react';
+import type { ComponentType, ReactNode, RefObject } from 'react';
 import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
 
 /**
@@ -134,6 +139,69 @@ function EnToL1Prompt({ view, card }: PromptProps<'en_to_l1'>) {
         {view.ipa ? <IpaTag ipa={view.ipa} className="ml-2" /> : null}
       </p>
     </>
+  );
+}
+
+/**
+ * A new word's intro card (B6.5): the word as the heading, its part of
+ * speech and IPA (none when null — there is no audio slot before B6.4b), the
+ * meaning (gloss below B1, English definition from B1), one example with its
+ * translation and up to two collocations. The actions are the player's: it
+ * owns the request and the keys; focus starts on Continue.
+ */
+export function VocabIntroCard({ word, actions }: { word: VocabIntroView; actions: ReactNode }) {
+  const t = useTranslations('student.words.player');
+  const { meaning, example } = word;
+  return (
+    <section aria-labelledby="vocab-intro-word" className="flex flex-col gap-5" data-intro="">
+      <p className="text-sm font-medium text-ink-muted">{t('intro.badge')}</p>
+      <div className="flex flex-col gap-1">
+        <h2
+          id="vocab-intro-word"
+          lang="en"
+          className="font-content text-[2rem] leading-tight text-ink"
+        >
+          {word.word}
+        </h2>
+        <p className="text-sm text-ink-muted">
+          <span>{t('pos', { pos: word.pos })}</span>
+          {word.ipa ? <IpaTag ipa={word.ipa} className="ml-2" /> : null}
+        </p>
+      </div>
+      <p
+        lang={meaning.kind === 'definition' ? 'en' : undefined}
+        className="font-content text-xl text-ink"
+        data-meaning={meaning.kind}
+      >
+        {meaning.text}
+      </p>
+      {example ? (
+        <div className="flex flex-col gap-1 border-l-2 border-line pl-3" data-intro-example="">
+          <p lang="en" className="font-content text-lg text-ink">
+            {example.sentence}
+          </p>
+          {example.translation ? (
+            <p className="text-sm text-ink-muted">{example.translation}</p>
+          ) : null}
+        </div>
+      ) : null}
+      {word.collocations.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-ink-muted">{t('intro.collocations')}</h3>
+          <ul lang="en" className="flex flex-wrap gap-2" data-intro-collocations="">
+            {word.collocations.map((c) => (
+              <li
+                key={c}
+                className="rounded-control border border-line px-2 py-1 font-content text-ink"
+              >
+                {c}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {actions}
+    </section>
   );
 }
 

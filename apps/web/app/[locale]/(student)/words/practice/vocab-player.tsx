@@ -1,5 +1,6 @@
 'use client';
 
+import type { VocabIntroView } from '@englishlearn/learner-model';
 import { cn, KeyHint, SegmentedProgress } from '@englishlearn/ui';
 import { Check, CircleHelp, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -18,7 +19,12 @@ import type { Verdict } from '@/lib/exercise/view';
 import { RECENT_EXCLUDE } from '@/lib/recent-refs';
 import type { ClientVocabScope } from '@/lib/vocab-scope';
 import type { VocabCardPayload, VocabFeedback, VocabSubmission } from '@/lib/vocab-session';
-import { resolveVocabShortcut, type VocabPlayerPhase } from '@/lib/vocab-shortcuts';
+import {
+  isEditableTarget,
+  resolveIntroShortcut,
+  resolveVocabShortcut,
+  type VocabPlayerPhase,
+} from '@/lib/vocab-shortcuts';
 import { summarizeVocabSession, type VocabSessionEntry } from '@/lib/vocab-summary';
 import { browserTimeZone } from '../../_components/browser-time-zone';
 import { FeedbackDialog } from '../../_components/feedback-dialog';
@@ -27,7 +33,7 @@ import {
   startVocabProofAction,
   submitVocabAttemptAction,
 } from '../../actions/vocab';
-import { IpaTag, VocabCardAnswer, VocabCardPrompt } from './vocab-renderers';
+import { IpaTag, VocabCardAnswer, VocabCardPrompt, VocabIntroCard } from './vocab-renderers';
 import { VocabSessionSummary } from './vocab-session-summary';
 
 /** Cards per session (client-enforced, like the exercise player's length). */
@@ -60,6 +66,8 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   const [, startTransition] = useTransition();
 
   const [card, setCard] = useState<VocabCardPayload | null>(null);
+  // A new word's intro card (B6.5), shown instead of a card until Continue / K.
+  const [intro, setIntro] = useState<{ vocabRef: string; word: VocabIntroView } | null>(null);
   const [phase, setPhase] = useState<VocabPlayerPhase>('loading');
   const [selected, setSelected] = useState<number | null>(null);
   const [text, setText] = useState('');
@@ -91,6 +99,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   const promptRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
+  const introContinueRef = useRef<HTMLButtonElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
 
   const view = card?.card ?? null;
@@ -123,12 +132,14 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
       retryRef.current?.focus();
       return;
     }
+    if (phase === 'intro') introContinueRef.current?.focus();
     if (phase === 'answering') (isChoice ? promptRef : inputRef).current?.focus();
     if (phase === 'feedback') continueRef.current?.focus();
   }, [phase, isChoice, anyRetry, card]);
 
+  // With `afterIntro`: the first question of the word that intro card showed.
   const loadNext = useCallback(
-    (recentRefs: string[]) => {
+    (recentRefs: string[], afterIntro?: string) => {
       if (busy.current) return;
       busy.current = true;
       setPhase('loading');
@@ -141,25 +152,41 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
             timeZone: browserTimeZone(),
             scope,
             recentVocabRefs: recentRefs,
+            ...(afterIntro === undefined ? {} : { afterIntro }),
           });
         } catch {
           // No reply: nothing changed on the server, loading again is safe.
           busy.current = false;
           setNextFailed(true);
+          if (afterIntro !== undefined) setPhase('intro');
           return;
         }
         busy.current = false;
         if (!res.ok) {
           // Refused (e.g. briefly unavailable): Retry asks again.
           setNextFailed(true);
+          if (afterIntro !== undefined) setPhase('intro');
           return;
         }
         if (res.value.status === 'done') {
+          setIntro(null);
           setNothingDue(true);
           setPhase('done');
           return;
         }
+        if (res.value.status === 'intro') {
+          // Not a card: not in the recent list (its question will be).
+          const { vocabRef, word } = res.value;
+          setCard(null);
+          setFeedback(null);
+          setUnsent(null);
+          setError(false);
+          setIntro({ vocabRef, word });
+          setPhase('intro');
+          return;
+        }
         const next = res.value;
+        setIntro(null);
         setRecent((refs) => [...refs, next.vocabRef].slice(-RECENT_EXCLUDE));
         show(next);
       });
@@ -276,6 +303,12 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
     });
   }, [card, offersProof, phase, loadNext, recent, show]);
 
+  // Continue and "I know" on an intro card (B6.5: both open the first question).
+  const continueIntro = useCallback(() => {
+    if (phase !== 'intro' || !intro) return;
+    loadNext(recent, intro.vocabRef);
+  }, [phase, intro, loadNext, recent]);
+
   const toggleHint = useCallback(() => {
     if (phase !== 'answering' || !offersHint) return;
     hintUsed.current = true;
@@ -298,6 +331,17 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
   }, [loadNext, recent]);
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (phase === 'intro') {
+      const introAction = resolveIntroShortcut(event, {
+        inEditable: isEditableTarget(event.target),
+        onActivatable: focusKind(event.target).onActivatable,
+      });
+      if (!introAction) return;
+      event.preventDefault();
+      if (introAction.type === 'pause') router.push('/words');
+      else continueIntro();
+      return;
+    }
     const action = resolveVocabShortcut(event, {
       phase,
       ...focusKind(event.target),
@@ -354,7 +398,7 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
     : proofFailed
       ? { text: t('proofFailed'), onClick: startProof }
       : nextFailed
-        ? { text: t('nextFailed'), onClick: () => loadNext(recent) }
+        ? { text: t('nextFailed'), onClick: () => loadNext(recent, intro?.vocabRef) }
         : null;
 
   return (
@@ -476,6 +520,35 @@ export function VocabPlayer({ scope }: { scope?: ClientVocabScope }) {
             </div>
           ) : null}
         </section>
+      ) : intro ? (
+        <VocabIntroCard
+          word={intro.word}
+          actions={
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                ref={introContinueRef}
+                type="button"
+                className={primaryButton}
+                onClick={continueIntro}
+                disabled={phase !== 'intro'}
+              >
+                {tl('player.continue')}
+                <KeyHint className="border-transparent bg-transparent text-on-accent">
+                  Enter
+                </KeyHint>
+              </button>
+              <button
+                type="button"
+                className={quietButton}
+                onClick={continueIntro}
+                disabled={phase !== 'intro'}
+              >
+                {t('know')}
+                <KeyHint>K</KeyHint>
+              </button>
+            </div>
+          }
+        />
       ) : nextFailed ? null : (
         <p className="text-sm text-ink-muted" aria-busy="true">
           {t('loading')}

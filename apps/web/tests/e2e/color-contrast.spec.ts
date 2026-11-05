@@ -67,9 +67,10 @@ for (const colorScheme of ['dark', 'light'] as const) {
       await expectNoContrastViolations(page);
     });
 
-    // Vocabulary: the overview, a new word's first card, and its proof step
-    // (accent badge, cue). Reduced motion from the start: the overview
-    // refreshes and the player swaps cards with transition-colors running.
+    // Vocabulary: the overview, a new word's intro card (badge, IPA, example),
+    // its first card, and its proof step (accent badge, cue). Reduced motion
+    // from the start: the overview refreshes and the player swaps cards with
+    // transition-colors running.
     test('/ru/words (signed in)', async ({ page }) => {
       await registerFreshLearner(page, 'contrast');
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
@@ -78,10 +79,14 @@ for (const colorScheme of ['dark', 'light'] as const) {
       await expectNoContrastViolations(page);
     });
 
-    test('/ru/words/practice, first card and proof (signed in)', async ({ page }) => {
+    test('/ru/words/practice, intro, first card and proof (signed in)', async ({ page }) => {
       await registerFreshLearner(page, 'contrast');
       await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
       await page.goto('/ru/words/practice');
+      await expect(page.locator('[data-intro]')).toBeVisible(AFTER_SUBMIT);
+      await expectNoContrastViolations(page);
+
+      await page.keyboard.press('Enter');
       await expect(page.locator('[data-mode]')).toBeVisible(AFTER_SUBMIT);
       await expectNoContrastViolations(page);
 

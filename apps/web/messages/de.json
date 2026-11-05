@@ -347,6 +347,10 @@
           "cued_recall": "Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
           "full_recall": "Schreib das englische Wort."
         },
+        "intro": {
+          "badge": "Neues Wort",
+          "collocations": "Häufige Wendungen"
+        },
         "proofInstruction": "Beweis es: Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
         "proofBadge": "Bekanntes Wort prüfen",
         "pos": "{pos, select, NOUN {Nomen} VERB {Verb} ADJECTIVE {Adjektiv} ADVERB {Adverb} PRONOUN {Pronomen} PREPOSITION {Präposition} CONJUNCTION {Konjunktion} PHRASAL_VERB {Phrasal Verb} IDIOM {Redewendung} INTERJECTION {Interjektion} OTHER {Sonstiges} other {Sonstiges}}",

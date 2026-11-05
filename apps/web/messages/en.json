@@ -347,6 +347,10 @@
           "cued_recall": "Type the English word. The first letter is shown.",
           "full_recall": "Type the English word."
         },
+        "intro": {
+          "badge": "New word",
+          "collocations": "Common phrases"
+        },
         "proofInstruction": "Prove it: type the English word. The first letter is shown.",
         "proofBadge": "Proving a known word",
         "pos": "{pos, select, NOUN {noun} VERB {verb} ADJECTIVE {adjective} ADVERB {adverb} PRONOUN {pronoun} PREPOSITION {preposition} CONJUNCTION {conjunction} PHRASAL_VERB {phrasal verb} IDIOM {idiom} INTERJECTION {interjection} OTHER {other} other {other}}",

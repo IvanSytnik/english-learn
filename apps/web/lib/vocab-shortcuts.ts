@@ -13,7 +13,14 @@
 
 import { digitOf, isChord, isLetter, type KeyLike } from '@/lib/keyboard';
 
-export type VocabPlayerPhase = 'loading' | 'answering' | 'submitting' | 'feedback' | 'done';
+export type VocabPlayerPhase =
+  | 'loading'
+  /** A new word's intro card (B6.5): its own keys, resolveIntroShortcut. */
+  | 'intro'
+  | 'answering'
+  | 'submitting'
+  | 'feedback'
+  | 'done';
 
 export type VocabShortcutAction =
   | { type: 'select'; index: number }
@@ -58,4 +65,38 @@ export function resolveVocabShortcut(
   if (isLetter(event, 'K') && ctx.canProve) return { type: 'know' };
   if (isLetter(event, 'H') && ctx.hasHint) return { type: 'toggleHint' };
   return null;
+}
+
+/**
+ * Keys on a new word's intro card (B6.5, V2-11): Enter / Space continue, `K`
+ * says "I know this word" — in B6.5 both open the word's first question.
+ * `K` is strict: the physical K key alone (no Meta, Ctrl, Alt or Shift), not
+ * auto-repeated, not mid-composition (an IME), and never while focus is in
+ * an input, a textarea or a contenteditable element. Enter and Space on a
+ * focused button are the button's own (its click), never a second call.
+ */
+export type IntroKeyLike = KeyLike & { repeat?: boolean; isComposing?: boolean };
+
+export type IntroShortcutAction = { type: 'continue' } | { type: 'know' } | { type: 'pause' };
+
+export function resolveIntroShortcut(
+  event: IntroKeyLike,
+  ctx: { inEditable: boolean; onActivatable: boolean },
+): IntroShortcutAction | null {
+  if (event.repeat === true || event.isComposing === true || isChord(event)) return null;
+  if (event.key === 'Escape') return { type: 'pause' };
+  if (ctx.inEditable) return null;
+  if (event.key === 'Enter' || event.code === 'Space' || event.key === ' ') {
+    return ctx.onActivatable ? null : { type: 'continue' };
+  }
+  if (event.code === 'KeyK' && event.shiftKey !== true) return { type: 'know' };
+  return null;
+}
+
+/** Focus is in something that takes typing: any input, a textarea, a contenteditable. */
+export function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('input, textarea') !== null) return true;
+  const editable = target.closest('[contenteditable]');
+  return editable !== null && editable.getAttribute('contenteditable') !== 'false';
 }

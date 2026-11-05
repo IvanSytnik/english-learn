@@ -12,6 +12,7 @@ import type { Result } from '@/lib/result';
 import { loadVocabOverview, type VocabOverviewView } from '@/lib/vocab-overview';
 import { VocabScopeSchema } from '@/lib/vocab-scope';
 import {
+  loadCardAfterIntro,
   loadNextVocabCard,
   type NextVocabCard,
   startVocabProof,
@@ -47,6 +48,8 @@ const NextSchema = z.object({
   /** Cards just shown, so a just-failed word is not served straight back. */
   recentVocabRefs: z.array(VocabRefSchema).max(20).optional(),
   timeZone: TimeZoneSchema,
+  /** The intro card just shown (B6.5): its word's first question, not a new selection. */
+  afterIntro: VocabRefSchema.optional(),
 });
 
 const ProofSchema = z.object({ vocabRef: VocabRefSchema });
@@ -88,7 +91,11 @@ async function guarded<T>(
   }
 }
 
-/** The next card for the signed-in learner, or "done" with the next due moment. */
+/**
+ * The next card for the signed-in learner — a new word's intro card, a
+ * question — or "done" with the next due moment. With `afterIntro`: the
+ * first question of the word that intro card showed.
+ */
 export async function nextVocabCardAction(
   input: z.input<typeof NextSchema>,
 ): Promise<Result<NextVocabCard, VocabActionError>> {
@@ -97,7 +104,7 @@ export async function nextVocabCardAction(
   const userId = user.value.id;
   const parsed = NextSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' };
-  const { scope, recentVocabRefs = [], timeZone } = parsed.data;
+  const { scope, recentVocabRefs = [], timeZone, afterIntro } = parsed.data;
 
   return guarded('nextVocabCard', async () => {
     // The recent list only steers selection: a ref that does not decrypt for
@@ -105,14 +112,17 @@ export async function nextVocabCardAction(
     const recent = await Promise.all(
       recentVocabRefs.slice(-RECENT_EXCLUDE).map((ref) => decryptVocabRef(ref, userId)),
     );
-    return loadNextVocabCard({
+    const args = {
       userId,
       uiLocale: await currentLocale(),
       timeZone,
       scope,
       // Oldest first: also the concept spread's "last served" (B6.2).
       excludeItemIds: recent.flatMap((r) => (r.ok ? [r.value.itemId] : [])),
-    });
+    };
+    return afterIntro === undefined
+      ? loadNextVocabCard(args)
+      : loadCardAfterIntro({ ...args, introRef: afterIntro });
   });
 }
 

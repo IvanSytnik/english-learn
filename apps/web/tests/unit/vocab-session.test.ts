@@ -1,28 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { nextVocab, recordVocabOutcome, getVocabPool, getNativeLanguage, hasItemReviewState } =
-  vi.hoisted(() => ({
-    nextVocab: vi.fn(),
-    recordVocabOutcome: vi.fn(),
-    getVocabPool: vi.fn(),
-    getNativeLanguage: vi.fn(),
-    hasItemReviewState: vi.fn(),
-  }));
+const {
+  nextVocab,
+  remainingNew,
+  recordVocabOutcome,
+  getVocabPool,
+  getNativeLanguage,
+  hasItemReviewState,
+} = vi.hoisted(() => ({
+  nextVocab: vi.fn(),
+  remainingNew: vi.fn(),
+  recordVocabOutcome: vi.fn(),
+  getVocabPool: vi.fn(),
+  getNativeLanguage: vi.fn(),
+  hasItemReviewState: vi.fn(),
+}));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: {} }));
 vi.mock('@englishlearn/db/queries/student-profile', () => ({ getNativeLanguage }));
 vi.mock('@englishlearn/db/queries/vocab-session', () => ({ hasItemReviewState }));
 vi.mock('@/lib/learner', () => ({
   learnerService: { recordVocabOutcome },
-  vocabSessionService: { nextVocab },
+  vocabSessionService: { nextVocab, remainingNew },
 }));
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
 
-const { loadNextVocabCard, startVocabProof, submitVocabAttempt } = await import(
+const { loadCardAfterIntro, loadNextVocabCard, startVocabProof, submitVocabAttempt } = await import(
   '@/lib/vocab-session'
 );
-const { decryptVocabRef, encryptVocabRef } = await import('@/lib/crypto/vocab-ref');
+const { decryptVocabRef, encryptVocabRef, VOCAB_REF_DOMAIN } = await import(
+  '@/lib/crypto/vocab-ref'
+);
+const { createSealedRef } = await import('@/lib/crypto/sealed-ref');
 
 const USER = 'user_1';
 const CONCEPT = 'vocab.food_drink.a1';
@@ -93,9 +103,14 @@ const recorded = (over = {}) => ({
 const load = (over = {}) =>
   loadNextVocabCard({ userId: USER, uiLocale: 'en', timeZone: 'Europe/Berlin', ...over });
 
+const afterIntro = (introRef: string, userId = USER) =>
+  loadCardAfterIntro({ userId, uiLocale: 'en', timeZone: 'Europe/Berlin', introRef });
+
+/** The question served for a selection; a new word's intro card is passed first (B6.5). */
 async function served(over = {}) {
   nextVocab.mockResolvedValueOnce(selection(over));
-  const out = await load();
+  let out = await load();
+  if (out.ok && out.value.status === 'intro') out = await afterIntro(out.value.vocabRef);
   if (!out.ok || out.value.status !== 'card') throw new Error('expected a card');
   return out.value;
 }
@@ -105,6 +120,7 @@ beforeEach(() => {
   getVocabPool.mockResolvedValue(POOL);
   getNativeLanguage.mockResolvedValue('ru');
   hasItemReviewState.mockResolvedValue(false);
+  remainingNew.mockResolvedValue(7);
   nextVocab.mockResolvedValue(selection());
   recordVocabOutcome.mockResolvedValue(recorded());
 });
@@ -581,6 +597,7 @@ describe('submitVocabAttempt', () => {
   it('refuses refs that are foreign, expired, forged, or answers of the wrong kind; records nothing', async () => {
     const card = await served();
     const other = await encryptVocabRef({
+      kind: 'question',
       userId: 'user_2',
       itemId: APPLE,
       mode: 'en_to_l1',
@@ -592,6 +609,7 @@ describe('submitVocabAttempt', () => {
     });
     const expired = await encryptVocabRef(
       {
+        kind: 'question',
         userId: USER,
         itemId: APPLE,
         mode: 'en_to_l1',
@@ -605,6 +623,7 @@ describe('submitVocabAttempt', () => {
     );
     // A recall mode with a sealed index cannot have been issued by us.
     const recallWithIndex = await encryptVocabRef({
+      kind: 'question',
       userId: USER,
       itemId: APPLE,
       mode: 'full_recall',
@@ -727,7 +746,8 @@ describe('"Know -> prove"', () => {
 
   it.each([
     ['a reviewed word', { mode: 'en_to_l1', lastReviewAt: 5n }],
-    ['a later mode', { mode: 'l1_to_en', lastReviewAt: null }],
+    // Not a NEW selection: served straight, with no intro card first.
+    ['a later mode', { mode: 'l1_to_en', lastReviewAt: null, reason: 'LEARNING' }],
   ])('refuses a proof of %s', async (_, over) => {
     const card = await served(over);
     expect(await startVocabProof({ userId: USER, vocabRef: card.vocabRef })).toEqual({
@@ -749,5 +769,188 @@ describe('"Know -> prove"', () => {
       ok: false,
       error: 'INVALID',
     });
+  });
+});
+
+describe('the intro card (B6.5, V2-11)', () => {
+  async function introRef(over = {}) {
+    nextVocab.mockResolvedValueOnce(selection(over));
+    const out = await load();
+    if (!out.ok || out.value.status !== 'intro') throw new Error('expected an intro');
+    return out.value;
+  }
+
+  it('a NEW word never answered opens on its intro: no options, no key, no ids, nothing recorded', async () => {
+    const intro = await introRef({ learnerLevel: null });
+    expect(intro).toMatchObject({
+      status: 'intro',
+      remainingNew: 7,
+      word: {
+        word: 'apple',
+        pos: 'NOUN',
+        ipa: 'apple',
+        meaning: { kind: 'gloss', text: 'яблоко' },
+        example: { sentence: 'I like the apple a lot.', translation: 'пример яблоко' },
+        collocations: [],
+      },
+    });
+    expectNoAnswerKey(intro);
+    expect(JSON.stringify(intro)).not.toContain('"options"');
+    expect(await decryptVocabRef(intro.vocabRef, USER)).toMatchObject({
+      ok: true,
+      value: { kind: 'intro', itemId: APPLE, lastReviewAt: null, correctIndex: null },
+    });
+    expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it('a B1+ learner’s intro shows the English definition', async () => {
+    const intro = await introRef({ learnerLevel: 'B1' });
+    expect(intro.word.meaning).toEqual({ kind: 'definition', text: 'a kind of apple' });
+  });
+
+  it('not for a word already answered or not NEW: the question straight away', async () => {
+    nextVocab.mockResolvedValueOnce(
+      selection({ reason: 'REVIEW_DUE', mode: 'l1_to_en', lastReviewAt: 9n }),
+    );
+    expect(await load()).toMatchObject({ ok: true, value: { status: 'card' } });
+  });
+
+  it('afterIntro → the en_to_l1 question for the same word, without running the selector', async () => {
+    const intro = await introRef();
+    nextVocab.mockClear();
+    const out = await afterIntro(intro.vocabRef);
+    expect(out).toMatchObject({
+      ok: true,
+      value: {
+        status: 'card',
+        card: { mode: 'en_to_l1', word: 'apple' },
+        canProve: true,
+        remainingNew: 7,
+      },
+    });
+    expect(nextVocab).not.toHaveBeenCalled();
+    expect(hasItemReviewState).toHaveBeenCalledWith({}, { userId: USER, itemId: APPLE });
+    if (!out.ok || out.value.status !== 'card') throw new Error('card');
+    expect(await decryptVocabRef(out.value.vocabRef, USER)).toMatchObject({
+      ok: true,
+      value: { kind: 'question', itemId: APPLE, mode: 'en_to_l1', lastReviewAt: null },
+    });
+    expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it('afterIntro on a word answered since (another tab): normal selection', async () => {
+    const intro = await introRef();
+    nextVocab.mockClear();
+    hasItemReviewState.mockResolvedValueOnce(true);
+    nextVocab.mockResolvedValueOnce(
+      selection({ itemId: 'item-bread', reason: 'LEARNING', mode: 'en_to_l1', lastReviewAt: 4n }),
+    );
+    const out = await afterIntro(intro.vocabRef);
+    expect(nextVocab).toHaveBeenCalledTimes(1);
+    expect(out).toMatchObject({ ok: true, value: { status: 'card', card: { word: 'bread' } } });
+  });
+
+  it('afterIntro refuses a question ref, a foreign learner’s intro, an expired or forged one — like a tampered ref', async () => {
+    const intro = await introRef();
+    const question = await served({ reason: 'LEARNING', lastReviewAt: 3n });
+    const opened = await decryptVocabRef(intro.vocabRef, USER);
+    if (!opened.ok) throw new Error('intro ref');
+    const expired = await encryptVocabRef(
+      { ...opened.value, userId: USER },
+      Date.now() - 2 * 24 * 60 * 60 * 1000,
+    );
+    hasItemReviewState.mockClear();
+    nextVocab.mockClear();
+    for (const [ref, user] of [
+      [question.vocabRef, USER],
+      [intro.vocabRef, 'user_2'],
+      [expired, USER],
+      [`${intro.vocabRef.slice(0, -2)}xx`, USER],
+    ] as const) {
+      expect(await afterIntro(ref, user)).toEqual({ ok: false, error: 'INVALID' });
+    }
+    expect(hasItemReviewState).not.toHaveBeenCalled();
+    expect(nextVocab).not.toHaveBeenCalled();
+  });
+
+  it('submitVocab refuses an intro ref like a tampered one: nothing graded, no event', async () => {
+    const intro = await introRef();
+    for (const answer of [
+      { type: 'choice', index: 0 },
+      { type: 'dontKnow' },
+      { type: 'text', value: 'apple' },
+    ] as const) {
+      expect(await submitVocabAttempt({ userId: USER, vocabRef: intro.vocabRef, answer })).toEqual({
+        ok: false,
+        error: 'INVALID',
+      });
+    }
+    expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it('the refusal is by kind alone: even a sealed intro ref carrying a choice index is not graded', async () => {
+    // Not something the server issues — the kind check must not lean on it.
+    const card = await served({ reason: 'LEARNING', mode: 'en_to_l1', lastReviewAt: 8n });
+    const opened = await decryptVocabRef(card.vocabRef, USER);
+    if (!opened.ok || opened.value.correctIndex === null) throw new Error('ref');
+    const r = opened.value;
+    const index = r.correctIndex as number;
+    const asIntro = await createSealedRef(VOCAB_REF_DOMAIN).seal({
+      u: USER,
+      i: r.itemId,
+      m: r.mode,
+      p: false,
+      r: '8',
+      l: r.locale,
+      k: index,
+      t: 'intro',
+      e: Date.now() + 60_000,
+    });
+    expect(
+      await submitVocabAttempt({
+        userId: USER,
+        vocabRef: asIntro,
+        answer: { type: 'choice', index },
+      }),
+    ).toEqual({ ok: false, error: 'INVALID' });
+    expect(recordVocabOutcome).not.toHaveBeenCalled();
+  });
+
+  it('startVocabProof refuses an intro ref: an intro card is not proved', async () => {
+    const intro = await introRef();
+    expect(await startVocabProof({ userId: USER, vocabRef: intro.vocabRef })).toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+    expect(hasItemReviewState).not.toHaveBeenCalled();
+  });
+
+  it('a ref issued before B6.5 (no kind) is a question: it still submits', async () => {
+    const card = await served({ reason: 'LEARNING', mode: 'en_to_l1', lastReviewAt: 6n });
+    const opened = await decryptVocabRef(card.vocabRef, USER);
+    if (!opened.ok || opened.value.correctIndex === null) throw new Error('ref');
+    const r = opened.value;
+    const index = opened.value.correctIndex;
+    const legacy = await createSealedRef(VOCAB_REF_DOMAIN).seal({
+      u: USER,
+      i: r.itemId,
+      m: r.mode,
+      p: r.isProof,
+      r: r.lastReviewAt === null ? null : r.lastReviewAt.toString(),
+      l: r.locale,
+      k: r.correctIndex,
+      e: Date.now() + 60_000,
+    });
+    expect(await decryptVocabRef(legacy, USER)).toMatchObject({
+      ok: true,
+      value: { kind: 'question' },
+    });
+    const out = await submitVocabAttempt({
+      userId: USER,
+      vocabRef: legacy,
+      answer: { type: 'choice', index },
+    });
+    expect(out).toMatchObject({ ok: true, value: { status: 'answered', verdict: 'correct' } });
+    expect(recordVocabOutcome).toHaveBeenCalledTimes(1);
   });
 });

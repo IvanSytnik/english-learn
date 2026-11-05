@@ -5,6 +5,7 @@ import { hasItemReviewState } from '@englishlearn/db/queries/vocab-session';
 import type { Locale, PartOfSpeechValue } from '@englishlearn/db/schemas';
 import {
   buildVocabCard,
+  buildVocabIntro,
   buildVocabVariant,
   type CEFRLevel,
   cardSeed,
@@ -16,6 +17,7 @@ import {
   type VocabAnswer,
   type VocabCardView,
   type VocabGradingKey,
+  type VocabIntroView,
   type VocabLocale,
   type VocabMode,
   type VocabScope,
@@ -66,6 +68,11 @@ export type VocabCardPayload = {
 
 export type NextVocabCard =
   | ({ status: 'card'; remainingNew: number } & VocabCardPayload)
+  /**
+   * A new word's intro card (B6.5): no options, no key, nothing recorded.
+   * Its `vocabRef` only turns into the word's first question (`afterIntro`).
+   */
+  | { status: 'intro'; vocabRef: string; word: VocabIntroView; remainingNew: number }
   /** Nothing due and no new word allowed: the next due moment (Unix ms), if any. */
   | { status: 'done'; nextDueAt: number | null; remainingNew: number };
 
@@ -193,6 +200,7 @@ export async function loadNextVocabCard(args: {
   }
 
   const ref = {
+    kind: 'question',
     itemId: selection.itemId,
     mode: selection.mode,
     isProof: false,
@@ -201,30 +209,97 @@ export async function loadNextVocabCard(args: {
     correctIndex: null,
     optionItemIds: null,
   } satisfies VocabRef;
-  const built = serve(pool, userId, ref, selection.learnerLevel);
-  // Published since the pool was cached, or unpublished since selection read it.
-  if (!built) return { ok: false, error: 'NOT_FOUND' };
+
+  // A word never answered opens on its intro card, not its first question.
+  if (selection.reason === 'NEW' && selection.lastReviewAt === null) {
+    const target = pool.byItemId.get(ref.itemId);
+    if (!target) return { ok: false, error: 'NOT_FOUND' };
+    const intro: VocabRef = { ...ref, kind: 'intro' };
+    return {
+      ok: true,
+      value: {
+        status: 'intro',
+        vocabRef: await encryptVocabRef({ ...intro, userId }),
+        word: buildVocabIntro(target, {
+          locale,
+          learnerLevel: selection.learnerLevel,
+          seed: seedOf(userId, intro),
+        }),
+        remainingNew: selection.remainingNew,
+      },
+    };
+  }
+
+  const card = await questionPayload(pool, userId, ref, selection.learnerLevel);
+  if (!card) return { ok: false, error: 'NOT_FOUND' };
+  return { ok: true, value: { status: 'card', ...card, remainingNew: selection.remainingNew } };
+}
+
+/**
+ * The client-safe question for `ref` (a rung, not yet a variant), with its
+ * sealed reference. Null when the word left the pool — published since the
+ * pool was cached, or unpublished since selection read it.
+ */
+async function questionPayload(
+  pool: VocabPool,
+  userId: string,
+  ref: VocabRef & { mode: VocabMode },
+  learnerLevel: CEFRLevel | null,
+): Promise<VocabCardPayload | null> {
+  const built = serve(pool, userId, ref, learnerLevel);
+  if (!built) return null;
   const { view, key } = built.card;
   // The served variant is the view's: the rung's pick, or the cloze fallback.
   const served: VocabRef = {
     ...ref,
+    kind: 'question',
     mode: view.mode,
     correctIndex: key.kind === 'choice' ? key.correctIndex : null,
     optionItemIds: key.kind === 'choice' ? optionItemIds(pool, key.optionLexemeIds) : null,
   };
   return {
-    ok: true,
-    value: {
-      status: 'card',
-      vocabRef: await encryptVocabRef({ ...served, userId }),
-      card: view,
-      pos: built.target.pos,
-      hint: hintFor(built.target.lemma, served),
-      canProve: selection.lastReviewAt === null && view.mode === 'en_to_l1',
-      isProof: false,
-      remainingNew: selection.remainingNew,
-    },
+    vocabRef: await encryptVocabRef({ ...served, userId }),
+    card: view,
+    pos: built.target.pos,
+    hint: hintFor(built.target.lemma, served),
+    canProve: ref.lastReviewAt === null && view.mode === 'en_to_l1',
+    isProof: false,
   };
+}
+
+/**
+ * After a new word's intro card (B6.5): the word's first question
+ * (`en_to_l1`), without running the selector. Only an intro reference issued
+ * to this learner opens it — a question reference, another learner's, an
+ * expired or forged one is INVALID, like any bad reference. If the word has
+ * been answered since (another tab), the session goes on as usual: the next
+ * card is selected.
+ */
+export async function loadCardAfterIntro(args: {
+  userId: string;
+  uiLocale: Locale;
+  timeZone: unknown;
+  scope?: VocabScope;
+  excludeItemIds?: readonly string[];
+  introRef: string;
+}): Promise<Result<NextVocabCard, VocabSessionError>> {
+  const { userId, introRef, ...rest } = args;
+  const decrypted = await decryptVocabRef(introRef, userId);
+  if (!decrypted.ok || decrypted.value.kind !== 'intro') return { ok: false, error: 'INVALID' };
+  const intro = decrypted.value;
+
+  const [answered, pool, remainingNew] = await Promise.all([
+    hasItemReviewState(prisma, { userId, itemId: intro.itemId }),
+    getVocabPool(),
+    vocabSessionService.remainingNew({ userId, timeZone: args.timeZone }),
+  ]);
+  if (answered) return loadNextVocabCard({ userId, ...rest });
+
+  // The first rung (en_to_l1 has no level-dependent variant): no level needed.
+  const question = { ...intro, kind: 'question', mode: 'en_to_l1', lastReviewAt: null } as const;
+  const card = await questionPayload(pool, userId, question, null);
+  if (!card) return { ok: false, error: 'NOT_FOUND' };
+  return { ok: true, value: { status: 'card', ...card, remainingNew } };
 }
 
 /**
@@ -240,7 +315,13 @@ export async function startVocabProof(args: {
   const decrypted = await decryptVocabRef(args.vocabRef, userId);
   if (!decrypted.ok) return { ok: false, error: 'INVALID' };
   const ref = decrypted.value;
-  if (ref.isProof || ref.lastReviewAt !== null || ref.mode !== 'en_to_l1') {
+  // An intro reference is no question: it is never answered, nor proved.
+  if (
+    ref.kind !== 'question' ||
+    ref.isProof ||
+    ref.lastReviewAt !== null ||
+    ref.mode !== 'en_to_l1'
+  ) {
     return { ok: false, error: 'INVALID' };
   }
 
@@ -314,6 +395,9 @@ export async function submitVocabAttempt(
   const decrypted = await decryptVocabRef(args.vocabRef, userId);
   if (!decrypted.ok) return { ok: false, error: 'INVALID' };
   const ref = decrypted.value;
+  // An intro card has no answer: its reference is refused like a forged one,
+  // before anything is graded or written (B6.5).
+  if (ref.kind !== 'question') return { ok: false, error: 'INVALID' };
 
   const pool = await getVocabPool();
   const target = pool.byItemId.get(ref.itemId);

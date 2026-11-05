@@ -32,6 +32,12 @@ export type VocabRefError =
   | 'WRONG_USER';
 
 export type VocabRef = {
+  /**
+   * What the token stands for (B6.5, V2-11): a question to answer, or a new
+   * word's intro card — which can only be turned into its first question
+   * (`afterIntro`), never answered. Refs issued before B6.5 are questions.
+   */
+  kind: 'intro' | 'question';
   itemId: string;
   /** The variant served (after the rung's pick and the cloze fallback). */
   mode: VocabVariantId;
@@ -68,6 +74,8 @@ const PayloadSchema = z
     k: z.number().int().min(0).max(3).nullable(),
     /** Option item ids (B6.1); absent in recall refs and refs issued before. */
     o: z.array(z.string().min(1)).length(4).optional(),
+    /** Kind (B6.5); absent in refs issued before = a question. */
+    t: z.enum(['intro', 'question']).optional(),
     e: z.number(),
   })
   .strict();
@@ -87,6 +95,7 @@ export async function encryptVocabRef(
     l: ref.locale,
     k: ref.correctIndex,
     ...(ref.optionItemIds ? { o: ref.optionItemIds } : {}),
+    t: ref.kind,
     e: nowMs + VOCAB_REF_TTL_MS,
   };
   return sealed.seal(payload);
@@ -106,6 +115,7 @@ export async function decryptVocabRef(
   return {
     ok: true,
     value: {
+      kind: p.t ?? 'question',
       itemId: p.i,
       mode: p.m,
       isProof: p.p,

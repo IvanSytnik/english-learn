@@ -48,7 +48,7 @@ test('/ru/words: a fresh learner sees today, the five stages and every topic; se
   await expect(page.getByText('Новых слов сегодня: 0 из 15')).toBeVisible();
 });
 
-test('/ru/words/practice: "I know" on a new word → a cued recall proof without a hint → recorded', async ({
+test('/ru/words/practice: a new word opens on its intro card → "I know" → a cued recall proof without a hint → recorded', async ({
   page,
 }) => {
   const email = await registerFreshLearner(page, 'words-proof');
@@ -56,10 +56,21 @@ test('/ru/words/practice: "I know" on a new word → a cued recall proof without
   await page.getByRole('link', { name: 'Учить слова' }).click();
   await expect(page).toHaveURL(/\/ru\/words\/practice$/, AFTER_SUBMIT);
 
-  // A fresh learner's first card is a new word, English shown: "I know" is offered.
-  await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
-  const word = (await page.locator('#vocab-prompt p[lang="en"]').first().innerText()).trim();
+  // B6.5: a word never seen opens on its intro card — the word as the heading,
+  // the gloss (no assessed level: below B1), focus on Continue; nothing recorded.
+  const intro = page.locator('[data-intro]');
+  await expect(intro).toBeVisible(AFTER_SUBMIT);
+  const word = (await intro.getByRole('heading', { level: 2 }).innerText()).trim();
   expect(word).not.toBe('');
+  await expect(intro.locator('[data-meaning="gloss"]')).not.toBeEmpty();
+  await expect(page.getByRole('button', { name: /^Дальше/ })).toBeFocused();
+  await expect(page.locator('[data-player-option]')).toHaveCount(0);
+  expect(await itemAttempts(email)).toHaveLength(0);
+
+  // Enter: the first question, of that same word, English shown: "I know" is offered.
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('#vocab-prompt p[lang="en"]').first()).toHaveText(word);
   await expect(page.getByRole('button', { name: /^Я знаю это слово/ })).toBeVisible();
 
   await page.keyboard.press('k');
@@ -105,11 +116,14 @@ test('/ru/words/practice: a wrong choice is stored with the word it was confused
   const email = await registerFreshLearner(page, 'words-confusion');
   await page.goto('/ru/words/practice');
 
-  // A fresh learner's cards are new words, English shown, Russian options.
-  // Pick option 1 until one is wrong (each card: 3 in 4).
+  // A fresh learner's cards are new words: each opens on its intro card (K
+  // goes on, like Continue), then English shown, Russian options. Pick option 1
+  // until one is wrong (each card: 3 in 4).
   let picked = '';
   for (let card = 1; ; card++) {
     expect(card, 'every first option was right').toBeLessThanOrEqual(10);
+    await expect(page.locator('[data-intro]')).toBeVisible(AFTER_SUBMIT);
+    await page.keyboard.press('k');
     await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
     picked = (
       await page.locator('[data-player-option] span.font-content').first().innerText()
@@ -156,8 +170,11 @@ test('/ru/words: a collection card starts a session of that collection’s new w
   await page.getByRole('link', { name: 'Работа и профессии: тренировать' }).click();
   await expect(page).toHaveURL(/\/ru\/words\/practice\?collection=work_jobs$/, AFTER_SUBMIT);
 
-  // Two new words, each answered (whatever the verdict): both from the collection.
+  // Two new words, each introduced, then answered (whatever the verdict): both
+  // from the collection.
   for (let card = 1; card <= 2; card++) {
+    await expect(page.locator('[data-intro]')).toBeVisible(AFTER_SUBMIT);
+    await page.keyboard.press('Enter');
     await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
     await page.keyboard.press('1');
     await page.keyboard.press('Enter');

@@ -193,6 +193,7 @@ describe('submitBetaFeedbackAction: a report from the vocabulary player (vocabRe
   ) =>
     encryptVocabRef(
       {
+        kind: 'question',
         userId: over.userId ?? 'user-1',
         itemId: ITEM,
         mode: over.mode ?? 'cloze',

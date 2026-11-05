@@ -10,6 +10,7 @@ const { createSealedRef } = await import('@/lib/crypto/sealed-ref');
 
 const NOW = 1_800_000_000_000;
 const REF = {
+  kind: 'question' as const,
   itemId: 'cmitem0schedule01',
   mode: 'cloze' as const,
   isProof: false,
@@ -147,6 +148,42 @@ describe('vocab references', () => {
     expect(await decryptVocabRef(token, 'user_1', NOW)).toEqual({ ok: false, error: 'INVALID' });
   });
 
+  it('kind (B6.5): an intro round-trips; a question is written explicitly; no kind = a question', async () => {
+    const intro = await issued({ kind: 'intro', correctIndex: null, optionItemIds: null });
+    expect(await decryptVocabRef(intro, 'user_1', NOW)).toMatchObject({
+      ok: true,
+      value: { kind: 'intro' },
+    });
+    expect(await decryptVocabRef(await issued(), 'user_1', NOW)).toMatchObject({
+      ok: true,
+      value: { kind: 'question' },
+    });
+    // A ref issued before B6.5 carries no `t`: still valid, a question.
+    expect(await decryptVocabRef(await forged(valid), 'user_1', NOW)).toMatchObject({
+      ok: true,
+      value: { kind: 'question' },
+    });
+    expect(
+      await decryptVocabRef(await forged({ ...valid, t: 'intro' }), 'user_1', NOW),
+    ).toMatchObject({ ok: true, value: { kind: 'intro' } });
+  });
+
+  it('accepts the B6.5 card variants as the served mode', async () => {
+    for (const m of ['definition_to_en', 'collocation']) {
+      expect(await decryptVocabRef(await forged({ ...valid, m }), 'user_1', NOW)).toMatchObject({
+        ok: true,
+        value: { mode: m },
+      });
+    }
+    // Accepted by the payload schema, but no card serves them yet: not a ref.
+    for (const m of ['audio_to_l1', 'dictation', 'level_up']) {
+      expect(await decryptVocabRef(await forged({ ...valid, m }), 'user_1', NOW)).toEqual({
+        ok: false,
+        error: 'INVALID',
+      });
+    }
+  });
+
   it.each([
     ['an unknown mode', { m: 'spelling' }],
     ['a non-boolean proof flag', { p: 'yes' }],
@@ -154,6 +191,7 @@ describe('vocab references', () => {
     ['an unknown locale', { l: 'fr' }],
     ['an index out of range', { k: 4 }],
     ['an extra field', { x: 1 }],
+    ['an unknown kind (B6.5)', { t: 'answer' }],
     ['a missing user', { u: undefined }],
   ])('rejects a sealed payload with %s', async (_, over) => {
     expect(await decryptVocabRef(await forged(valid), 'user_1', NOW)).toMatchObject({ ok: true });

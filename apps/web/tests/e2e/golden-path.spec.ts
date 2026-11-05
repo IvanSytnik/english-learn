@@ -6,7 +6,8 @@ import { toQuestion } from './helpers/player';
 
 /**
  * The whole first visit, clicked through as a guest would: landing → sign-up
- * → native language → diagnostic → result → practice → the first answer. The
+ * → native language → diagnostic → result → practice → the first answer →
+ * the first new word. The
  * other specs cover each screen; this one covers the hand-offs between them,
  * and that the first exercise is the topic the result recommends.
  */
@@ -76,4 +77,21 @@ test('guest → sign-up → diagnostic → the recommended topic is the first ex
   const topic = page.locator(`main button[data-concept="${attempted.conceptId}"]`);
   await expect(topic).toContainText(startTitle);
   await expect(topic.locator('[data-stage]')).not.toHaveAttribute('data-stage', 'NOT_STARTED');
+
+  // 8. Vocabulary (B6.5): the first new word opens on its intro card. Assessed
+  // B1+ (16 right: C1), the learner reads the English definition, not the
+  // gloss; Continue goes to that word's first question; the intro records nothing.
+  await page.goto('/ru/words/practice');
+  const intro = page.locator('[data-intro]');
+  await expect(intro).toBeVisible(AFTER_SUBMIT);
+  const word = (await intro.getByRole('heading', { level: 2 }).innerText()).trim();
+  await expect(intro.locator('[data-meaning="definition"]')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: /^Дальше/ })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('#vocab-prompt p[lang="en"]').first()).toHaveText(word);
+  expect((await learnerEvents(email)).map((e) => e.type)).toEqual([
+    'LEARNER_BOOTSTRAPPED',
+    'ITEM_ATTEMPTED',
+  ]);
 });

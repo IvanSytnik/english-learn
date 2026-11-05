@@ -10,6 +10,7 @@ const {
   hasItemReviewState,
   setDailyVocabLimit,
   overview,
+  remainingNew,
 } = vi.hoisted(() => ({
   auth: vi.fn(),
   getLocale: vi.fn(),
@@ -20,6 +21,7 @@ const {
   hasItemReviewState: vi.fn(),
   setDailyVocabLimit: vi.fn(),
   overview: vi.fn(),
+  remainingNew: vi.fn(),
 }));
 vi.mock('server-only', () => ({}));
 vi.mock('@englishlearn/db', () => ({ prisma: { tag: 'prisma' } }));
@@ -32,7 +34,7 @@ vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('next-intl/server', () => ({ getLocale }));
 vi.mock('@/lib/learner', () => ({
   learnerService: { recordVocabOutcome },
-  vocabSessionService: { nextVocab, overview },
+  vocabSessionService: { nextVocab, overview, remainingNew },
 }));
 vi.mock('@/lib/vocab-pool', () => ({ getVocabPool }));
 vi.stubEnv('AUTH_SECRET', 'test-secret-at-least-16-chars');
@@ -114,9 +116,13 @@ function idempotentRecord(input: {
   return Promise.resolve({ ...base, duplicate: false });
 }
 
+/** A served question's ref; a new word's intro card is passed first (B6.5). */
 async function servedRef(over = {}) {
   nextVocab.mockResolvedValueOnce(selection(over));
-  const out = await nextVocabCardAction({ timeZone: 'Europe/Berlin' });
+  let out = await nextVocabCardAction({ timeZone: 'Europe/Berlin' });
+  if (out.ok && out.value.status === 'intro') {
+    out = await nextVocabCardAction({ timeZone: 'Europe/Berlin', afterIntro: out.value.vocabRef });
+  }
   if (!out.ok || out.value.status !== 'card') throw new Error('expected a card');
   return out.value.vocabRef;
 }
@@ -127,6 +133,7 @@ beforeEach(() => {
   auth.mockResolvedValue({ user: { id: USER, role: 'STUDENT' } });
   getLocale.mockResolvedValue('ru');
   getNativeLanguage.mockResolvedValue('ru');
+  remainingNew.mockResolvedValue(9);
   getVocabPool.mockResolvedValue({
     lexemes: LEXEMES,
     byItemId: new Map(LEXEMES.map((l) => [l.itemId, l])),
@@ -216,6 +223,7 @@ describe('nextVocabCardAction', () => {
   it('serves a card for a topic, skipping the words of recent refs', async () => {
     const recent = await servedRef({ itemId: 'item-bread' });
     const foreign = await encryptVocabRef({
+      kind: 'question',
       userId: 'user_2',
       itemId: 'item-cheese',
       mode: 'en_to_l1',
@@ -231,7 +239,8 @@ describe('nextVocabCardAction', () => {
       timeZone: 'Europe/Berlin',
     });
 
-    expect(out).toMatchObject({ ok: true, value: { status: 'card', card: { word: 'apple' } } });
+    // A new word: its intro card first (B6.5).
+    expect(out).toMatchObject({ ok: true, value: { status: 'intro', word: { word: 'apple' } } });
     // Only this learner's decryptable refs steer selection.
     expect(nextVocab).toHaveBeenLastCalledWith({
       userId: USER,

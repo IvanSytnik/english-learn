@@ -576,3 +576,149 @@ describe('session', () => {
     expect(container.textContent).not.toMatch(/stability|difficulty|pKnown/i);
   });
 });
+
+describe('the intro card (B6.5)', () => {
+  const introWord = {
+    word: 'house',
+    pos: 'NOUN',
+    ipa: null,
+    meaning: { kind: 'gloss', text: 'дом' },
+    example: { sentence: 'Their house is old.', translation: 'Их дом старый.' },
+    collocations: ['build a house', 'house party'],
+  } as const;
+  const intro = (vocabRef = 'intro-1', over = {}) => ({
+    ok: true,
+    value: { status: 'intro', vocabRef, word: { ...introWord, ...over }, remainingNew: 5 },
+  });
+  const onIntro = async () => {
+    await screen.findByRole('heading', { name: 'house' });
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Continue/ })).toHaveFocus());
+  };
+  const afterIntroCalls = () =>
+    nextVocabCardAction.mock.calls.filter(([input]) => input.afterIntro !== undefined);
+
+  it('shows the word as the heading, its meaning, example and collocations; no IPA when null; focus on Continue', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    renderPlayer();
+    await onIntro();
+    expect(screen.getByRole('heading', { name: 'house' })).toHaveAttribute('lang', 'en');
+    expect(screen.getByText('дом')).toBeVisible();
+    expect(screen.getByText('Their house is old.')).toBeVisible();
+    expect(screen.getByText('build a house')).toBeVisible();
+    expect(document.querySelector('[data-ipa]')).toBeNull();
+    expect(document.querySelector('[data-player-option]')).toBeNull();
+  });
+
+  it('Continue (a click, Enter or Space) asks for the word’s first question with the intro ref', async () => {
+    for (const how of ['click', 'Enter', ' '] as const) {
+      nextVocabCardAction.mockReset();
+      nextVocabCardAction.mockResolvedValueOnce(intro('intro-x'));
+      nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+      const { unmount } = renderPlayer();
+      await onIntro();
+      if (how === 'click') fireEvent.click(screen.getByRole('button', { name: /^Continue/ }));
+      else key(how, document.body);
+      await onChoiceCard();
+      expect(afterIntroCalls()).toEqual([
+        [expect.objectContaining({ afterIntro: 'intro-x', recentVocabRefs: [] })],
+      ]);
+      unmount();
+    }
+  });
+
+  it('K ("I know this word") also opens the question (B6.5)', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-k'));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+    renderPlayer();
+    await onIntro();
+    key('k', document.body);
+    await onChoiceCard();
+    expect(afterIntroCalls()).toHaveLength(1);
+  });
+
+  it.each([
+    ['Meta', { metaKey: true }],
+    ['Ctrl', { ctrlKey: true }],
+    ['Alt', { altKey: true }],
+    ['Shift', { shiftKey: true }],
+    ['an auto-repeat', { repeat: true }],
+    ['an IME composition', { isComposing: true }],
+  ])('K with %s: no call', async (_, over) => {
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    renderPlayer();
+    await onIntro();
+    act(() => {
+      fireEvent.keyDown(document.body, { ...us('k'), ...over });
+    });
+    expect(afterIntroCalls()).toHaveLength(0);
+  });
+
+  it.each([
+    ['an input', '<input type="text">'],
+    ['a textarea', '<textarea></textarea>'],
+    ['a contenteditable', '<div contenteditable="true" tabindex="0"></div>'],
+  ])('K with focus in %s: no call', async (_, html) => {
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    renderPlayer();
+    await onIntro();
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.append(host);
+    const field = host.firstElementChild as HTMLElement;
+    act(() => {
+      fireEvent.keyDown(field, us('k'));
+    });
+    expect(afterIntroCalls()).toHaveLength(0);
+    host.remove();
+  });
+
+  it('one request in flight: a second Continue / K before the reply sends nothing', async () => {
+    let reply: (v: unknown) => void = () => {};
+    nextVocabCardAction.mockResolvedValueOnce(intro());
+    nextVocabCardAction.mockImplementationOnce(() => new Promise((r) => (reply = r)));
+    renderPlayer();
+    await onIntro();
+    // All in one tick: no re-render between them, so only the ref set before
+    // the call can stop the rest (phase state would still read 'intro').
+    act(() => {
+      fireEvent.keyDown(document.body, us('k'));
+      fireEvent.keyDown(document.body, us('k'));
+      fireEvent.keyDown(document.body, us('Enter'));
+      fireEvent.click(screen.getByRole('button', { name: /^Continue/ }));
+    });
+    expect(afterIntroCalls()).toHaveLength(1);
+    await act(async () => reply(served(l1ToEn('q-1'))));
+    await onChoiceCard();
+  });
+
+  it('a lost reply keeps the intro and offers Retry, which asks again with the intro ref', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-r'));
+    nextVocabCardAction.mockRejectedValueOnce(new Error('network'));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+    renderPlayer();
+    await onIntro();
+    key('Enter', document.body);
+    const retry = await screen.findByRole('button', { name: /^Retry/ });
+    expect(screen.getByRole('heading', { name: 'house' })).toBeVisible();
+    fireEvent.click(retry);
+    await onChoiceCard();
+    expect(afterIntroCalls().map(([input]) => input.afterIntro)).toEqual(['intro-r', 'intro-r']);
+  });
+
+  it('the intro ref is not a card: it never joins the recent refs', async () => {
+    nextVocabCardAction.mockResolvedValueOnce(intro('intro-1'));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-1')));
+    nextVocabCardAction.mockResolvedValueOnce(served(l1ToEn('q-2')));
+    renderPlayer();
+    await onIntro();
+    key('Enter', document.body);
+    await onChoiceCard();
+    key('2');
+    key('Enter');
+    await onFeedback();
+    key('Enter');
+    await waitFor(() => expect(nextVocabCardAction).toHaveBeenCalledTimes(3));
+    expect(nextVocabCardAction.mock.lastCall?.[0]).toMatchObject({ recentVocabRefs: ['q-1'] });
+    expect(nextVocabCardAction.mock.lastCall?.[0]).not.toHaveProperty('afterIntro');
+  });
+});
