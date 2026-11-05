@@ -94,6 +94,8 @@ export type WordListPageView = {
   /** 1-based. */
   page: number;
   pageCount: number;
+  /** Words before this page: a row's place in the list is offset + index + 1. */
+  offset: number;
   rows: WordListRowView[];
   /** The word just before this page and just after it: keyboard moves across a page edge. */
   prevSlug: string | null;
@@ -156,6 +158,15 @@ export async function loadWordListsIndex(userId: string): Promise<WordListsIndex
 }
 
 /**
+ * Whether the learner may practise this list: theirs and active. Anything
+ * else is a 404 on `/words/practice?list=` — never a 403 (B6-SPEC Axiom 3).
+ */
+export async function ownsActiveList(userId: string, listId: string): Promise<boolean> {
+  const list = await getWordList(prisma, { ownerId: userId, listId });
+  return list.ok && list.value.archivedAt === null;
+}
+
+/**
  * One page of a list, or null — another learner's or unknown list, or a page
  * past the last (the route answers 404). An empty list is one empty page.
  */
@@ -194,6 +205,7 @@ export async function loadWordListPage(args: {
     total: words.length,
     page: pageNumber,
     pageCount,
+    offset: start,
     rows: words.slice(start, start + LIST_PAGE_SIZE).map((row) => ({
       slug: slugOf(pool, row),
       headword: row.lemma,

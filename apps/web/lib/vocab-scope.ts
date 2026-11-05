@@ -1,3 +1,4 @@
+import { WordListIdSchema } from '@englishlearn/db/schemas';
 import { VocabCollectionValue } from '@englishlearn/db/vocab/collections';
 import { LexemeSlugSchema } from '@englishlearn/db/vocab/slug';
 import { parseVocabConceptId } from '@englishlearn/db/vocab/topics';
@@ -6,8 +7,10 @@ import { z } from 'zod';
 
 /**
  * A vocabulary session's scope as the client may name it (B6.2): one topic
- * concept (`vocab.<topic>.<level>`) or one browsing collection. Scope narrows
- * NEW words only; due reviews stay global (B6-SPEC V2-5).
+ * concept (`vocab.<topic>.<level>`), one browsing collection, or one of the
+ * learner's word lists by id (B6.7 — resolved for its owner only; any other
+ * list offers no new word). Scope narrows NEW words only; due reviews stay
+ * global (B6-SPEC V2-5).
  */
 export const VocabScopeSchema = z.discriminatedUnion('kind', [
   z
@@ -20,26 +23,30 @@ export const VocabScopeSchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('collection'), key: VocabCollectionValue }).strict(),
+  z.object({ kind: z.literal('list'), listId: WordListIdSchema }).strict(),
 ]) satisfies z.ZodType<VocabSessionScope>;
 
 /** A scope the client can send (a collection key from the closed taxonomy). */
 export type ClientVocabScope = z.infer<typeof VocabScopeSchema>;
 
 /**
- * `/words/practice?concept=…` or `?collection=…`. Anything else (unknown,
- * repeated, both at once) is the whole pool.
+ * `/words/practice?concept=…`, `?collection=…` or `?list=…`. Anything else
+ * (unknown, malformed, repeated, more than one at once) is the whole pool.
  */
 export function scopeFromSearchParams(
   params: Record<string, string | string[] | undefined>,
 ): ClientVocabScope | undefined {
-  const { concept, collection } = params;
-  if (concept !== undefined && collection !== undefined) return undefined;
+  const { concept, collection, list } = params;
+  const named = [concept, collection, list].filter((v) => v !== undefined);
+  if (named.length !== 1) return undefined;
   const parsed = VocabScopeSchema.safeParse(
     typeof concept === 'string'
       ? { kind: 'concept', conceptId: concept }
       : typeof collection === 'string'
         ? { kind: 'collection', key: collection }
-        : null,
+        : typeof list === 'string'
+          ? { kind: 'list', listId: list }
+          : null,
   );
   return parsed.success ? parsed.data : undefined;
 }

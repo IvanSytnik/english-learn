@@ -1,15 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { auth, redirect } = vi.hoisted(() => ({
+const { auth, redirect, ownsActiveList, notFound } = vi.hoisted(() => ({
   auth: vi.fn(),
   redirect: vi.fn((_: { href: string; locale: string }) => {
     throw new Error('NEXT_REDIRECT');
+  }),
+  ownsActiveList: vi.fn(),
+  notFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND');
   }),
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/auth', () => ({ auth }));
 vi.mock('@/i18n/navigation', () => ({ redirect }));
+vi.mock('next/navigation', () => ({ notFound }));
+vi.mock('@/lib/word-lists', () => ({ ownsActiveList }));
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en' }));
 vi.mock('@/app/[locale]/(student)/words/practice/vocab-player', () => ({
   VocabPlayer: () => null,
@@ -17,12 +23,15 @@ vi.mock('@/app/[locale]/(student)/words/practice/vocab-player', () => ({
 
 const { default: WordsPracticePage } = await import('@/app/[locale]/(student)/words/practice/page');
 
+const LIST = 'cm9listabcdefghijklmnop1';
+
 const open = (searchParams: Record<string, string | string[] | undefined> = {}) =>
   WordsPracticePage({ searchParams: Promise.resolve(searchParams) });
 
 beforeEach(() => {
   vi.clearAllMocks();
   auth.mockResolvedValue({ user: { id: 'user-1', role: 'STUDENT' } });
+  ownsActiveList.mockResolvedValue(true);
 });
 
 describe('/words/practice page', () => {
@@ -46,6 +55,28 @@ describe('/words/practice page', () => {
   it('or to a known collection (B6.2)', async () => {
     const page = await open({ collection: 'work_jobs' });
     expect(page.props).toEqual({ scope: { kind: 'collection', key: 'work_jobs' } });
+  });
+
+  it('or to one of the learner’s own active lists (B6.7)', async () => {
+    const page = await open({ list: LIST });
+    expect(page.props).toEqual({ scope: { kind: 'list', listId: LIST } });
+    expect(ownsActiveList).toHaveBeenCalledWith('user-1', LIST);
+  });
+
+  it('another learner’s, an archived or an unknown list is a 404, never a 403', async () => {
+    ownsActiveList.mockResolvedValue(false);
+    await expect(open({ list: LIST })).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(ownsActiveList).toHaveBeenCalledWith('user-1', LIST);
+  });
+
+  it.each([
+    ['a malformed id', { list: '../admin' }],
+    ['an upper-case id', { list: LIST.toUpperCase() }],
+    ['a repeated id', { list: [LIST, LIST] }],
+    ['a list and a concept', { list: LIST, concept: 'vocab.travel.a2' }],
+  ])('`?list=` with %s is a 404, nothing read', async (_, searchParams) => {
+    await expect(open(searchParams)).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(ownsActiveList).not.toHaveBeenCalled();
   });
 
   it('`?prove=<slug>` opens the session on that word’s proof, in its scope (B6.6)', async () => {

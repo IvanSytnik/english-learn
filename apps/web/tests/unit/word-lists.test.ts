@@ -150,6 +150,7 @@ describe('loadWordListPage', () => {
       total: 230,
       page: 1,
       pageCount: 3,
+      offset: 0,
       prevSlug: null,
       nextSlug: 'w100-noun',
       unavailable: 1,
@@ -175,7 +176,7 @@ describe('loadWordListPage', () => {
   it('the last page knows the word before it; past the last page is null (404)', async () => {
     getWordList.mockResolvedValue(list(WORDS.map((w) => w.id)));
     const last = await load(3);
-    expect(last).toMatchObject({ page: 3, prevSlug: 'w199-noun', nextSlug: null });
+    expect(last).toMatchObject({ page: 3, offset: 200, prevSlug: 'w199-noun', nextSlug: null });
     expect(last?.rows.map((r) => r.slug)).toHaveLength(30);
     expect(await load(4)).toBeNull();
     expect(await load(0)).toBeNull();
