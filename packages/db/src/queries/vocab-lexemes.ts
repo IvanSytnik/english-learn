@@ -27,8 +27,14 @@ export type VocabLexemeRow = {
   lemma: string;
   lemmaKey: string;
   pos: PartOfSpeechValue;
+  /** Homonym discriminator ("" = sole sense): with lemmaKey and pos, the public slug (B6.6). */
+  sense: string;
   cefrLevel: CefrLevelValue;
   conceptId: string;
+  /** Dense frequency rank (1 = most frequent); null = unknown. Browsing order (B6.6). */
+  frequencyRank: number | null;
+  /** Browsing tags (B6.2): collection pages (B6.6). */
+  collections: string[];
   ipa: string | null;
   definitions: { en: string };
   translations: z.infer<typeof TranslationMapSchema>;
@@ -65,7 +71,10 @@ export async function getPublishedVocabLexemes(
           lemma: true,
           lemmaKey: true,
           pos: true,
+          sense: true,
           cefrLevel: true,
+          frequencyRank: true,
+          collections: true,
           ipa: true,
           definitions: true,
           translations: true,
@@ -92,8 +101,11 @@ export async function getPublishedVocabLexemes(
       lemma: lexeme.lemma,
       lemmaKey: lexeme.lemmaKey,
       pos: lexeme.pos,
+      sense: lexeme.sense,
       cefrLevel: lexeme.cefrLevel,
       conceptId: item.conceptId,
+      frequencyRank: lexeme.frequencyRank,
+      collections: lexeme.collections,
       ipa: lexeme.ipa,
       definitions: { en: json.data.definitions.en },
       translations: json.data.translations,
