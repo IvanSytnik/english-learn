@@ -109,6 +109,17 @@ export async function vocabItemCollections(itemId: string) {
   return item.lexeme?.collections ?? [];
 }
 
+/** The learner's word preferences (B6.6): the word and its state, by lemma. */
+export async function lexemePreferences(email: string) {
+  const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const rows = await db().studentLexemePreference.findMany({
+    where: { userId: user.id },
+    orderBy: { lexemeId: 'asc' },
+    select: { state: true, lexeme: { select: { lemma: true } } },
+  });
+  return rows.map((r) => ({ lemma: r.lexeme.lemma, state: r.state }));
+}
+
 /** Idempotency keys of the learner's recorded answers, oldest first. */
 export async function itemAttemptKeys(email: string) {
   const user = await db().user.findUniqueOrThrow({ where: { email }, select: { id: true } });

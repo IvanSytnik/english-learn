@@ -95,6 +95,30 @@ for (const colorScheme of ['dark', 'light'] as const) {
       await expectNoContrastViolations(page);
     });
 
+    test('/ru/words/topics/travel and a collection page with a prioritized and a hidden row (signed in)', async ({
+      page,
+    }) => {
+      await registerFreshLearner(page, 'contrast');
+      await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+      await page.goto('/ru/words/topics/travel');
+      await expect(page.locator('[data-word]').first()).toBeVisible();
+      await expectNoContrastViolations(page);
+
+      await page.goto('/ru/words/collections/work_jobs');
+      const rows = page.locator('[data-word]');
+      await rows
+        .nth(0)
+        .getByRole('button', { name: /^В приоритет/ })
+        .click();
+      await rows
+        .nth(1)
+        .getByRole('button', { name: /^Скрыть/ })
+        .click();
+      await expect(rows.nth(0)).toHaveAttribute('data-preference', 'PRIORITIZED');
+      await expect(rows.nth(1)).toHaveAttribute('data-preference', 'HIDDEN');
+      await expectNoContrastViolations(page);
+    });
+
     test('/ru/diagnostic language step, a choice selected (signed in)', async ({ page }) => {
       await registerFreshLearner(page, 'contrast');
       // A click starts transition-colors; axe must not measure mid-way.

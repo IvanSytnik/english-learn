@@ -136,14 +136,14 @@ test('/ru/words/practice: a wrong choice is stored with the word it was confused
   const email = await registerFreshLearner(page, 'words-confusion');
   await page.goto('/ru/words/practice');
 
-  // A fresh learner's cards are new words: each opens on its intro card (K
-  // goes on, like Continue), then English shown, Russian options. Pick option 1
-  // until one is wrong (each card: 3 in 4).
+  // A fresh learner's cards are new words: each opens on its intro card
+  // (Enter goes on; K would prove it, B6.6), then English shown, Russian
+  // options. Pick option 1 until one is wrong (each card: 3 in 4).
   let picked = '';
   for (let card = 1; ; card++) {
     expect(card, 'every first option was right').toBeLessThanOrEqual(10);
     await expect(page.locator('[data-intro]')).toBeVisible(AFTER_SUBMIT);
-    await page.keyboard.press('k');
+    await page.keyboard.press('Enter');
     await expect(page.locator('[data-mode="en_to_l1"]')).toBeVisible(AFTER_SUBMIT);
     picked = (
       await page.locator('[data-player-option] span.font-content').first().innerText()
