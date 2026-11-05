@@ -28,6 +28,30 @@ const ok = <T>(value: T) => ({ ok: true, value }) as const;
 
 type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
+/**
+ * Where a write runs: the client (it opens its own transaction) or a caller's
+ * transaction — a metered write (rate-limit meteredWrite, B6.7) runs the list
+ * write inside the transaction that charges it.
+ */
+export type WordListDb = PrismaClient | Tx;
+
+const inTx = <T>(db: WordListDb, fn: (tx: Tx) => Promise<T>): Promise<T> =>
+  '$transaction' in db ? db.$transaction(fn) : fn(db);
+
+/** A change to a list's words moves its "updated" date (the lists index). */
+const touch = (tx: Tx, listId: string) =>
+  tx.wordList.update({ where: { id: listId }, data: { updatedAt: new Date() } });
+
+/** Locks the owner's User row: list creation and restore count the active lists under it. */
+async function lockOwner(tx: Tx, ownerId: string): Promise<boolean> {
+  const owner = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "User" WHERE "id" = ${ownerId} FOR UPDATE`;
+  return owner.length === 1;
+}
+
+const activeLists = (tx: Tx, ownerId: string) =>
+  tx.wordList.count({ where: { ownerId, archivedAt: null } });
+
 /** Locks the owner's active list for this transaction; false when it is not theirs or archived. */
 async function lockActiveList(tx: Tx, ownerId: string, listId: string): Promise<boolean> {
   const rows = await tx.$queryRaw<{ id: string }[]>`
@@ -38,20 +62,15 @@ async function lockActiveList(tx: Tx, ownerId: string, listId: string): Promise<
 }
 
 export async function createWordList(
-  db: PrismaClient,
+  db: WordListDb,
   args: { ownerId: string; title: string; source?: WordListSourceValue },
 ): Promise<WordListResult<{ id: string; title: string }>> {
   const title = WordListTitleSchema.safeParse(args.title);
   if (!title.success) return fail('INVALID');
-  return db.$transaction(async (tx) => {
+  return inTx(db, async (tx) => {
     // Serializes list creation per owner: the count below cannot go stale.
-    const owner = await tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM "User" WHERE "id" = ${args.ownerId} FOR UPDATE`;
-    if (owner.length === 0) return fail('NOT_FOUND');
-    const active = await tx.wordList.count({
-      where: { ownerId: args.ownerId, archivedAt: null },
-    });
-    if (active >= MAX_ACTIVE_WORD_LISTS) return fail('LIMIT');
+    if (!(await lockOwner(tx, args.ownerId))) return fail('NOT_FOUND');
+    if ((await activeLists(tx, args.ownerId)) >= MAX_ACTIVE_WORD_LISTS) return fail('LIMIT');
     const list = await tx.wordList.create({
       data: { ownerId: args.ownerId, title: title.data, source: args.source ?? 'CUSTOM' },
       select: { id: true, title: true },
@@ -61,7 +80,7 @@ export async function createWordList(
 }
 
 export async function renameWordList(
-  db: Pick<PrismaClient, 'wordList'>,
+  db: Pick<WordListDb, 'wordList'>,
   args: { ownerId: string; listId: string; title: string },
 ): Promise<WordListResult<{ title: string }>> {
   const title = WordListTitleSchema.safeParse(args.title);
@@ -75,33 +94,66 @@ export async function renameWordList(
 
 /** Archive (soft delete). Archiving an archived list of the owner is a no-op. */
 export async function archiveWordList(
-  db: Pick<PrismaClient, 'wordList'>,
+  db: Pick<WordListDb, 'wordList'>,
   args: { ownerId: string; listId: string },
-): Promise<WordListResult<{ archived: true }>> {
+): Promise<WordListResult<{ archived: true; changed: boolean }>> {
   const { count } = await db.wordList.updateMany({
     where: { id: args.listId, ownerId: args.ownerId, archivedAt: null },
     data: { archivedAt: new Date() },
   });
-  if (count === 1) return ok({ archived: true });
+  if (count === 1) return ok({ archived: true, changed: true });
   const exists = await db.wordList.findFirst({
     where: { id: args.listId, ownerId: args.ownerId },
     select: { id: true },
   });
-  return exists ? ok({ archived: true }) : fail('NOT_FOUND');
+  return exists ? ok({ archived: true, changed: false }) : fail('NOT_FOUND');
+}
+
+/**
+ * Bring an archived list back (B6.7). Counts against the 50 active lists
+ * under the owner's row lock, like a new list (LIMIT). Restoring an active
+ * list of the owner is a no-op (`changed: false`).
+ */
+export async function restoreWordList(
+  db: WordListDb,
+  args: { ownerId: string; listId: string },
+): Promise<WordListResult<{ restored: true; changed: boolean }>> {
+  return inTx(db, async (tx) => {
+    if (!(await lockOwner(tx, args.ownerId))) return fail('NOT_FOUND');
+    const list = await tx.wordList.findFirst({
+      where: { id: args.listId, ownerId: args.ownerId },
+      select: { archivedAt: true },
+    });
+    if (!list) return fail('NOT_FOUND');
+    if (list.archivedAt === null) return ok({ restored: true as const, changed: false });
+    if ((await activeLists(tx, args.ownerId)) >= MAX_ACTIVE_WORD_LISTS) return fail('LIMIT');
+    await tx.wordList.update({ where: { id: args.listId }, data: { archivedAt: null } });
+    return ok({ restored: true as const, changed: true });
+  });
 }
 
 /**
  * Append words to the end of a list, in the given order. Words already in the
  * list are skipped (`alreadyIn`), unpublished ones are not added (`notFound`).
- * Crossing 500 entries adds nothing (LIMIT).
+ * Crossing 500 entries: `overflow: 'reject'` (default) adds nothing (LIMIT);
+ * `'fit'` (paste import, B6.7) adds the first words that fit, in order, and
+ * reports the rest in `didNotFit`.
  */
 export async function addWordListEntries(
-  db: PrismaClient,
-  args: { ownerId: string; listId: string; lexemeIds: readonly string[] },
-): Promise<WordListResult<{ added: number; alreadyIn: number; notFound: string[] }>> {
+  db: WordListDb,
+  args: {
+    ownerId: string;
+    listId: string;
+    lexemeIds: readonly string[];
+    overflow?: 'reject' | 'fit';
+  },
+): Promise<
+  WordListResult<{ added: number; alreadyIn: number; notFound: string[]; didNotFit: number }>
+> {
   const ids = [...new Set(args.lexemeIds)];
-  if (ids.length > MAX_WORD_LIST_ENTRIES) return fail('LIMIT');
-  return db.$transaction(async (tx) => {
+  const fit = args.overflow === 'fit';
+  if (!fit && ids.length > MAX_WORD_LIST_ENTRIES) return fail('LIMIT');
+  return inTx(db, async (tx) => {
     if (!(await lockActiveList(tx, args.ownerId, args.listId))) return fail('NOT_FOUND');
     const published = new Set(
       (
@@ -117,30 +169,82 @@ export async function addWordListEntries(
     });
     const inList = new Set(existing.map((e) => e.lexemeId));
     const fresh = ids.filter((id) => published.has(id) && !inList.has(id));
-    if (existing.length + fresh.length > MAX_WORD_LIST_ENTRIES) return fail('LIMIT');
+    const room = Math.max(0, MAX_WORD_LIST_ENTRIES - existing.length);
+    if (!fit && fresh.length > room) return fail('LIMIT');
+    const added = fresh.slice(0, room);
     const start = existing.reduce((max, e) => Math.max(max, e.position + 1), 0);
-    await tx.wordListEntry.createMany({
-      data: fresh.map((lexemeId, i) => ({ listId: args.listId, lexemeId, position: start + i })),
-    });
-    await tx.wordList.update({ where: { id: args.listId }, data: { updatedAt: new Date() } });
+    if (added.length > 0) {
+      await tx.wordListEntry.createMany({
+        data: added.map((lexemeId, i) => ({ listId: args.listId, lexemeId, position: start + i })),
+      });
+      await touch(tx, args.listId);
+    }
     return ok({
-      added: fresh.length,
+      added: added.length,
       alreadyIn: ids.filter((id) => inList.has(id)).length,
       notFound: ids.filter((id) => !published.has(id)),
+      didNotFit: fresh.length - added.length,
     });
   });
 }
 
 export async function removeWordListEntry(
-  db: PrismaClient,
+  db: WordListDb,
   args: { ownerId: string; listId: string; lexemeId: string },
 ): Promise<WordListResult<{ removed: true }>> {
-  return db.$transaction(async (tx) => {
+  return inTx(db, async (tx) => {
     if (!(await lockActiveList(tx, args.ownerId, args.listId))) return fail('NOT_FOUND');
     const { count } = await tx.wordListEntry.deleteMany({
       where: { listId: args.listId, lexemeId: args.lexemeId },
     });
-    return count === 1 ? ok({ removed: true as const }) : fail('NOT_FOUND');
+    if (count !== 1) return fail('NOT_FOUND');
+    await touch(tx, args.listId);
+    return ok({ removed: true as const });
+  });
+}
+
+/** Where a moved word goes: right before or right after another word of the list. */
+export type WordListAnchor = { before: string } | { after: string };
+
+/**
+ * Move one word next to another (B6.7: drag, and the keyboard's up / down —
+ * the row above or below, possibly on the next page). Positions become
+ * 0..n-1 in the new order; only rows whose position changes are written.
+ * NOT_FOUND when either word is not in the list (or the list is not the
+ * owner's active list); a word anchored to itself is INVALID.
+ */
+export async function moveWordListEntry(
+  db: WordListDb,
+  args: { ownerId: string; listId: string; lexemeId: string; anchor: WordListAnchor },
+): Promise<WordListResult<{ moved: boolean }>> {
+  const anchorId = 'before' in args.anchor ? args.anchor.before : args.anchor.after;
+  if (anchorId === args.lexemeId) return fail('INVALID');
+  return inTx(db, async (tx) => {
+    if (!(await lockActiveList(tx, args.ownerId, args.listId))) return fail('NOT_FOUND');
+    const entries = await tx.wordListEntry.findMany({
+      where: { listId: args.listId },
+      select: { lexemeId: true, position: true },
+      orderBy: [{ position: 'asc' }, { lexemeId: 'asc' }],
+    });
+    const order = entries.map((e) => e.lexemeId);
+    const from = order.indexOf(args.lexemeId);
+    if (from < 0 || !order.includes(anchorId)) return fail('NOT_FOUND');
+    order.splice(from, 1);
+    const at = order.indexOf(anchorId) + ('before' in args.anchor ? 0 : 1);
+    order.splice(at, 0, args.lexemeId);
+    const changed = order.flatMap((lexemeId, position) =>
+      entries[position]?.lexemeId === lexemeId && entries[position]?.position === position
+        ? []
+        : [{ lexemeId, position }],
+    );
+    if (changed.length === 0) return ok({ moved: false });
+    await tx.$executeRaw`
+      UPDATE "WordListEntry" e SET "position" = v.position
+      FROM unnest(${changed.map((c) => c.lexemeId)}::text[], ${changed.map((c) => c.position)}::int[])
+        AS v("lexemeId", position)
+      WHERE e."listId" = ${args.listId} AND e."lexemeId" = v."lexemeId"`;
+    await touch(tx, args.listId);
+    return ok({ moved: true });
   });
 }
 
@@ -149,10 +253,10 @@ export async function removeWordListEntry(
  * (INVALID otherwise); positions become 0..n-1, one statement.
  */
 export async function reorderWordListEntries(
-  db: PrismaClient,
+  db: WordListDb,
   args: { ownerId: string; listId: string; lexemeIds: readonly string[] },
 ): Promise<WordListResult<{ count: number }>> {
-  return db.$transaction(async (tx) => {
+  return inTx(db, async (tx) => {
     if (!(await lockActiveList(tx, args.ownerId, args.listId))) return fail('NOT_FOUND');
     const entries = await tx.wordListEntry.findMany({
       where: { listId: args.listId },
@@ -178,18 +282,20 @@ export async function reorderWordListEntries(
 
 /** Set or clear (empty / null) the note of one entry. */
 export async function setWordListEntryNote(
-  db: PrismaClient,
+  db: WordListDb,
   args: { ownerId: string; listId: string; lexemeId: string; note: string | null },
 ): Promise<WordListResult<{ note: string | null }>> {
   const note = WordListNoteSchema.safeParse(args.note ?? '');
   if (!note.success) return fail('INVALID');
-  return db.$transaction(async (tx) => {
+  return inTx(db, async (tx) => {
     if (!(await lockActiveList(tx, args.ownerId, args.listId))) return fail('NOT_FOUND');
     const { count } = await tx.wordListEntry.updateMany({
       where: { listId: args.listId, lexemeId: args.lexemeId },
       data: { note: note.data },
     });
-    return count === 1 ? ok({ note: note.data }) : fail('NOT_FOUND');
+    if (count !== 1) return fail('NOT_FOUND');
+    await touch(tx, args.listId);
+    return ok({ note: note.data });
   });
 }
 
@@ -201,9 +307,55 @@ export type WordListView = {
   entries: { lexemeId: string; position: number; note: string | null }[];
 };
 
+export type WordListSummary = {
+  id: string;
+  title: string;
+  source: WordListSourceValue;
+  updatedAt: Date;
+  archivedAt: Date | null;
+  /** The list's words in list order (any status: the caller shows what it can). */
+  lexemeIds: string[];
+};
+
+/**
+ * Every list of the owner (B6.7 lists index): active ones by last change,
+ * newest first, then archived ones by archive date, newest first.
+ */
+export async function listWordLists(
+  db: Pick<WordListDb, 'wordList'>,
+  ownerId: string,
+): Promise<WordListSummary[]> {
+  const rows = await db.wordList.findMany({
+    where: { ownerId },
+    select: {
+      id: true,
+      title: true,
+      source: true,
+      updatedAt: true,
+      archivedAt: true,
+      entries: {
+        select: { lexemeId: true },
+        orderBy: [{ position: 'asc' }, { lexemeId: 'asc' }],
+      },
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+  });
+  const summaries = rows.map(({ entries, ...list }) => ({
+    ...list,
+    lexemeIds: entries.map((e) => e.lexemeId),
+  }));
+  const time = (d: Date | null) => d?.getTime() ?? 0;
+  return [
+    ...summaries.filter((l) => l.archivedAt === null),
+    ...summaries
+      .filter((l) => l.archivedAt !== null)
+      .sort((a, b) => time(b.archivedAt) - time(a.archivedAt) || (a.id < b.id ? -1 : 1)),
+  ];
+}
+
 /** One list of the owner (archived too), entries in list order. */
 export async function getWordList(
-  db: Pick<PrismaClient, 'wordList'>,
+  db: Pick<WordListDb, 'wordList'>,
   args: { ownerId: string; listId: string },
 ): Promise<WordListResult<WordListView>> {
   const list = await db.wordList.findFirst({
