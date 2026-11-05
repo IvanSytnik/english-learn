@@ -341,6 +341,7 @@
         "instruction": {
           "en_to_l1": "Wähle die Übersetzung.",
           "l1_to_en": "Wähle das englische Wort.",
+          "definition_to_en": "Wähle das englische Wort zu dieser Definition.",
           "cloze": "Wähle das Wort, das in die Lücke passt.",
           "cued_recall": "Schreib das englische Wort. Der erste Buchstabe ist vorgegeben.",
           "full_recall": "Schreib das englische Wort."

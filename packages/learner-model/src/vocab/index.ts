@@ -1,7 +1,10 @@
 export {
   buildVocabCard,
+  buildVocabVariant,
+  type ChoiceVariantId,
   cardSeed,
   type VocabAnswerKey,
+  type VocabBuildInput,
   type VocabCard,
   VocabCardError,
   type VocabCardInput,
@@ -37,19 +40,23 @@ export {
   type VocabSelection,
   type VocabSelectionReason,
 } from './select';
-export { glossOf, normalizeAnswer, payloadAnswerText, recallCue } from './text';
+export { glossOf, normalizeAnswer, payloadAnswerText, recallCue, surfaceForms } from './text';
 export {
   PAYLOAD_MODE,
+  VOCAB_CARD_VARIANTS,
   VOCAB_MODES,
   type VocabExample,
   type VocabLexeme,
   type VocabLocale,
   type VocabMode,
+  type VocabVariantId,
 } from './types';
 export {
+  RUNG_VARIANTS,
   type VariantContext,
   VOCAB_LADDER,
   VOCAB_VARIANTS,
+  type VocabRungVariant,
   type VocabVariant,
   vocabVariant,
 } from './variants';

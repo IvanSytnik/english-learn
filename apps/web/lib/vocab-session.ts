@@ -5,6 +5,8 @@ import { hasItemReviewState } from '@englishlearn/db/queries/vocab-session';
 import type { Locale, PartOfSpeechValue } from '@englishlearn/db/schemas';
 import {
   buildVocabCard,
+  buildVocabVariant,
+  type CEFRLevel,
   cardSeed,
   glossOf,
   gradeVocabAnswer,
@@ -15,6 +17,7 @@ import {
   type VocabCardView,
   type VocabGradingKey,
   type VocabLocale,
+  type VocabMode,
   type VocabScope,
 } from '@englishlearn/learner-model';
 import type { VocabAttemptAnalytics } from '@englishlearn/learner-model/service';
@@ -112,8 +115,30 @@ async function learnerLocale(userId: string, uiLocale: Locale): Promise<VocabLoc
   return toVocabLocale(contentLocale(await getNativeLanguage(prisma, userId), uiLocale));
 }
 
-/** The card for `ref`, built exactly as it was served. */
+const seedOf = (userId: string, ref: VocabRef) =>
+  cardSeed({ userId, itemId: ref.itemId, lastReviewAt: ref.lastReviewAt });
+
+/** The card for `ref`, built exactly as it was served: its sealed variant, no new pick. */
 function rebuild(pool: VocabPool, userId: string, ref: VocabRef) {
+  const target = pool.byItemId.get(ref.itemId);
+  if (!target) return null;
+  const card = buildVocabVariant(
+    { target, pool: pool.lexemes, locale: ref.locale, seed: seedOf(userId, ref) },
+    ref.mode,
+  );
+  return { target, card };
+}
+
+/**
+ * A fresh card for the word on rung `rung`: one of the rung's variants the
+ * word and the learner's level allow, picked by card seed (B6.5).
+ */
+function serve(
+  pool: VocabPool,
+  userId: string,
+  ref: VocabRef & { mode: VocabMode },
+  learnerLevel: CEFRLevel | null,
+) {
   const target = pool.byItemId.get(ref.itemId);
   if (!target) return null;
   const card = buildVocabCard({
@@ -121,7 +146,8 @@ function rebuild(pool: VocabPool, userId: string, ref: VocabRef) {
     pool: pool.lexemes,
     mode: ref.mode,
     locale: ref.locale,
-    seed: cardSeed({ userId, itemId: ref.itemId, lastReviewAt: ref.lastReviewAt }),
+    seed: seedOf(userId, ref),
+    learnerLevel,
   });
   return { target, card };
 }
@@ -166,7 +192,7 @@ export async function loadNextVocabCard(args: {
     };
   }
 
-  const ref: VocabRef = {
+  const ref = {
     itemId: selection.itemId,
     mode: selection.mode,
     isProof: false,
@@ -174,12 +200,12 @@ export async function loadNextVocabCard(args: {
     locale,
     correctIndex: null,
     optionItemIds: null,
-  };
-  const built = rebuild(pool, userId, ref);
+  } satisfies VocabRef;
+  const built = serve(pool, userId, ref, selection.learnerLevel);
   // Published since the pool was cached, or unpublished since selection read it.
   if (!built) return { ok: false, error: 'NOT_FOUND' };
   const { view, key } = built.card;
-  // The served mode is the view's (cloze may fall back to l1_to_en).
+  // The served variant is the view's: the rung's pick, or the cloze fallback.
   const served: VocabRef = {
     ...ref,
     mode: view.mode,

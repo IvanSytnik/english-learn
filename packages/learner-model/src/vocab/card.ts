@@ -1,6 +1,7 @@
-import type { VocabMode } from './types';
-import { VocabCardError, vocabVariant } from './variants';
-import type { VocabCard, VocabCardInput, VocabVariant } from './variants/types';
+import { seedFromString } from '../policy/rng';
+import type { VocabVariantId } from './types';
+import { RUNG_VARIANTS, VocabCardError, vocabVariant } from './variants';
+import type { VocabBuildInput, VocabCard, VocabCardInput, VocabVariant } from './variants/types';
 
 /**
  * One vocabulary question, built twice from the same input: when it is served
@@ -11,7 +12,9 @@ import type { VocabCard, VocabCardInput, VocabVariant } from './variants/types';
  */
 
 export type {
+  ChoiceVariantId,
   VocabAnswerKey,
+  VocabBuildInput,
   VocabCard,
   VocabCardInput,
   VocabCardView,
@@ -27,19 +30,37 @@ export const cardSeed = (args: { userId: string; itemId: string; lastReviewAt: b
   `${args.userId}:${args.itemId}:${args.lastReviewAt ?? 'new'}`;
 
 /**
- * The card for `input.mode`, or — when that variant is not eligible for the
- * word — for its fallback (cloze → l1_to_en). The served mode is
+ * The card for the rung `input.mode`: one of the rung's eligible variants,
+ * picked by card seed (`seedFromString(seed:variant) mod n` — a rung with one
+ * eligible variant serves it, as before B6.5). When none is eligible, the
+ * rung's own fallback chain (cloze → l1_to_en). The served variant is
  * `view.mode`.
  */
 export function buildVocabCard(input: VocabCardInput): VocabCard {
+  const eligible = RUNG_VARIANTS[input.mode].filter((id) =>
+    vocabVariant(id).eligible(input.target, input),
+  );
+  const picked = eligible[seedFromString(`${input.seed}:variant`) % eligible.length];
+  if (picked !== undefined) return buildVocabVariant(input, picked);
+
   let variant: VocabVariant = vocabVariant(input.mode);
-  const seen = new Set<VocabMode>();
-  while (!variant.eligible(input.target, input)) {
-    seen.add(variant.id);
-    if (variant.fallback === undefined || seen.has(variant.fallback)) {
+  const seen = new Set<VocabVariantId>([variant.id]);
+  for (;;) {
+    const next = variant.fallback;
+    if (next === undefined || seen.has(next)) {
       throw new VocabCardError(`"${input.target.lemma}" has no eligible variant (${input.mode})`);
     }
-    variant = vocabVariant(variant.fallback);
+    seen.add(next);
+    variant = vocabVariant(next);
+    if (variant.eligible(input.target, input)) return buildVocabVariant(input, variant.id);
   }
-  return variant.build({ ...input, mode: variant.id });
+}
+
+/**
+ * Exactly the card of variant `id` — a served card rebuilt from the variant
+ * sealed in its reference (the grader of a typed answer, the proof). Throws
+ * VocabCardError when that variant cannot be built for the word.
+ */
+export function buildVocabVariant(input: VocabBuildInput, id: VocabVariantId): VocabCard {
+  return vocabVariant(id).build({ ...input, mode: id });
 }

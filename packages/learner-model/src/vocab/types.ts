@@ -64,10 +64,21 @@ export const VOCAB_MODES = Object.freeze([
 ] as const satisfies readonly VocabVariantValue[]);
 export type VocabMode = (typeof VOCAB_MODES)[number];
 
-/** The event payload's coarser mode (LearnerEvent `mode`) of each rung. */
-export const PAYLOAD_MODE: Readonly<Record<VocabMode, PracticeModeValue>> = Object.freeze(
-  Object.fromEntries(VOCAB_MODES.map((m) => [m, VOCAB_VARIANT_MODE[m]])) as Record<
-    VocabMode,
+/**
+ * Every card the engine builds: the five rungs and the variants served on a
+ * rung instead of its own card (B6.5, B6-SPEC §3). The payload's `variant`
+ * records which one was shown.
+ */
+export const VOCAB_CARD_VARIANTS = Object.freeze([
+  ...VOCAB_MODES,
+  'definition_to_en',
+] as const satisfies readonly VocabVariantValue[]);
+export type VocabVariantId = (typeof VOCAB_CARD_VARIANTS)[number];
+
+/** The event payload's coarser mode (LearnerEvent `mode`) of each card. */
+export const PAYLOAD_MODE: Readonly<Record<VocabVariantId, PracticeModeValue>> = Object.freeze(
+  Object.fromEntries(VOCAB_CARD_VARIANTS.map((m) => [m, VOCAB_VARIANT_MODE[m]])) as Record<
+    VocabVariantId,
     PracticeModeValue
   >,
 );

@@ -60,7 +60,7 @@ const choiceOptions = ['дом', 'кот', 'стол', 'окно'];
 describe('VOCAB_RENDERERS', () => {
   it('has one renderer per variant', () => {
     expect(Object.keys(VOCAB_RENDERERS).sort()).toEqual(
-      ['cloze', 'cued_recall', 'en_to_l1', 'full_recall', 'l1_to_en'].sort(),
+      ['cloze', 'cued_recall', 'definition_to_en', 'en_to_l1', 'full_recall', 'l1_to_en'].sort(),
     );
   });
 
@@ -69,6 +69,12 @@ describe('VOCAB_RENDERERS', () => {
     expect(screen.getByText('дом')).not.toHaveAttribute('lang');
     answer({ mode: 'l1_to_en', gloss: 'дом', options: ['house', 'cat', 'table', 'window'] });
     expect(screen.getByText('house')).toHaveAttribute('lang', 'en');
+    answer({
+      mode: 'definition_to_en',
+      definition: 'a home',
+      options: ['flat', 'cat', 'tree', 'pen'],
+    });
+    expect(screen.getByText('flat')).toHaveAttribute('lang', 'en');
   });
 
   it('locks the options once the answer is in', () => {

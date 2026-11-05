@@ -86,13 +86,15 @@ describe('vocabModeFor (the word ladder)', () => {
     );
   });
 
-  it('maps every mode to the payload mode', () => {
+  it('maps every card variant to the payload mode', () => {
     expect(PAYLOAD_MODE).toEqual({
       en_to_l1: 'recognition',
       l1_to_en: 'recognition',
       cloze: 'cloze',
       cued_recall: 'recall',
       full_recall: 'recall',
+      // B6.5: served on the l1_to_en rung, recorded like it.
+      definition_to_en: 'recognition',
     });
   });
 });

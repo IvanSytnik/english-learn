@@ -123,3 +123,52 @@ export function matchInitialCase(form: string, like: string): string {
   if (first !== first.toUpperCase() || first === first.toLowerCase()) return form;
   return form.charAt(0).toUpperCase() + form.slice(1);
 }
+
+const VOWEL = /[aeiou]/;
+
+/**
+ * Spelling candidates for the inflections of one word (B6.5): -s/-es, -ing,
+ * -ed, -er, -est, each by every rule that might apply (`e` dropped, `y` to
+ * `i`, final consonant doubled) — non-words included. A leak check must not
+ * miss a form; a candidate that is no word never matches a definition.
+ */
+function inflections(word: string): string[] {
+  const w = word.toLowerCase();
+  const last = w.at(-1) ?? '';
+  const stems = [w];
+  if (last === 'e') stems.push(w.slice(0, -1));
+  if (last === 'y' && !VOWEL.test(w.at(-2) ?? '')) stems.push(`${w.slice(0, -1)}i`);
+  if (/[b-df-hj-np-tv-z]/.test(last) && VOWEL.test(w.at(-2) ?? '')) stems.push(w + last);
+  const forms = new Set([w, `${w}s`, `${w}es`]);
+  for (const stem of stems)
+    for (const end of ['es', 'ing', 'ed', 'er', 'est']) forms.add(stem + end);
+  if (w.endsWith('ie')) forms.add(`${w.slice(0, -2)}ying`);
+  return [...forms];
+}
+
+/**
+ * Every form the word may take in running text: the lemma and each spelling
+ * variant with their generated inflections (base, s, ing, past, plural, er,
+ * est — a multiword lemma inflects its first word, `looks up`, and its last,
+ * `credit cards`), plus the surface forms its own examples blank (`ran`).
+ * Lower case, deduplicated.
+ */
+export function surfaceForms(
+  lexeme: Pick<VocabLexeme, 'lemma' | 'variants' | 'examples'>,
+): string[] {
+  const forms = new Set<string>();
+  for (const spelling of [lexeme.lemma, ...lexeme.variants]) {
+    const words = spelling.trim().toLowerCase().split(/\s+/);
+    const first = words[0] ?? '';
+    const lastWord = words.at(-1) ?? '';
+    const middle = words.slice(1, -1);
+    if (words.length === 1) {
+      for (const f of inflections(first)) forms.add(f);
+      continue;
+    }
+    for (const f of inflections(first)) forms.add([f, ...words.slice(1)].join(' '));
+    for (const f of inflections(lastWord)) forms.add([first, ...middle, f].join(' '));
+  }
+  for (const ex of lexeme.examples) forms.add(normalizeAnswer(ex.clozeTarget));
+  return [...forms];
+}

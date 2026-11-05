@@ -1,10 +1,11 @@
 import { countWholeWord } from '@englishlearn/db/schemas';
+import { CEFR_RANK, type CEFRLevel } from '../../core/graph/types';
 import { makeRng, type Rng, seedFromString } from '../../policy/rng';
 import { DISTRACTOR_COUNT, pickDistractors, shuffle } from '../distractors';
 import type { VocabAnswer, VocabGrade, VocabGradingKey } from '../grade';
-import { containsWholeWord, glossKey, glossOf, normalizeAnswer } from '../text';
-import type { VocabExample, VocabLexeme, VocabLocale, VocabMode } from '../types';
-import type { VocabAnswerKey, VocabCard, VocabCardInput, VocabCardView } from './types';
+import { containsWholeWord, glossKey, glossOf, normalizeAnswer, surfaceForms } from '../text';
+import type { VocabExample, VocabLexeme, VocabLocale, VocabVariantId } from '../types';
+import type { VocabAnswerKey, VocabBuildInput, VocabCard, VocabCardView } from './types';
 
 /** Helpers every variant shares: the RNG of a card, distractors, the choice shuffle, grading. */
 
@@ -13,7 +14,7 @@ export class VocabCardError extends Error {
 }
 
 /** The card's own draws: seeded by the served question and the variant id. */
-export const cardRng = (input: { seed: string }, id: VocabMode): Rng =>
+export const cardRng = (input: { seed: string }, id: VocabVariantId): Rng =>
   makeRng(seedFromString(`${input.seed}:${id}`));
 
 /**
@@ -35,11 +36,23 @@ export function rotatedExample(target: VocabLexeme, seed: string): VocabExample 
  */
 export function promptGloss(target: VocabLexeme, locale: VocabLocale): string {
   const gloss = glossOf(target, locale);
-  const reveals = [target.lemma, ...target.variants].some((answer) =>
-    containsWholeWord(gloss, answer),
-  );
-  return reveals ? target.definitions.en : gloss;
+  return namesWord(gloss, target) ? target.definitions.en : gloss;
 }
+
+/** `text` names the word: its lemma or a spelling variant occurs in it as a whole word. */
+export const namesWord = (text: string, lexeme: Pick<VocabLexeme, 'lemma' | 'variants'>) =>
+  [lexeme.lemma, ...lexeme.variants].some((spelling) => containsWholeWord(text, spelling));
+
+/**
+ * `text` gives the word away: promptGloss's check, or any of its surface
+ * forms (`decides` in a definition of `decide`) as a whole word.
+ */
+export const revealsWord = (text: string, lexeme: VocabLexeme) =>
+  namesWord(text, lexeme) || surfaceForms(lexeme).some((form) => containsWholeWord(text, form));
+
+/** "Learner ≥ B1" (B6-SPEC §3): an assessed level of B1 or above; no level is below. */
+export const atLeastB1 = (level: CEFRLevel | null | undefined) =>
+  level != null && CEFR_RANK[level] >= CEFR_RANK.B1;
 
 /** Accepted spellings of the target and the forms of its same-gloss synonyms. */
 export function recallKey(target: VocabLexeme, pool: readonly VocabLexeme[], locale: VocabLocale) {
@@ -55,7 +68,7 @@ export function recallKey(target: VocabLexeme, pool: readonly VocabLexeme[], loc
 export type ChoiceOption = { option: string; lexemeId: string };
 
 export function pickFor(
-  input: VocabCardInput,
+  input: Pick<VocabBuildInput, 'target' | 'pool' | 'locale'>,
   rng: Rng,
   targetOption: string,
   optionOf: (l: VocabLexeme) => string | null,

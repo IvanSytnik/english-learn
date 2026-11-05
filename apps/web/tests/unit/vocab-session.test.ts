@@ -384,6 +384,50 @@ describe('submitVocabAttempt', () => {
     );
   });
 
+  it('B6.5: a B1+ learner’s rung-2 card may be definition_to_en — sealed, graded and recorded as it', async () => {
+    // A definition that names neither the word nor any other word of the pool.
+    const stew = { ...word('stew', 'рагу'), definitions: { en: 'a hot dish cooked slowly' } };
+    const pool = [...LEXEMES, stew];
+    getVocabPool.mockResolvedValue({
+      lexemes: pool,
+      byItemId: new Map(pool.map((l) => [l.itemId, l])),
+      itemIdByLexemeId: new Map(pool.map((l) => [l.id, l.itemId])),
+    });
+    const rung2 = (lastReviewAt: bigint, learnerLevel: string | null) =>
+      served({ itemId: 'item-stew', mode: 'l1_to_en', lastReviewAt, learnerLevel });
+    const modes = new Map<bigint, string>();
+    for (let at = 1n; at <= 12n; at++) modes.set(at, (await rung2(at, 'B1')).card.mode);
+    expect(new Set(modes.values())).toEqual(new Set(['l1_to_en', 'definition_to_en']));
+    // Without an assessed level the rung serves only its own card.
+    for (let at = 1n; at <= 12n; at++) expect((await rung2(at, null)).card.mode).toBe('l1_to_en');
+
+    const at = [...modes].find(([, mode]) => mode === 'definition_to_en')?.[0] ?? 0n;
+    const card = await rung2(at, 'B2');
+    expect(card.card).toMatchObject({
+      mode: 'definition_to_en',
+      definition: 'a hot dish cooked slowly',
+    });
+    expectNoAnswerKey(card);
+    expect(await decryptVocabRef(card.vocabRef, USER)).toMatchObject({
+      ok: true,
+      value: { mode: 'definition_to_en' },
+    });
+    const index = await choiceIndex(card.vocabRef);
+    const out = await submitVocabAttempt({
+      userId: USER,
+      vocabRef: card.vocabRef,
+      answer: { type: 'choice', index },
+    });
+    expect(out).toMatchObject({ ok: true, value: { verdict: 'correct', correctIndex: index } });
+    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        correct: true,
+        mode: 'recognition',
+        analytics: { variant: 'definition_to_en', locale: 'ru' },
+      }),
+    );
+  });
+
   it('a typed answer records what was typed (the write path normalizes and cuts it)', async () => {
     const card = await served({ itemId: 'item-pasta', mode: 'full_recall', lastReviewAt: 77n });
     await submitVocabAttempt({

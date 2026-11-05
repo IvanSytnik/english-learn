@@ -1,10 +1,11 @@
 import { VOCAB_VARIANT_MODE } from '@englishlearn/db/schemas';
 import { cardRng, choice, gradeChoice, pickFor, promptGloss } from './shared';
-import type { VocabVariant } from './types';
+import type { VocabRungVariant } from './types';
 
 /** Mode 2 (2 ≤ S < 7): the meaning, choose the English word. */
-export const l1ToEn: VocabVariant<'l1_to_en'> = {
+export const l1ToEn: VocabRungVariant<'l1_to_en'> = {
   id: 'l1_to_en',
+  rung: 'l1_to_en',
   payloadMode: VOCAB_VARIANT_MODE.l1_to_en,
   ladderFrom: 2,
   keyKind: 'choice',

@@ -1,3 +1,4 @@
+import type { CEFRLevel } from '../core/graph/types';
 import { localDayStartMs } from '../vocab/day';
 import { summarizeVocab, type VocabSummary } from '../vocab/overview';
 import { selectVocab, type VocabScope, type VocabSelection } from '../vocab/select';
@@ -32,6 +33,12 @@ export type NextVocabInput = {
    */
   scope?: VocabScope;
 };
+
+/**
+ * The selection, with the learner's assessed level (the diagnostic; null =
+ * none): which variants of a rung the card may serve (B6.5).
+ */
+export type VocabNext = VocabSelection & { learnerLevel: CEFRLevel | null };
 
 /** The `/words` overview: the summary plus today's new-word allowance. */
 export type VocabOverview = VocabSummary & {
@@ -68,7 +75,7 @@ export function createVocabSessionService(db: VocabSessionDb) {
       };
     },
 
-    async nextVocab(input: NextVocabInput): Promise<VocabSelection> {
+    async nextVocab(input: NextVocabInput): Promise<VocabNext> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
       const [candidates, today, profile] = await Promise.all([
@@ -81,7 +88,7 @@ export function createVocabSessionService(db: VocabSessionDb) {
         const c = byId.get(id);
         return c === undefined ? [] : [c];
       });
-      return selectVocab({
+      const selection = selectVocab({
         candidates,
         nowMs,
         newToday: today.count,
@@ -97,6 +104,7 @@ export function createVocabSessionService(db: VocabSessionDb) {
         recentLemmaKeys: recent.map((c) => c.lemmaKey),
         todayNewLemmaKeys: new Set(today.lemmaKeys),
       });
+      return { ...selection, learnerLevel: profile.assessedLevel };
     },
   };
 }

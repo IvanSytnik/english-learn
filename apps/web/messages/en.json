@@ -341,6 +341,7 @@
         "instruction": {
           "en_to_l1": "Choose the translation.",
           "l1_to_en": "Choose the English word.",
+          "definition_to_en": "Choose the English word for this definition.",
           "cloze": "Choose the word that fits the gap.",
           "cued_recall": "Type the English word. The first letter is shown.",
           "full_recall": "Type the English word."

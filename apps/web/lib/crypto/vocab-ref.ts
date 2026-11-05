@@ -1,5 +1,9 @@
 import 'server-only';
-import { VOCAB_MODES, type VocabLocale, type VocabMode } from '@englishlearn/learner-model';
+import {
+  VOCAB_CARD_VARIANTS,
+  type VocabLocale,
+  type VocabVariantId,
+} from '@englishlearn/learner-model';
 import { z } from 'zod';
 import type { Result } from '@/lib/result';
 import { createSealedRef } from './sealed-ref';
@@ -29,7 +33,8 @@ export type VocabRefError =
 
 export type VocabRef = {
   itemId: string;
-  mode: VocabMode;
+  /** The variant served (after the rung's pick and the cloze fallback). */
+  mode: VocabVariantId;
   isProof: boolean;
   /** ItemReviewState.lastReviewAt the card was built for; null = never answered. */
   lastReviewAt: bigint | null;
@@ -55,7 +60,7 @@ const PayloadSchema = z
   .object({
     u: z.string().min(1),
     i: z.string().min(1),
-    m: z.enum(VOCAB_MODES),
+    m: z.enum(VOCAB_CARD_VARIANTS),
     p: z.boolean(),
     /** bigint as a decimal string (JSON has no bigint). */
     r: z.string().regex(/^\d+$/).nullable(),

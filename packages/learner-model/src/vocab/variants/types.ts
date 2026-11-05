@@ -1,6 +1,7 @@
 import type { PracticeModeValue } from '@englishlearn/db/schemas';
+import type { CEFRLevel } from '../../core/graph/types';
 import type { VocabAnswer, VocabGrade, VocabGradingKey } from '../grade';
-import type { VocabLexeme, VocabLocale, VocabMode } from '../types';
+import type { VocabLexeme, VocabLocale, VocabMode, VocabVariantId } from '../types';
 
 /**
  * One vocabulary question, built twice from the same input: when it is served
@@ -14,6 +15,8 @@ export type VocabCardView =
   | { mode: 'en_to_l1'; word: string; ipa: string | null; options: string[] }
   /** Mode 2: the meaning, choose the English word. */
   | { mode: 'l1_to_en'; gloss: string; options: string[] }
+  /** Mode 2, a B1+ learner (B6.5): the English definition, choose the English word. */
+  | { mode: 'definition_to_en'; definition: string; options: string[] }
   /** Mode 3: a sentence with a gap, choose what fills it. */
   | { mode: 'cloze'; sentence: string; options: string[] }
   /** Mode 4: the meaning and a first-letter cue (`l___ u_`), type the word. */
@@ -24,7 +27,7 @@ export type VocabCardView =
 export type VocabAnswerKey =
   | {
       kind: 'choice';
-      mode: 'en_to_l1' | 'l1_to_en' | 'cloze';
+      mode: ChoiceVariantId;
       correctIndex: number;
       /**
        * Lexeme id behind each option, in display order (the target's at
@@ -41,37 +44,59 @@ export type VocabAnswerKey =
       synonyms: string[];
     };
 
+/** The variants answered by choosing one of four options. */
+export type ChoiceVariantId = 'en_to_l1' | 'l1_to_en' | 'definition_to_en' | 'cloze';
+
 export type VocabCard = { view: VocabCardView; key: VocabAnswerKey };
 
 export type VocabCardInput = {
   target: VocabLexeme;
   /** PUBLISHED vocabulary to draw distractors and synonyms from (may include the target). */
   pool: readonly VocabLexeme[];
+  /** The ladder rung; the card served is one of its eligible variants. */
   mode: VocabMode;
   locale: VocabLocale;
   /** Stable per served question — see cardSeed. */
   seed: string;
+  /**
+   * The learner's assessed level (the diagnostic). Null or absent = below B1:
+   * only the rungs' own cards (B6-SPEC §3 "learner ≥ B1").
+   */
+  learnerLevel?: CEFRLevel | null;
 };
+
+/**
+ * What building one given variant takes: the card input without the rung
+ * and the learner — whether the variant fits was decided when it was chosen,
+ * so a served card rebuilds from its sealed variant id alone.
+ */
+export type VocabBuildInput = Omit<VocabCardInput, 'mode' | 'learnerLevel'>;
 
 /** What a variant may look at besides its word (B6-SPEC §3 `eligible(lexeme, learner)`). */
 export type VariantContext = Omit<VocabCardInput, 'target' | 'mode'>;
 
 /**
- * One exercise variant of the word ladder (B6.3). Today one variant per
- * mode, each in its own module; B6.5 adds variants inside a mode. A new id
- * joins the payload `variant` enum schema-first.
+ * One exercise variant of the word ladder (B6.3), each in its own module. A
+ * rung's own variant has the rung's id; B6.5 adds variants served on a rung
+ * instead of it. A new id joins the payload `variant` enum schema-first.
  */
-export type VocabVariant<M extends VocabMode = VocabMode> = {
+export type VocabVariant<M extends VocabVariantId = VocabVariantId> = {
   id: M;
+  /** The ladder rung this variant is served on (its own id for a rung's own card). */
+  rung: VocabMode;
   /** The event payload's coarser `mode` this variant records. */
   payloadMode: PracticeModeValue;
+  keyKind: VocabAnswerKey['kind'];
+  /** Whether the card can be built fairly for this word and learner. */
+  eligible(target: VocabLexeme, ctx: VariantContext): boolean;
+  /** The variant served instead when no variant of the rung is eligible. */
+  fallback?: VocabVariantId;
+  build(input: VocabBuildInput & { mode: M }): VocabCard;
+  grade(key: VocabGradingKey, answer: VocabAnswer): VocabGrade;
+};
+
+/** A rung's own variant, which also says where the rung starts. */
+export type VocabRungVariant<M extends VocabMode = VocabMode> = VocabVariant<M> & {
   /** Lower bound on FSRS stability S (days) of this rung; the ladder reads it. */
   ladderFrom: number;
-  keyKind: VocabAnswerKey['kind'];
-  /** Whether the card can be built fairly for this word. */
-  eligible(target: VocabLexeme, ctx: VariantContext): boolean;
-  /** The variant served instead when `eligible` is false. */
-  fallback?: VocabMode;
-  build(input: VocabCardInput & { mode: M }): VocabCard;
-  grade(key: VocabGradingKey, answer: VocabAnswer): VocabGrade;
 };

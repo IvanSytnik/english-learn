@@ -9,7 +9,7 @@ import {
 } from '../text';
 import type { VocabLexeme } from '../types';
 import { cardRng, choice, gradeChoice, pickFor, rotatedExample, VocabCardError } from './shared';
-import type { VocabCard, VocabCardInput, VocabVariant } from './types';
+import type { VocabBuildInput, VocabCard, VocabRungVariant } from './types';
 
 /**
  * Mode 3 (7 ≤ S < 21): a sentence with a gap, choose what fills it. The
@@ -18,12 +18,13 @@ import type { VocabCard, VocabCardInput, VocabVariant } from './types';
  * choice: the variant is not eligible and l1_to_en is served instead — the
  * served mode is `view.mode`, and that is what the payload records.
  */
-export const cloze: VocabVariant<'cloze'> = {
+export const cloze: VocabRungVariant<'cloze'> = {
   id: 'cloze',
+  rung: 'cloze',
   payloadMode: VOCAB_VARIANT_MODE.cloze,
   ladderFrom: 7,
   keyKind: 'choice',
-  eligible: (target, ctx) => clozeCard({ ...ctx, target, mode: 'cloze' }) !== null,
+  eligible: (target, ctx) => clozeCard({ ...ctx, target }) !== null,
   fallback: 'l1_to_en',
   build(input) {
     const card = clozeCard(input);
@@ -34,7 +35,7 @@ export const cloze: VocabVariant<'cloze'> = {
 };
 
 /** Null when fewer than three other words share the blank's form. */
-function clozeCard(input: VocabCardInput): VocabCard | null {
+function clozeCard(input: VocabBuildInput): VocabCard | null {
   const { target } = input;
   const rng = cardRng(input, 'cloze');
   // Rotates over the word's examples by card seed (B6.5); one example → it.

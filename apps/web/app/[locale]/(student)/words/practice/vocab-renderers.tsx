@@ -1,7 +1,7 @@
 'use client';
 
 import { PRACTICE_GAP } from '@englishlearn/db/schemas';
-import type { VocabCardView, VocabMode } from '@englishlearn/learner-model';
+import type { ChoiceVariantId, VocabCardView, VocabVariantId } from '@englishlearn/learner-model';
 import { cn, KeyHint } from '@englishlearn/ui';
 import { Check, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -15,15 +15,15 @@ import type { VocabCardPayload, VocabFeedback } from '@/lib/vocab-session';
  * one entry here. Keyboard handling is not part of a renderer.
  */
 
-type ViewOf<M extends VocabMode> = Extract<VocabCardView, { mode: M }>;
+type ViewOf<M extends VocabVariantId> = Extract<VocabCardView, { mode: M }>;
 
-export type PromptProps<M extends VocabMode> = {
+export type PromptProps<M extends VocabVariantId> = {
   view: ViewOf<M>;
   card: VocabCardPayload;
   feedback: VocabFeedback | null;
 };
 
-export type AnswerProps<M extends VocabMode> = {
+export type AnswerProps<M extends VocabVariantId> = {
   view: ViewOf<M>;
   feedback: VocabFeedback | null;
   answered: boolean;
@@ -35,12 +35,12 @@ export type AnswerProps<M extends VocabMode> = {
   inputRef: RefObject<HTMLInputElement | null>;
 };
 
-export type VocabRenderer<M extends VocabMode> = {
+export type VocabRenderer<M extends VocabVariantId> = {
   Prompt: ComponentType<PromptProps<M>>;
   Answer: ComponentType<AnswerProps<M>>;
 };
 
-export const VOCAB_RENDERERS: { readonly [M in VocabMode]: VocabRenderer<M> } = {
+export const VOCAB_RENDERERS: { readonly [M in VocabVariantId]: VocabRenderer<M> } = {
   en_to_l1: {
     Prompt: EnToL1Prompt,
     // The options are glosses in the learner's language.
@@ -48,6 +48,15 @@ export const VOCAB_RENDERERS: { readonly [M in VocabMode]: VocabRenderer<M> } = 
   },
   l1_to_en: {
     Prompt: ({ view }) => <GlossPrompt gloss={view.gloss} />,
+    Answer: (props) => <ChoiceAnswer {...props} optionLang="en" />,
+  },
+  definition_to_en: {
+    // The English definition (B1+, B6.5): choose the English word.
+    Prompt: ({ view }) => (
+      <p lang="en" className="font-content text-[1.5rem] leading-snug text-ink" data-definition="">
+        {view.definition}
+      </p>
+    ),
     Answer: (props) => <ChoiceAnswer {...props} optionLang="en" />,
   },
   cloze: {
@@ -115,13 +124,13 @@ function EnToL1Prompt({ view, card }: PromptProps<'en_to_l1'>) {
 }
 
 /** The renderer of a card's served variant, typed for its view. */
-export function VocabCardPrompt(props: PromptProps<VocabMode>) {
-  const { Prompt } = VOCAB_RENDERERS[props.view.mode] as VocabRenderer<VocabMode>;
+export function VocabCardPrompt(props: PromptProps<VocabVariantId>) {
+  const { Prompt } = VOCAB_RENDERERS[props.view.mode] as VocabRenderer<VocabVariantId>;
   return <Prompt {...props} />;
 }
 
-export function VocabCardAnswer(props: AnswerProps<VocabMode>) {
-  const { Answer } = VOCAB_RENDERERS[props.view.mode] as VocabRenderer<VocabMode>;
+export function VocabCardAnswer(props: AnswerProps<VocabVariantId>) {
+  const { Answer } = VOCAB_RENDERERS[props.view.mode] as VocabRenderer<VocabVariantId>;
   return <Answer {...props} />;
 }
 
@@ -136,7 +145,7 @@ function ChoiceAnswer({
   selected,
   onSelect,
   optionLang,
-}: AnswerProps<'en_to_l1' | 'l1_to_en' | 'cloze'> & { optionLang: 'en' | undefined }) {
+}: AnswerProps<ChoiceVariantId> & { optionLang: 'en' | undefined }) {
   return (
     <ul className="flex flex-col gap-2">
       {view.options.map((option, index) => {
