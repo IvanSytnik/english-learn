@@ -54,6 +54,7 @@ export {
   type VocabVariantId,
 } from './types';
 export {
+  HELD_BACK_VARIANTS,
   RUNG_VARIANTS,
   type VariantContext,
   VOCAB_LADDER,

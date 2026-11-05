@@ -5,8 +5,10 @@ import {
   cardSeed,
   PAYLOAD_MODE,
   PROOF_MODE,
+  pickVariantIndex,
   type VocabMode,
   vocabModeFor,
+  vocabVariant,
 } from '@englishlearn/learner-model';
 import { expect, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
@@ -210,7 +212,7 @@ test('/ru/words: a collection card starts a session of that collection’s new w
   }
 });
 
-test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a definition on rung 2 (B6.5)', async ({
+test('/ru/words/practice: a B1 learner gets a definition on rung 2; rung 3 holds the collocation back (B6.5a)', async ({
   page,
 }) => {
   // Sign-up, two seeded answers, the whole diagnostic, two cards.
@@ -219,7 +221,8 @@ test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a defini
   const userId = await userIdOf(email);
 
   // Two words answered before today, at moments the test fixes: it knows each
-  // card's seed, so which word serves which variant, before seeding.
+  // card's seed, so which word serves which variant, before seeding. The rung-3
+  // word is one the collocation would have been served for, before B6.5a.
   //   - proved known 9 days ago (EASY: S ≈ 8.3, +8 d) → a review due now, rung 3;
   //   - right once an hour ago (GOOD: S ≈ 2.3, a 10-min step) → a learning step
   //     due now, rung 2.
@@ -238,11 +241,19 @@ test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a defini
       learnerLevel: 'B1',
       seed: cardSeed({ userId, itemId: word.itemId, lastReviewAt }),
     });
-  const reviewed = pool.find((w) => cardFor(w, 'cloze', provedAt).view.mode === 'collocation');
+  const wouldBeCollocation = (word: (typeof pool)[number]) => {
+    const seed = cardSeed({ userId, itemId: word.itemId, lastReviewAt: provedAt });
+    const ctx = { pool, locale: 'ru' as const, learnerLevel: 'B1' as const, seed };
+    const fits = (['cloze', 'collocation'] as const).filter((id) =>
+      vocabVariant(id).eligible(word, ctx),
+    );
+    return fits.length === 2 && fits[pickVariantIndex(seed, 2)] === 'collocation';
+  };
+  const reviewed = pool.find(wouldBeCollocation);
   const learning = pool.find(
     (w) => w !== reviewed && cardFor(w, 'l1_to_en', learntAt).view.mode === 'definition_to_en',
   );
-  if (!reviewed || !learning) throw new Error('no word serves the variant for these seeds');
+  if (!reviewed || !learning) throw new Error('no word fits the variant for these seeds');
   await recordVocabAnswer({
     userId,
     itemId: reviewed.itemId,
@@ -289,19 +300,18 @@ test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a defini
     await expect(page.locator('[data-verdict="correct"]')).toBeVisible(AFTER_SUBMIT);
   }
 
-  // The review comes first: rung 3 serves the gapped collocation (no intro —
-  // the word was answered before).
+  // The review comes first: rung 3 serves cloze — the collocation is held back
+  // (no intro: the word was answered before).
   await page.goto('/ru/words/practice');
-  const collocation = cardFor(reviewed, 'cloze', provedAt);
-  if (collocation.view.mode !== 'collocation') throw new Error('collocation');
-  await expect(page.locator('[data-mode="collocation"]')).toBeVisible(AFTER_SUBMIT);
+  const cloze = cardFor(reviewed, 'cloze', provedAt);
+  if (cloze.view.mode !== 'cloze') throw new Error('cloze');
+  await expect(page.locator('[data-mode="cloze"]')).toBeVisible(AFTER_SUBMIT);
+  await expect(page.locator('[data-mode="collocation"]')).toHaveCount(0);
   await expect(page.locator('[data-intro]')).toHaveCount(0);
-  for (const part of collocation.view.phrase.split(PRACTICE_GAP)) {
-    if (part.trim() !== '') {
-      await expect(page.locator('#vocab-prompt [data-collocation]')).toContainText(part.trim());
-    }
+  for (const part of cloze.view.sentence.split(PRACTICE_GAP)) {
+    if (part.trim() !== '') await expect(page.locator('#vocab-prompt')).toContainText(part.trim());
   }
-  await answerRight(collocation);
+  await answerRight(cloze);
   await page.keyboard.press('Enter');
 
   // Then the learning step: rung 2 serves the English definition.
@@ -317,7 +327,7 @@ test('/ru/words/practice: a B1 learner gets a collocation on rung 3 and a defini
   const attempts = await itemAttempts(email);
   expect(attempts).toHaveLength(4);
   expect(attempts.slice(2)).toMatchObject([
-    { itemId: reviewed.itemId, correct: true, variant: 'collocation', locale: 'ru' },
+    { itemId: reviewed.itemId, correct: true, variant: 'cloze', locale: 'ru' },
     { itemId: learning.itemId, correct: true, variant: 'definition_to_en', locale: 'ru' },
   ]);
 });

@@ -1,13 +1,18 @@
 import { PRACTICE_GAP } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
 import { seedFromString } from '../../policy/rng';
-import { buildVocabCard, pickVariantIndex } from '../card';
+import { buildVocabCard } from '../card';
 import { gradeVocabAnswer } from '../grade';
 import type { VocabLexeme } from '../types';
+import { HELD_BACK_VARIANTS } from '../variants';
 import { collocation, gappableCollocations } from '../variants/collocation';
 import { lex } from './fixtures';
 
-/** B6.5 `collocation` (mode 3, B1+): which collocations gap, the seeded pick, the fallback. */
+/**
+ * B6.5 `collocation` (mode 3, B1+): which collocations gap, the seeded pick,
+ * eligibility. Held back from its rung (HELD_BACK_VARIANTS), so the module is
+ * tested directly; buildVocabCard on the cloze rung serves cloze.
+ */
 
 const noun = (lemma: string, opts: Parameters<typeof lex>[1] = {}) =>
   lex(lemma, { level: 'B1', concept: 'vocab.work.b1', ...opts });
@@ -24,8 +29,14 @@ const decision = noun('decision', {
 const POOL = [decision, noun('answer'), noun('choice'), noun('plan'), noun('idea')];
 const SEEDS = Array.from({ length: 40 }, (_, i) => `u:i:${i}`);
 
-const rung3 = (target: VocabLexeme, seed: string, learnerLevel: 'A2' | 'B1' | null = 'B1') =>
-  buildVocabCard({ target, pool: POOL, mode: 'cloze', locale: 'ru', seed, learnerLevel });
+const ctx = (seed: string, learnerLevel: 'A2' | 'B1' | 'B2' | null = 'B1') => ({
+  pool: POOL,
+  locale: 'ru' as const,
+  seed,
+  learnerLevel,
+});
+const build = (target: VocabLexeme, seed: string) =>
+  collocation.build({ target, pool: POOL, locale: 'ru', seed, mode: 'collocation' });
 
 describe('gappableCollocations', () => {
   it('keeps the word exactly once as a whole word plus another word, in stored order', () => {
@@ -55,30 +66,38 @@ describe('gappableCollocations', () => {
 });
 
 describe('the collocation card', () => {
-  it('a B1+ learner: the cloze rung serves cloze or collocation, by card seed', () => {
-    // Every collocation fair, so the collocation card fits whatever the seed.
+  it('held back: the cloze rung serves cloze to every level, even where collocation fits', () => {
+    expect(HELD_BACK_VARIANTS.has('collocation')).toBe(true);
     const fair = noun('decision', { collocations: ['make a decision', 'a big decision today'] });
-    const modes = SEEDS.map((seed) => rung3(fair, seed).view.mode);
-    expect(new Set(modes)).toEqual(new Set(['cloze', 'collocation']));
     for (const seed of SEEDS) {
-      const want = ['cloze', 'collocation'][pickVariantIndex(seed, 2)];
-      expect(rung3(fair, seed).view.mode, seed).toBe(want);
+      expect(collocation.eligible(fair, ctx(seed, 'B2')), seed).toBe(true);
+      for (const learnerLevel of [null, 'A2', 'B1', 'B2'] as const) {
+        const card = buildVocabCard({ target: fair, mode: 'cloze', ...ctx(seed, learnerLevel) });
+        expect(card.view.mode, `${seed} ${learnerLevel}`).toBe('cloze');
+      }
     }
   });
 
-  it('the collocation picked for a seed decides eligibility: an unfair pick → cloze', () => {
+  it('a B1+ learner and a fair collocation: eligible whatever the seed', () => {
+    const fair = noun('decision', { collocations: ['make a decision', 'a big decision today'] });
+    for (const seed of SEEDS) {
+      expect(collocation.eligible(fair, ctx(seed, 'B1')), seed).toBe(true);
+      expect(build(fair, seed).view.mode, seed).toBe('collocation');
+    }
+  });
+
+  it('the collocation picked for a seed decides eligibility: an unfair pick → not eligible', () => {
     // `decision`: the seed picks "make a decision" (fair) or "tough decisions" (plural, unfair).
     for (const seed of SEEDS) {
       const pick = gappableCollocations(decision)[seedFromString(seed) % 2]?.phrase;
-      const ctx = { pool: POOL, locale: 'ru' as const, seed, learnerLevel: 'B1' as const };
-      expect(collocation.eligible(decision, ctx), seed).toBe(pick === 'make a decision');
+      expect(collocation.eligible(decision, ctx(seed)), seed).toBe(pick === 'make a decision');
     }
   });
 
-  it('below B1 or no level: never', () => {
+  it('below B1 or no level: never eligible', () => {
     for (const seed of SEEDS) {
-      expect(rung3(decision, seed, 'A2').view.mode).toBe('cloze');
-      expect(rung3(decision, seed, null).view.mode).toBe('cloze');
+      expect(collocation.eligible(decision, ctx(seed, 'A2'))).toBe(false);
+      expect(collocation.eligible(decision, ctx(seed, null))).toBe(false);
     }
     expect(collocation.eligible(decision, { pool: POOL, locale: 'ru', seed: 's' })).toBe(false);
   });
@@ -87,15 +106,8 @@ describe('the collocation card', () => {
     const word = noun('decision', { collocations: ['make a decision', 'a big decision today'] });
     const phrases = new Set<string>();
     for (const seed of SEEDS) {
-      const card = buildVocabCard({
-        target: word,
-        pool: POOL,
-        mode: 'cloze',
-        locale: 'ru',
-        seed,
-        learnerLevel: 'B2',
-      });
-      if (card.view.mode !== 'collocation' || card.key.kind !== 'choice') continue;
+      const card = build(word, seed);
+      if (card.view.mode !== 'collocation' || card.key.kind !== 'choice') throw new Error(seed);
       const want = ['make a decision', 'a big decision today'][seedFromString(seed) % 2];
       expect(card.view.phrase, seed).toBe(
         want === 'make a decision' ? `make ${PRACTICE_GAP}` : `a big ${PRACTICE_GAP} today`,
@@ -111,22 +123,19 @@ describe('the collocation card', () => {
   });
 
   it('is deterministic: the same seed, the same card', () => {
-    expect(rung3(decision, 'x:y:3')).toEqual(rung3(decision, 'x:y:3'));
+    const fair = noun('decision', { collocations: ['make a decision'] });
+    expect(build(fair, 'x:y:3')).toEqual(build(fair, 'x:y:3'));
   });
 
-  it('fewer than 3 shape-matched distractors: not eligible → cloze as today', () => {
+  it('fewer than 3 shape-matched distractors: not eligible, and build refuses', () => {
     // Only a plural gaps, and no other noun has a plural form to offer.
     const plural = noun('decision', { collocations: ['tough decisions'] });
-    expect(
-      collocation.eligible(plural, { pool: POOL, locale: 'ru', seed: 's', learnerLevel: 'B1' }),
-    ).toBe(false);
-    for (const seed of SEEDS) expect(rung3(plural, seed).view.mode).toBe('cloze');
+    for (const seed of SEEDS) expect(collocation.eligible(plural, ctx(seed))).toBe(false);
+    expect(() => build(plural, 's')).toThrow();
   });
 
   it('no gappable collocation: not eligible', () => {
     const none = noun('decision', { collocations: ['decision', 'decisions, decisions'] });
-    expect(
-      collocation.eligible(none, { pool: POOL, locale: 'ru', seed: 's', learnerLevel: 'B1' }),
-    ).toBe(false);
+    expect(collocation.eligible(none, ctx('s'))).toBe(false);
   });
 });

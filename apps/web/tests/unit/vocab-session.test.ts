@@ -444,7 +444,7 @@ describe('submitVocabAttempt', () => {
     );
   });
 
-  it('B6.5: a B1+ learner’s rung-3 card may be collocation — sealed, graded and recorded as it', async () => {
+  it('B6.5a: collocation is held back — a B1+ learner’s rung-3 card is cloze, whatever the seed', async () => {
     const bread = { ...word('bread', 'хлеб'), collocations: ['fresh bread every day'] };
     const pool = [...LEXEMES.filter((l) => l.lemma !== 'bread'), bread];
     getVocabPool.mockResolvedValue({
@@ -452,36 +452,22 @@ describe('submitVocabAttempt', () => {
       byItemId: new Map(pool.map((l) => [l.itemId, l])),
       itemIdByLexemeId: new Map(pool.map((l) => [l.id, l.itemId])),
     });
-    const rung3 = (lastReviewAt: bigint, learnerLevel: string | null) =>
-      served({ itemId: 'item-bread', mode: 'cloze', lastReviewAt, learnerLevel });
-    const modes = new Map<bigint, string>();
-    for (let at = 1n; at <= 12n; at++) modes.set(at, (await rung3(at, 'B1')).card.mode);
-    expect(new Set(modes.values())).toEqual(new Set(['cloze', 'collocation']));
-    for (let at = 1n; at <= 12n; at++) expect((await rung3(at, 'A2')).card.mode).toBe('cloze');
-
-    const at = [...modes].find(([, mode]) => mode === 'collocation')?.[0] ?? 0n;
-    const card = await rung3(at, 'C1');
-    expect(card.card).toMatchObject({ mode: 'collocation', phrase: 'fresh ___ every day' });
-    expectNoAnswerKey(card);
-    expect(await decryptVocabRef(card.vocabRef, USER)).toMatchObject({
-      ok: true,
-      value: { mode: 'collocation' },
-    });
-    const index = await choiceIndex(card.vocabRef);
-    if (card.card.mode !== 'collocation') throw new Error('mode');
-    expect(card.card.options[index]).toBe('bread');
-    await submitVocabAttempt({
-      userId: USER,
-      vocabRef: card.vocabRef,
-      answer: { type: 'choice', index },
-    });
-    expect(recordVocabOutcome).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        correct: true,
-        mode: 'cloze',
-        analytics: { variant: 'collocation', locale: 'ru' },
-      }),
-    );
+    // Before the hold-back, about half of these seeds served the collocation.
+    for (let at = 1n; at <= 12n; at++) {
+      for (const learnerLevel of ['B1', 'C1', 'A2', null]) {
+        const card = await served({
+          itemId: 'item-bread',
+          mode: 'cloze',
+          lastReviewAt: at,
+          learnerLevel,
+        });
+        expect(card.card.mode, `${at} ${learnerLevel}`).toBe('cloze');
+        expect(await decryptVocabRef(card.vocabRef, USER)).toMatchObject({
+          ok: true,
+          value: { mode: 'cloze' },
+        });
+      }
+    }
   });
 
   it('a typed answer records what was typed (the write path normalizes and cuts it)', async () => {

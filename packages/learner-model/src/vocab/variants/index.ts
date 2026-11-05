@@ -35,7 +35,18 @@ export const VOCAB_LADDER: readonly VocabRungVariant[] = VOCAB_MODES.map(
   (id): VocabRungVariant => VOCAB_VARIANTS[id],
 ).sort((a, b) => a.ladderFrom - b.ladderFrom);
 
-/** The variants served on each rung, the rung's own card first. */
+/**
+ * Variants kept in the registry — built, graded, accepted in a sealed ref and
+ * in the payload — but not served on their rung. `collocation` (B6.5): a
+ * short collocation fits many distractors of the same part of speech
+ * (`feel ___` → faint / unwell), so a second right answer is common; held
+ * back until its distractors are verified.
+ */
+export const HELD_BACK_VARIANTS: ReadonlySet<VocabVariantId> = new Set<VocabVariantId>([
+  'collocation',
+]);
+
+/** The variants served on each rung, the rung's own card first; never a held-back one. */
 export const RUNG_VARIANTS: Readonly<Record<VocabMode, readonly VocabVariantId[]>> = (() => {
   const byRung = Object.fromEntries(VOCAB_MODES.map((rung) => [rung, [rung]])) as Record<
     VocabMode,
@@ -43,7 +54,7 @@ export const RUNG_VARIANTS: Readonly<Record<VocabMode, readonly VocabVariantId[]
   >;
   for (const id of VOCAB_CARD_VARIANTS) {
     const { rung } = vocabVariant(id);
-    if (id !== rung) byRung[rung].push(id);
+    if (id !== rung && !HELD_BACK_VARIANTS.has(id)) byRung[rung].push(id);
   }
   return Object.freeze(byRung);
 })();

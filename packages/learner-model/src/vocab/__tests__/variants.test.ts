@@ -22,11 +22,12 @@ describe('VOCAB_VARIANTS', () => {
     }
   });
 
-  it('serves each rung its own card first, then its B6.5 variants', () => {
+  it('serves each rung its own card first, then its B6.5 variants — none held back', () => {
     expect(RUNG_VARIANTS).toEqual({
       en_to_l1: ['en_to_l1'],
       l1_to_en: ['l1_to_en', 'definition_to_en'],
-      cloze: ['cloze', 'collocation'],
+      // collocation is held back (HELD_BACK_VARIANTS): registered, not served.
+      cloze: ['cloze'],
       cued_recall: ['cued_recall'],
       full_recall: ['full_recall'],
     });
