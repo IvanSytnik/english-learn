@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient } from '@englishlearn/db/generated/client/client.js';
+import { getVocabPreferences } from '@englishlearn/db/queries/lexeme-preferences';
 import { getDailyVocabLimit, newVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
+import { getWordListItemIds } from '@englishlearn/db/queries/word-lists';
 import {
   type AttemptOutcomeRow,
   type CandidateItemRow,
@@ -500,6 +502,15 @@ export function createPrismaVocabSessionDb(prisma: PrismaClient): VocabSessionDb
         prisma.studentProfile.findUnique({ where: { userId }, select: { assessedLevel: true } }),
       ]);
       return { dailyLimit, assessedLevel: profile?.assessedLevel ?? null };
+    },
+    async getVocabPreferences(userId) {
+      const rows = await getVocabPreferences(prisma, userId);
+      const items = (state: 'PRIORITIZED' | 'HIDDEN') =>
+        rows.flatMap((r) => (r.state === state && r.itemId !== null ? [r.itemId] : []));
+      return { prioritizedItemIds: items('PRIORITIZED'), hiddenItemIds: items('HIDDEN') };
+    },
+    getWordListItemIds(userId, listId) {
+      return getWordListItemIds(prisma, { ownerId: userId, listId });
     },
   };
 }

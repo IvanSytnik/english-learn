@@ -51,5 +51,6 @@ export {
   type NextVocabInput,
   type VocabNext,
   type VocabOverview,
+  type VocabSessionScope,
   type VocabSessionService,
 } from './vocab-session-service';

@@ -20,9 +20,8 @@ import {
   type VocabIntroView,
   type VocabLocale,
   type VocabMode,
-  type VocabScope,
 } from '@englishlearn/learner-model';
-import type { VocabAttemptAnalytics } from '@englishlearn/learner-model/service';
+import type { VocabAttemptAnalytics, VocabSessionScope } from '@englishlearn/learner-model/service';
 import { decryptVocabRef, encryptVocabRef, type VocabRef } from '@/lib/crypto/vocab-ref';
 import { contentLocale, type Review, reviewFor, type Verdict } from '@/lib/exercise/view';
 import { learnerService, vocabSessionService } from '@/lib/learner';
@@ -173,7 +172,7 @@ export async function loadNextVocabCard(args: {
   userId: string;
   uiLocale: Locale;
   timeZone: unknown;
-  scope?: VocabScope;
+  scope?: VocabSessionScope;
   excludeItemIds?: readonly string[];
 }): Promise<Result<NextVocabCard, VocabSessionError>> {
   const { userId } = args;
@@ -279,7 +278,7 @@ export async function loadCardAfterIntro(args: {
   userId: string;
   uiLocale: Locale;
   timeZone: unknown;
-  scope?: VocabScope;
+  scope?: VocabSessionScope;
   excludeItemIds?: readonly string[];
   introRef: string;
 }): Promise<Result<NextVocabCard, VocabSessionError>> {

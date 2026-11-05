@@ -27,12 +27,19 @@ export type NextVocabInput = {
    */
   excludeItemIds?: readonly string[];
   /**
-   * A topic or collection session. Filters NEW words only: due reviews and
-   * learning steps of every topic are still served first (B6-SPEC V2-5). The
-   * daily new-word limit stays the learner's, across scopes.
+   * A topic, collection or list session. Filters NEW words only: due reviews
+   * and learning steps of every topic are still served first (B6-SPEC V2-5).
+   * The daily new-word limit stays the learner's, across scopes. A list is
+   * named by id and resolved here for this learner: another user's, an
+   * archived or an unknown list offers no new word (reviews still come).
    */
-  scope?: VocabScope;
+  scope?: VocabSessionScope;
 };
+
+/** A session scope as callers name it: a list by its id (B6.6). */
+export type VocabSessionScope =
+  | Exclude<VocabScope, { kind: 'list' }>
+  | { kind: 'list'; listId: string };
 
 /**
  * The selection, with the learner's assessed level (the diagnostic; null =
@@ -50,6 +57,16 @@ export type VocabOverview = VocabSummary & {
 const NO_ITEMS: ReadonlySet<string> = new Set();
 
 export function createVocabSessionService(db: VocabSessionDb) {
+  /** The selector's scope: a list's item ids for its owner (one more read, list sessions only). */
+  async function resolveScope(
+    userId: string,
+    scope: VocabSessionScope | undefined,
+  ): Promise<VocabScope | undefined> {
+    if (scope?.kind !== 'list') return scope;
+    const itemIds = await db.getWordListItemIds(userId, scope.listId);
+    return { kind: 'list', itemIds: itemIds === null ? NO_ITEMS : new Set(itemIds) };
+  }
+
   return {
     /**
      * The learner's vocabulary at a glance — the same reads as nextVocab,
@@ -62,13 +79,15 @@ export function createVocabSessionService(db: VocabSessionDb) {
     }): Promise<VocabOverview> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [candidates, { count: newToday }, profile] = await Promise.all([
+      const [candidates, { count: newToday }, profile, preferences] = await Promise.all([
         db.getVocabCandidates(input.userId),
         db.newVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
+        db.getVocabPreferences(input.userId),
       ]);
       return {
-        ...summarizeVocab(candidates, nowMs),
+        // Hidden words (V2-13) are never due: the count agrees with the session.
+        ...summarizeVocab(candidates, nowMs, new Set(preferences.hiddenItemIds)),
         newToday,
         dailyLimit: profile.dailyLimit,
         remainingNew: Math.max(0, profile.dailyLimit - newToday),
@@ -91,10 +110,12 @@ export function createVocabSessionService(db: VocabSessionDb) {
     async nextVocab(input: NextVocabInput): Promise<VocabNext> {
       const nowMs = input.nowMs ?? Date.now();
       const dayStart = localDayStartMs(nowMs, input.timeZone);
-      const [candidates, today, profile] = await Promise.all([
+      const [candidates, today, profile, preferences, scope] = await Promise.all([
         db.getVocabCandidates(input.userId),
         db.newVocabSince(input.userId, dayStart),
         db.getVocabProfile(input.userId),
+        db.getVocabPreferences(input.userId),
+        resolveScope(input.userId, input.scope),
       ]);
       const byId = new Map(candidates.map((c) => [c.itemId, c]));
       const recent = (input.excludeItemIds ?? []).flatMap((id) => {
@@ -109,10 +130,9 @@ export function createVocabSessionService(db: VocabSessionDb) {
         targetLevel: profile.assessedLevel,
         seed: `${input.userId}:${dayStart}`,
         excludeItemIds: input.excludeItemIds,
-        scope: input.scope,
-        // Learner preferences arrive with B6.6 (StudentLexemePreference).
-        priorityItemIds: NO_ITEMS,
-        hiddenItemIds: NO_ITEMS,
+        scope,
+        priorityItemIds: new Set(preferences.prioritizedItemIds),
+        hiddenItemIds: new Set(preferences.hiddenItemIds),
         recentConceptIds: recent.map((c) => c.conceptId),
         recentLemmaKeys: recent.map((c) => c.lemmaKey),
         todayNewLemmaKeys: new Set(today.lemmaKeys),

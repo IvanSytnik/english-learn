@@ -1,6 +1,6 @@
 import { VocabCollectionValue } from '@englishlearn/db/vocab/collections';
 import { parseVocabConceptId } from '@englishlearn/db/vocab/topics';
-import type { VocabScope } from '@englishlearn/learner-model';
+import type { VocabSessionScope } from '@englishlearn/learner-model/service';
 import { z } from 'zod';
 
 /**
@@ -19,7 +19,7 @@ export const VocabScopeSchema = z.discriminatedUnion('kind', [
     })
     .strict(),
   z.object({ kind: z.literal('collection'), key: VocabCollectionValue }).strict(),
-]) satisfies z.ZodType<VocabScope>;
+]) satisfies z.ZodType<VocabSessionScope>;
 
 /** A scope the client can send (a collection key from the closed taxonomy). */
 export type ClientVocabScope = z.infer<typeof VocabScopeSchema>;

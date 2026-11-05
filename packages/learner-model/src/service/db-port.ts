@@ -257,4 +257,16 @@ export type VocabSessionDb = {
   getVocabProfile(
     userId: string,
   ): Promise<{ dailyLimit: number; assessedLevel: CefrLevelRow | null }>;
+  /**
+   * The learner's word preferences as items (B6.6, StudentLexemePreference):
+   * PRIORITIZED and HIDDEN, one query.
+   */
+  getVocabPreferences(
+    userId: string,
+  ): Promise<{ prioritizedItemIds: string[]; hiddenItemIds: string[] }>;
+  /**
+   * A list session's words (B6.6): the PUBLISHED items of the owner's active
+   * list; null when the list is not theirs, archived, or gone.
+   */
+  getWordListItemIds(userId: string, listId: string): Promise<string[] | null>;
 };

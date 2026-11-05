@@ -193,6 +193,55 @@ describe('selectVocab', () => {
     expect(select(pool, { priorityItemIds: new Set(['b2']) })).toMatchObject({ itemId: 'b2' });
   });
 
+  it('V2-13: a hidden word leaves every tier — due review, learning step — and nextDueAt', () => {
+    const due = reviewed('due', at(-5n * MIN));
+    const step = reviewed('step', at(-1n * MIN), 'LEARNING', 1);
+    const later = reviewed('later', at(90n * MIN));
+    const hide = (...ids: string[]) => ({ hiddenItemIds: new Set(ids) });
+    expect(select([due, step, fresh('new')])).toMatchObject({ itemId: 'due' });
+    expect(select([due, step, fresh('new')], hide('due'))).toMatchObject({
+      itemId: 'step',
+      reason: 'LEARNING',
+    });
+    expect(select([due, step, fresh('new')], hide('due', 'step'))).toMatchObject({
+      itemId: 'new',
+      reason: 'NEW',
+    });
+    // Nothing else: the next due moment ignores the hidden words.
+    expect(select([due, later], { ...hide('due'), dailyLimit: 0 })).toMatchObject({
+      ok: false,
+      nextDueAt: at(90n * MIN),
+    });
+    expect(select([due, later], { ...hide('due', 'later'), dailyLimit: 0 })).toMatchObject({
+      ok: false,
+      nextDueAt: null,
+    });
+    // Even when the just-shown fallback would bring it back.
+    expect(select([due], { ...hide('due'), excludeItemIds: ['due'], dailyLimit: 0 })).toMatchObject(
+      { ok: false, nextDueAt: null },
+    );
+  });
+
+  it('a list scope: only its words as new, no level distance (lower level, then frequency)', () => {
+    const pool = [
+      fresh('a1-out', 'A1', { frequencyRank: 1 }),
+      fresh('b1-in', 'B1', { frequencyRank: 2 }),
+      fresh('a2-in', 'A2', { frequencyRank: 9 }),
+      fresh('a2-in-freq', 'A2', { frequencyRank: 3 }),
+    ];
+    const scope = { kind: 'list' as const, itemIds: new Set(['b1-in', 'a2-in', 'a2-in-freq']) };
+    // A B1 learner would get B1 first in the global order; a list ignores the distance.
+    expect(select(pool, { targetLevel: 'B1' })).toMatchObject({ itemId: 'b1-in' });
+    expect(select(pool, { targetLevel: 'B1', scope })).toMatchObject({ itemId: 'a2-in-freq' });
+    // Due reviews stay global.
+    expect(select([...pool, reviewed('due', at(-1n * MIN))], { scope })).toMatchObject({
+      itemId: 'due',
+    });
+    expect(select(pool, { scope: { kind: 'list', itemIds: new Set() } })).toMatchObject({
+      ok: false,
+    });
+  });
+
   it('spreads concepts: skips the last 3 served concepts within the top 20, else falls back', () => {
     const pool = [
       fresh('x1', 'A1', { conceptId: 'x', frequencyRank: 1 }),

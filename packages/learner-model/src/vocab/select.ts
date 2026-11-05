@@ -12,12 +12,14 @@ import type { VocabMode } from './types';
  *      most overdue first. **Global**: a scope never hides a due review;
  *   2. LEARNING   — a word in (re)learning whose short step is due. Global;
  *   3. NEW        — a never-answered word, while today's new words are under
- *      the learner's dailyVocabLimit. Only here do the scope, the hidden set
- *      and the priority set apply (B6-SPEC V2-5). Sort key:
+ *      the learner's dailyVocabLimit. Only here do the scope and the
+ *      priority set apply (B6-SPEC V2-5). Sort key:
  *      `[prioritized ? 0 : 1, |rank − target|, rank, frequencyRank ASC NULLS
  *      LAST, seedFromString(seed:itemId), itemId]` — the learner's level
  *      first (then the nearest levels, lower before higher; A1 without a
- *      level), frequent words first within a level, the day seed last.
+ *      level), frequent words first within a level, the day seed last. A
+ *      list session (`scope.kind = 'list'`, B6.6) drops the level distance:
+ *      the learner chose those words, whatever their level.
  *      **Concept spread:** of the first CONCEPT_SPREAD_WINDOW by that key,
  *      the first whose concept is not among the last CONCEPT_SPREAD_RECENT
  *      served; none → the first. Never more than MAX_CONCEPT_RUN in a row
@@ -29,6 +31,11 @@ import type { VocabMode } from './types';
  * Otherwise NOTHING_DUE with the next due moment over the **global** set.
  * `excludeItemIds` (the words just shown) is ignored when it would leave
  * nothing to serve.
+ *
+ * **Hidden words** (B6.6, B6-SPEC V2-13) are out of every tier — due
+ * reviews and learning steps included — and out of `nextDueAt`, as if they
+ * were not in the catalogue. Their review state is untouched: un-hiding
+ * brings a word back with its history.
  */
 
 /** NEW candidates the concept spread looks at. */
@@ -64,13 +71,15 @@ export type VocabCandidate = {
 };
 
 /**
- * What a session is about. Filters the NEW tier only. A word list
- * (`{ kind: 'list' }`, B6.6) joins this union; `inScope` is exhaustive, so
- * the compiler points at the one place to extend.
+ * What a session is about. Filters the NEW tier only. A word list carries
+ * its words' item ids, resolved by the session service for the list's owner
+ * (B6.6); `inScope` is exhaustive, so the compiler points at the one place
+ * to extend.
  */
 export type VocabScope =
   | { kind: 'concept'; conceptId: string }
-  | { kind: 'collection'; key: string };
+  | { kind: 'collection'; key: string }
+  | { kind: 'list'; itemIds: ReadonlySet<string> };
 
 export type VocabSelectionReason = 'REVIEW_DUE' | 'LEARNING' | 'NEW';
 
@@ -103,9 +112,9 @@ export type VocabSelectInput = {
   excludeItemIds?: readonly string[];
   /** Restricts NEW words; reviews and learning steps stay global. */
   scope?: VocabScope;
-  /** NEW words the learner put first (B6.6; empty until then). */
+  /** NEW words the learner put first (B6.6, StudentLexemePreference PRIORITIZED). */
   priorityItemIds: ReadonlySet<string>;
-  /** Words the learner hid: never introduced as NEW (B6.6; empty until then). */
+  /** Words the learner hid (B6.6, HIDDEN): never served in any tier, no nextDueAt. */
   hiddenItemIds: ReadonlySet<string>;
   /** Concepts of the words served last, oldest first (the concept spread). */
   recentConceptIds: readonly string[];
@@ -118,13 +127,15 @@ export type VocabSelectInput = {
 export function selectVocab(input: VocabSelectInput): VocabSelection {
   const remainingNew = Math.max(0, input.dailyLimit - input.newToday);
   const excluded = new Set(input.excludeItemIds ?? []);
-  const allowed = input.candidates.filter((c) => !excluded.has(c.itemId));
+  // V2-13: a hidden word is gone from every tier and from nextDueAt.
+  const visible = input.candidates.filter((c) => !input.hiddenItemIds.has(c.itemId));
+  const allowed = visible.filter((c) => !excluded.has(c.itemId));
   return (
     pick(allowed, input, remainingNew) ??
-    pick(input.candidates, input, remainingNew) ?? {
+    pick(visible, input, remainingNew) ?? {
       ok: false,
       reason: 'NOTHING_DUE',
-      nextDueAt: nextDue(input.candidates),
+      nextDueAt: nextDue(visible),
       remainingNew,
     }
   );
@@ -157,23 +168,20 @@ function pick(
   if (remainingNew === 0) return null;
 
   const target = CEFR_RANK[input.targetLevel ?? 'A1'];
+  // A list is the learner's own choice: no level distance (B6-SPEC §2).
+  const levelAware = input.scope?.kind !== 'list';
   const order = (c: VocabCandidate) => {
     const rank = CEFR_RANK[c.cefrLevel];
     return [
       input.priorityItemIds.has(c.itemId) ? 0 : 1,
-      Math.abs(rank - target),
+      levelAware ? Math.abs(rank - target) : 0,
       rank,
       c.frequencyRank ?? Number.POSITIVE_INFINITY,
       seedFromString(`${input.seed}:${c.itemId}`),
     ] as const;
   };
   const sorted = pool
-    .filter(
-      (c) =>
-        (c.review === null || c.review.cardStatus === 'NEW') &&
-        !input.hiddenItemIds.has(c.itemId) &&
-        inScope(c, input.scope),
-    )
+    .filter((c) => (c.review === null || c.review.cardStatus === 'NEW') && inScope(c, input.scope))
     .map((c) => ({ c, key: order(c) }))
     .sort((a, b) => compareKeys(a.key, b.key) || (a.c.itemId < b.c.itemId ? -1 : 1))
     .map(({ c }) => c);
@@ -198,6 +206,8 @@ function inScope(c: VocabCandidate, scope: VocabScope | undefined): boolean {
       return c.conceptId === scope.conceptId;
     case 'collection':
       return c.collections.includes(scope.key);
+    case 'list':
+      return scope.itemIds.has(c.itemId);
     default: {
       const never: never = scope;
       throw new Error(`Unknown vocabulary scope: ${JSON.stringify(never)}`);

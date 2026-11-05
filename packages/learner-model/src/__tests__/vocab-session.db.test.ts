@@ -1,6 +1,11 @@
 import { createPrismaClient } from '@englishlearn/db/create-client';
 import type { PrismaClient } from '@englishlearn/db/generated/client/client.js';
+import {
+  clearLexemePreferences,
+  setLexemePreferences,
+} from '@englishlearn/db/queries/lexeme-preferences';
 import { newVocabWordsSince } from '@englishlearn/db/queries/vocab-session';
+import { addWordListEntries, createWordList } from '@englishlearn/db/queries/word-lists';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createLearnerService } from '../service/learner-service';
 import {
@@ -276,6 +281,72 @@ describe.skipIf(!url)('vocabulary daily limit (real Postgres)', () => {
       excludeItemIds: [w0],
     });
     expect(tagged).toMatchObject({ ok: true, reason: 'NEW', itemId: words[5] });
+  });
+
+  it('B6.6: preferences and a list steer the session through the real adapter', async () => {
+    const lexemeOf = async (itemId: string) =>
+      (await prisma.item.findUniqueOrThrow({ where: { id: itemId }, select: { lexemeId: true } }))
+        .lexemeId as string;
+    const [w0, w1, w2, w3] = words as [string, string, string, string];
+    // Without preferences the most frequent word (w4) comes first.
+    await expect(session().nextVocab({ userId, timeZone: TZ, nowMs: NOW })).resolves.toMatchObject({
+      itemId: words[4],
+    });
+    await setLexemePreferences(prisma, {
+      userId,
+      lexemeIds: [await lexemeOf(w3)],
+      state: 'PRIORITIZED',
+    });
+    await expect(session().nextVocab({ userId, timeZone: TZ, nowMs: NOW })).resolves.toMatchObject({
+      itemId: w3,
+      reason: 'NEW',
+    });
+
+    // A started, due word that is hidden is never served; unhiding brings it back.
+    await answer(w0, NOW - 30 * MIN);
+    await expect(session().nextVocab({ userId, timeZone: TZ, nowMs: NOW })).resolves.toMatchObject({
+      itemId: w0,
+      reason: 'LEARNING',
+    });
+    await setLexemePreferences(prisma, {
+      userId,
+      lexemeIds: [await lexemeOf(w0)],
+      state: 'HIDDEN',
+    });
+    const hidden = await session().nextVocab({ userId, timeZone: TZ, nowMs: NOW });
+    expect(hidden).toMatchObject({ itemId: w3, reason: 'NEW' });
+    await clearLexemePreferences(prisma, {
+      userId,
+      lexemeIds: [await lexemeOf(w0)],
+      state: 'HIDDEN',
+    });
+    await expect(session().nextVocab({ userId, timeZone: TZ, nowMs: NOW })).resolves.toMatchObject({
+      itemId: w0,
+      reason: 'LEARNING',
+    });
+
+    // A list session: only its words as new; another user's list offers none.
+    const list = await createWordList(prisma, { ownerId: userId, title: 'Mine' });
+    if (!list.ok) throw new Error(list.error);
+    await addWordListEntries(prisma, {
+      ownerId: userId,
+      listId: list.value.id,
+      lexemeIds: [await lexemeOf(w2), await lexemeOf(w1)],
+    });
+    const scope = { kind: 'list', listId: list.value.id } as const;
+    const inList = await session().nextVocab({
+      userId,
+      timeZone: TZ,
+      nowMs: NOW,
+      scope,
+      excludeItemIds: [w0],
+    });
+    expect(inList).toMatchObject({ reason: 'NEW' });
+    expect(inList.ok && [w1, w2].includes(inList.itemId)).toBe(true);
+    const intruder = (await prisma.user.create({ data: { email: `${RUN}-intruder@test.dev` } })).id;
+    await expect(
+      session().nextVocab({ userId: intruder, timeZone: TZ, nowMs: NOW, scope }),
+    ).resolves.toMatchObject({ ok: false, reason: 'NOTHING_DUE' });
   });
 
   it('overview: today’s allowance, due words and this concept’s progress', async () => {

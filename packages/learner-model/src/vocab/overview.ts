@@ -66,6 +66,8 @@ const emptyStages = (): StageCounts => ({
 export function summarizeVocab(
   candidates: readonly (VocabCandidate & { conceptId: string })[],
   nowMs: number,
+  /** Hidden words (B6.6): counted in their stage, never as due. */
+  hiddenItemIds: ReadonlySet<string> = new Set(),
 ): VocabSummary {
   const now = BigInt(Math.floor(nowMs));
   const stages = emptyStages();
@@ -76,7 +78,14 @@ export function summarizeVocab(
   for (const c of candidates) {
     const stage = wordStage(c.review);
     stages[stage] += 1;
-    if (c.review && c.review.cardStatus !== 'NEW' && c.review.dueAt <= now) dueNow += 1;
+    if (
+      c.review &&
+      c.review.cardStatus !== 'NEW' &&
+      c.review.dueAt <= now &&
+      !hiddenItemIds.has(c.itemId)
+    ) {
+      dueNow += 1;
+    }
 
     let row = byConcept.get(c.conceptId);
     if (!row) {
