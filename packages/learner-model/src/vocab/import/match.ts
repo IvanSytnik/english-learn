@@ -18,6 +18,8 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * preselected. Lemmatized = any hit through a form: preselected is the
  * primary exact hit if there is one, else the primary when every hit is the
  * same lemma (`went` → go, `works` → work), else nothing (the learner picks).
+ * After a dropped `to` the primary is a verb when there is one (`to run` →
+ * run verb, #39).
  */
 
 export const MULTIWORD_MAX_TOKENS = 4;
@@ -82,9 +84,21 @@ export function buildCatalogueIndex(words: readonly CatalogueWord[]): CatalogueI
 const rank = (w: CatalogueWord) => w.frequencyRank ?? Number.POSITIVE_INFINITY;
 const byFrequency = (a: CatalogueWord, b: CatalogueWord) =>
   rank(a) - rank(b) || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0);
-const primary = (words: readonly CatalogueWord[]) => [...words].sort(byFrequency)[0] ?? null;
+const VERB_POS: ReadonlySet<PartOfSpeechValue> = new Set(['VERB', 'PHRASAL_VERB']);
 
-function lookup(index: CatalogueIndex, key: string): ImportEntry | null {
+type Prefer = { verb: boolean };
+
+/** The best by frequency; with `verb`, the best verb when there is one. */
+function primary(words: readonly CatalogueWord[], prefer: Prefer): CatalogueWord | null {
+  const verbs = prefer.verb ? words.filter((w) => VERB_POS.has(w.pos)) : [];
+  return [...(verbs.length > 0 ? verbs : words)].sort(byFrequency)[0] ?? null;
+}
+
+function lookup(
+  index: CatalogueIndex,
+  key: string,
+  prefer: Prefer = { verb: false },
+): ImportEntry | null {
   const exact = index.exact.get(key) ?? [];
   const lemmas = new Set(exact.map((w) => normalizeTerm(w.lemma)));
   const slugs = new Set(exact.map((w) => w.slug));
@@ -97,7 +111,8 @@ function lookup(index: CatalogueIndex, key: string): ImportEntry | null {
   if (exact.length === 0 && others.length === 0) return null;
   const all = [...exact, ...others];
   const sameLemma = new Set(all.map((w) => normalizeTerm(w.lemma))).size === 1;
-  const chosen = exact.length > 0 ? primary(exact) : sameLemma ? primary(others) : null;
+  const chosen =
+    exact.length > 0 ? primary(exact, prefer) : sameLemma ? primary(others, prefer) : null;
   const ordered = [...[...exact].sort(byFrequency), ...others.sort(byFrequency)];
   const rest = ordered.filter((w) => w !== chosen).map((w) => w.slug);
   return {
@@ -110,7 +125,8 @@ function lookup(index: CatalogueIndex, key: string): ImportEntry | null {
 
 /** One candidate: its entries, and what of it was not found. */
 function matchOne(index: CatalogueIndex, c: PasteCandidate) {
-  const whole = lookup(index, c.term) ?? (c.bare !== c.term ? lookup(index, c.bare) : null);
+  const whole =
+    lookup(index, c.term) ?? (c.bare !== c.term ? lookup(index, c.bare, { verb: c.toVerb }) : null);
   if (whole) return { entries: [whole], notFound: [] };
   const tokens = c.bare.split(' ');
   const entries: ImportEntry[] = [];

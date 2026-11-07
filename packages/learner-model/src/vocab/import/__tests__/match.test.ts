@@ -18,8 +18,12 @@ const INDEX = buildCatalogueIndex([
   w('stop', 'VERB', 200),
   w('stop', 'NOUN', 250),
   w('bus stop', 'NOUN', 900),
+  // Tied like the real catalogue (one wordfreq form, both senses primary): slug order decides.
   w('run', 'VERB', 100),
-  w('run', 'NOUN', 400),
+  w('run', 'NOUN', 100),
+  w('get up', 'PHRASAL_VERB', 600),
+  w('get up', 'NOUN', 600), // an outfit; ties with the phrasal verb (slug order: noun first)
+  w('get', 'VERB', 15),
   w('apple', 'NOUN', 500),
   w('study', 'VERB', 150),
   w('big', 'ADJECTIVE', 120),
@@ -79,6 +83,14 @@ describe('matchCandidates (B6-SPEC §5)', () => {
       'left → left-adjective (leave-verb)',
       'saw → saw-noun (see-verb)',
     ]);
+  });
+
+  it('after a dropped `to` a verb is preselected, the noun offered unchecked (#39)', () => {
+    expect(show('to run').matched).toEqual(['run → run-verb (run-noun)']);
+    // Without `to`, the tie goes to slug order; a `to` before an article is no infinitive.
+    expect(show('run').matched).toEqual(['run → run-noun (run-verb)']);
+    expect(show('to the run').matched).toEqual(['run → run-noun (run-verb)']);
+    expect(show('to get up').matched).toEqual(['get up → get-up-phrasal-verb (get-up-noun)']);
   });
 
   it('work: matched, the primary part of speech (best frequency rank) preselected', () => {

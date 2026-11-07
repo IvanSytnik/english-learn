@@ -13,7 +13,9 @@ import { normalizeTerm } from './forms';
  * - NFC, lower case, straight apostrophes, punctuation trimmed per word;
  *   words without a Latin letter (a translation without a separator) are
  *   dropped, and a piece with none at all is counted as skipped.
- * - `bare` drops a leading `to` (verbs) and then a leading article.
+ * - `bare` drops a leading `to` (verbs) and then a leading article;
+ *   `toVerb` marks a `to` dropped before a word that is not an article
+ *   (`to run`, not `to the park`): the matcher then prefers a verb (#39).
  * - Deduplicated by term; ≤ 200 candidates, the rest counted.
  */
 
@@ -25,6 +27,8 @@ export type PasteCandidate = {
   term: string;
   /** `term` without a leading `to` / article (`run`, `dog`). */
   bare: string;
+  /** A leading `to` was dropped before a non-article: an infinitive, verbs first. */
+  toVerb: boolean;
 };
 
 export type PasteTokens =
@@ -56,8 +60,9 @@ function candidateOf(piece: string): PasteCandidate | 'skipped' | null {
   if (words.length === 0) return 'skipped';
   const bare = [...words];
   if (bare[0] === 'to' && bare.length > 1) bare.shift();
+  const toVerb = bare.length < words.length && !ARTICLES.has(bare[0] ?? '');
   if (ARTICLES.has(bare[0] ?? '') && bare.length > 1) bare.shift();
-  return { term: words.join(' '), bare: bare.join(' ') };
+  return { term: words.join(' '), bare: bare.join(' '), toVerb };
 }
 
 export function tokenizePaste(text: string): PasteTokens {

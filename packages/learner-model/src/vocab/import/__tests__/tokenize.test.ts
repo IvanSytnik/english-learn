@@ -37,6 +37,17 @@ describe('tokenizePaste (B6-SPEC §5)', () => {
     expect(terms('the dog, an apple, to')).toEqual(['the dog > dog', 'an apple > apple', 'to']);
   });
 
+  it('`toVerb`: a `to` dropped before a word, not before an article (#39)', () => {
+    const res = tokenizePaste('to run, to get up, to the park, run, to');
+    expect(res.ok && res.candidates.map((c) => [c.bare, c.toVerb])).toEqual([
+      ['run', true],
+      ['get up', true],
+      ['park', false],
+      ['run', false],
+      ['to', false],
+    ]);
+  });
+
   it('list markers, bracketed notes, curly apostrophes, case and marks are normalized', () => {
     expect(terms('1. Apple (n.)\n2) o’clock\n- CAFÉ [informal]\n• Pear')).toEqual([
       'apple',
@@ -49,7 +60,7 @@ describe('tokenizePaste (B6-SPEC §5)', () => {
   it('a piece with no Latin letter is skipped and counted; Latin words keep their piece', () => {
     expect(tokenizePaste('apple\nяблоко, груша\napple яблоко')).toEqual({
       ok: true,
-      candidates: [{ term: 'apple', bare: 'apple' }],
+      candidates: [{ term: 'apple', bare: 'apple', toVerb: false }],
       notProcessed: 0,
       skipped: 2,
     });
