@@ -543,6 +543,8 @@
         "matched": "Gefunden ({count})",
         "lemmatized": "Als Form eines anderen Worts gefunden ({count})",
         "lemmatizedHint": "Markieren Sie das Wort, das Sie meinten.",
+        "functionWords": "Funktionswörter – werden nicht geübt ({count})",
+        "functionWordsNote": "Diese Wörter üben wir nicht einzeln: Sie begegnen ihnen in jedem Satz.",
         "notFound": "Nicht in unserem Katalog ({count})",
         "notFoundNote": "Wörter, die nicht im Katalog sind, können später hinzugefügt werden. Nichts davon wird gespeichert.",
         "notProcessed": "{count, plural, one {# weiterer Eintrag wurde} other {# weitere Einträge wurden}} nicht verarbeitet — fügen Sie {count, plural, one {ihn} other {sie}} separat ein.",

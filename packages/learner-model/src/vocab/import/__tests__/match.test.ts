@@ -126,9 +126,10 @@ describe('matchCandidates (B6-SPEC §5)', () => {
     });
   });
 
-  it('multiword first, inside running text too; articles inside text are not words', () => {
+  it('multiword first, inside running text too; articles inside text are function words', () => {
     expect(show('I waited at the bus stop').matched).toEqual(['bus stop → bus-stop-noun']);
     expect(show('I waited at the bus stop').notFound).toEqual(['i', 'waited', 'at']);
+    expect(match('I waited at the bus stop').functionWords).toEqual(['the']);
     expect(show('the dog').matched).toEqual(['dog → dog-noun']);
   });
 
@@ -139,6 +140,12 @@ describe('matchCandidates (B6-SPEC §5)', () => {
       'make-up → make-up-noun',
     ]);
     expect(show('ice cream').notFound).toEqual(['ice cream']);
+    // A function word is no part of an unknown term; two stretches stay two words.
+    expect(match('my ice cream')).toMatchObject({ notFound: ['ice cream'], functionWords: ['my'] });
+    expect(match('ice the cream')).toMatchObject({
+      notFound: ['ice', 'cream'],
+      functionWords: ['the'],
+    });
   });
 
   it('the same words twice are one entry, matched if either is', () => {

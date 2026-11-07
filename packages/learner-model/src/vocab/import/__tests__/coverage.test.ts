@@ -42,6 +42,7 @@ function coverage(file: string) {
     lemmatized: m.lemmatized.length,
     chooseYourself: m.lemmatized.filter((e) => e.preselected === null).length,
     unchecked: [...m.matched, ...m.lemmatized].filter((e) => e.preselected === null).length,
+    functionWords: m.functionWords,
     notFound: m.notFound,
     notProcessed: tokens.notProcessed + m.notProcessed,
   };
@@ -53,6 +54,7 @@ describe('C5: matcher coverage on committed texts', () => {
       {
         "candidates": 24,
         "chooseYourself": 0,
+        "functionWords": [],
         "lemmatized": 9,
         "matched": 15,
         "notFound": [
@@ -71,15 +73,18 @@ describe('C5: matcher coverage on committed texts', () => {
       {
         "candidates": 7,
         "chooseYourself": 0,
-        "lemmatized": 15,
-        "matched": 38,
-        "notFound": [
+        "functionWords": [
           "my",
+          "the",
+          "a",
           "every",
           "was",
           "have",
           "had",
         ],
+        "lemmatized": 15,
+        "matched": 38,
+        "notFound": [],
         "notProcessed": 0,
         "skipped": 0,
         "unchecked": 12,
@@ -92,6 +97,7 @@ describe('C5: matcher coverage on committed texts', () => {
       {
         "candidates": 16,
         "chooseYourself": 0,
+        "functionWords": [],
         "lemmatized": 4,
         "matched": 16,
         "notFound": [

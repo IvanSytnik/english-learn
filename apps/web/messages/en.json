@@ -543,6 +543,8 @@
         "matched": "Found ({count})",
         "lemmatized": "Found as a form of another word ({count})",
         "lemmatizedHint": "Check the word you meant.",
+        "functionWords": "Function words — not practised ({count})",
+        "functionWordsNote": "We don’t practise these on their own: you meet them in every sentence.",
         "notFound": "Not in our catalogue ({count})",
         "notFoundNote": "Adding words that are not in the catalogue comes later. None of this is saved.",
         "notProcessed": "{count, plural, one {# more item was} other {# more items were}} not processed — paste {count, plural, one {it} other {them}} separately.",

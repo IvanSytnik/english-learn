@@ -1,5 +1,6 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
+import { EXCLUDED_HEADWORDS } from '@englishlearn/db/vocab/excluded';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
 import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
 
@@ -23,6 +24,12 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * run verb, #39). A closed-class word (closed POS or function adverb) is
  * never preselected (#33): offered unchecked, the learner may still tick it
  * (`to`, `and`, `next to`; `like` preselects the verb, not the preposition).
+ *
+ * Function words the catalogue leaves out (`was`, `the`, `can`'s modal, `have
+ * to`: @englishlearn/db/vocab/excluded) are their own group, checked per
+ * window after the catalogue: they are never "not found", and no not-found
+ * term ever contains one (V2-18c) — not-found terms are what a later step may
+ * generate words from (B6.10).
  */
 
 export const MULTIWORD_MAX_TOKENS = 4;
@@ -57,6 +64,8 @@ export type ImportEntry = {
 export type ImportMatch = {
   matched: ImportEntry[];
   lemmatized: ImportEntry[];
+  /** Function words the catalogue leaves out, as pasted: shown, never practised. */
+  functionWords: string[];
   /** Shown to the learner only; never stored (V2-17). */
   notFound: string[];
   /** Distinct results past the limit. */
@@ -132,35 +141,55 @@ function lookup(
   };
 }
 
-/** One candidate: its entries, and what of it was not found. */
-function matchOne(index: CatalogueIndex, c: PasteCandidate) {
+/** The excluded headwords, normalized like a pasted term (`'s` → `s`). */
+const FUNCTION_WORDS: ReadonlySet<string> = new Set(
+  [...EXCLUDED_HEADWORDS].map(normalizeTerm).filter((k) => k !== ''),
+);
+
+type Matched = { entries: ImportEntry[]; functionWords: string[]; notFound: string[] };
+
+/** One candidate: its entries, its function words, and what of it was not found. */
+function matchOne(index: CatalogueIndex, c: PasteCandidate): Matched {
   const whole =
     lookup(index, c.term) ?? (c.bare !== c.term ? lookup(index, c.bare, { verb: c.toVerb }) : null);
-  if (whole) return { entries: [whole], notFound: [] };
+  if (whole) return { entries: [whole], functionWords: [], notFound: [] };
   const tokens = c.bare.split(' ');
   const entries: ImportEntry[] = [];
-  const missing: string[] = [];
+  const functionWords: string[] = [];
+  /** Stretches of consecutive unknown words; a found word or a function word ends one. */
+  const unknown: string[][] = [];
+  let stretch: string[] | null = null;
   for (let i = 0; i < tokens.length; ) {
     let step = 0;
     for (let n = Math.min(MULTIWORD_MAX_TOKENS, tokens.length - i); n >= 1 && step === 0; n--) {
-      const hit = lookup(index, tokens.slice(i, i + n).join(' '));
-      if (hit) {
-        entries.push(hit);
-        step = n;
-      }
+      const key = tokens.slice(i, i + n).join(' ');
+      const hit = lookup(index, key);
+      if (hit) entries.push(hit);
+      else if (FUNCTION_WORDS.has(key)) functionWords.push(key);
+      if (hit || FUNCTION_WORDS.has(key)) step = n;
     }
     if (step === 0) {
-      const token = tokens[i] ?? '';
-      if (!['a', 'an', 'the'].includes(token)) missing.push(token);
+      if (!stretch) {
+        stretch = [];
+        unknown.push(stretch);
+      }
+      stretch.push(tokens[i] ?? '');
       step = 1;
-    }
+    } else stretch = null;
     i += step;
   }
-  // Nothing of a short term found: it is one unknown term (`ice cream`), not its words.
-  if (entries.length === 0 && missing.length > 0 && tokens.length <= MULTIWORD_MAX_TOKENS) {
-    return { entries, notFound: [c.bare] };
+  // Nothing of a short term found: its one unknown stretch is one term
+  // (`ice cream`; `my ice cream` → `ice cream`), not its words.
+  const [only] = unknown;
+  if (
+    entries.length === 0 &&
+    only &&
+    unknown.length === 1 &&
+    tokens.length <= MULTIWORD_MAX_TOKENS
+  ) {
+    return { entries, functionWords, notFound: [only.join(' ')] };
   }
-  return { entries, notFound: missing };
+  return { entries, functionWords, notFound: unknown.flat() };
 }
 
 export function matchCandidates(
@@ -171,6 +200,7 @@ export function matchCandidates(
   const entries: ImportEntry[] = [];
   const bySlugs = new Map<string, number>();
   const notFound = new Set<string>();
+  const functionWords = new Set<string>();
   let notProcessed = 0;
   const full = () => entries.length + notFound.size >= limit;
   for (const candidate of candidates) {
@@ -186,6 +216,7 @@ export function matchCandidates(
       if (full()) notProcessed += 1;
       else bySlugs.set(key, entries.push(entry) - 1);
     }
+    for (const word of res.functionWords) functionWords.add(word);
     for (const term of res.notFound) {
       if (notFound.has(term)) continue;
       if (full()) notProcessed += 1;
@@ -195,6 +226,7 @@ export function matchCandidates(
   return {
     matched: entries.filter((e) => e.group === 'matched'),
     lemmatized: entries.filter((e) => e.group === 'lemmatized'),
+    functionWords: [...functionWords],
     notFound: [...notFound],
     notProcessed,
   };

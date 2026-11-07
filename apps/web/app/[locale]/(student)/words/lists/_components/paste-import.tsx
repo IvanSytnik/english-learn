@@ -276,6 +276,19 @@ export function PasteImport({ target, maxChars }: { target: Target; maxChars: nu
                 </h3>
                 {group('matched', preview.matched)}
                 {group('lemmatized', preview.lemmatized)}
+                {preview.functionWords.length > 0 ? (
+                  <section className="flex flex-col gap-1" data-import-group="functionWords">
+                    <h4 className="font-medium text-ink">
+                      {t('functionWords', { count: preview.functionWords.length })}
+                    </h4>
+                    <p className="text-sm text-ink-muted">{t('functionWordsNote')}</p>
+                    <ul lang="en" className="flex flex-wrap gap-x-3 text-sm text-ink">
+                      {preview.functionWords.map((word) => (
+                        <li key={word}>{word}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
                 {preview.notFound.length > 0 ? (
                   <section className="flex flex-col gap-1" data-import-group="notFound">
                     <h4 className="font-medium text-ink">

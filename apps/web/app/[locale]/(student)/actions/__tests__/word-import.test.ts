@@ -134,6 +134,7 @@ describe('previewImportAction', () => {
       },
     ]);
     expect(res.value).toMatchObject({
+      functionWords: [],
       notFound: ['qwerty'],
       notProcessed: 0,
       skipped: 0,
@@ -171,6 +172,13 @@ describe('previewImportAction', () => {
           { term: 'always', preselected: 'always-adverb' },
         ],
       }),
+    );
+  });
+
+  it('function words are their own group, never "not found" (V2-18c)', async () => {
+    const res = await actions.previewImportAction({ text: 'was, the, my qwerty, have to' });
+    expect(res).toMatchObject(
+      ok({ matched: [], functionWords: ['was', 'the', 'my', 'have to'], notFound: ['qwerty'] }),
     );
   });
 

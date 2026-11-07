@@ -31,7 +31,8 @@ import {
  * catalogue, then add the words the learner chose. V2-17: the text lives
  * only in this request — never stored, logged or sent anywhere; what is not
  * found goes back to the learner's screen and nowhere else. Words travel by
- * slug only.
+ * slug only. Function words the catalogue leaves out are their own group,
+ * never "not found" (V2-18c).
  */
 
 export type ImportOptionView = {
@@ -53,6 +54,8 @@ export type ImportPreviewView = {
   glossLang: string;
   matched: ImportEntryView[];
   lemmatized: ImportEntryView[];
+  /** Function words the catalogue leaves out (`was`, `the`): shown, not practised, never "not found". */
+  functionWords: string[];
   notFound: string[];
   notProcessed: number;
   skipped: number;
@@ -134,6 +137,7 @@ export async function previewImport(args: {
       glossLang: locale,
       matched: match.matched.map(view),
       lemmatized: match.lemmatized.map(view),
+      functionWords: match.functionWords,
       notFound: match.notFound,
       notProcessed: tokens.notProcessed + match.notProcessed,
       skipped: tokens.skipped,

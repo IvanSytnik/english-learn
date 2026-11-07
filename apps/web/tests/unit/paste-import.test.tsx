@@ -61,6 +61,7 @@ const PREVIEW: ImportPreviewView = {
       preselected: 'saw-noun',
     },
   ],
+  functionWords: ['was', 'the'],
   notFound: ['qwerty'],
   notProcessed: 2,
   skipped: 1,
@@ -108,6 +109,14 @@ describe('paste import dialog', () => {
     expect(screen.getByText('Found as a form of another word (2)')).toBeInTheDocument();
     expect(screen.getByText('qwerty').closest('ul')).toHaveAttribute('lang', 'en');
     expect(screen.getByText(I.notFoundNote)).toBeInTheDocument();
+    // Function words: their own group (V2-18c), no checkbox, not under "not found".
+    const fn = document.querySelector('[data-import-group="functionWords"]') as HTMLElement;
+    expect(fn).toHaveTextContent('Function words — not practised (2)');
+    expect(fn).toHaveTextContent(I.functionWordsNote);
+    expect([...fn.querySelectorAll('li')].map((li) => li.textContent)).toEqual(['was', 'the']);
+    expect(fn.querySelector('ul')).toHaveAttribute('lang', 'en');
+    expect(fn.querySelector('input')).toBeNull();
+    expect(document.querySelector('[data-import-group="notFound"]')).not.toHaveTextContent('was');
     expect(screen.getByText(/2 more items were not processed/)).toBeInTheDocument();
     expect(screen.getByText(/1 piece without English words was skipped/)).toBeInTheDocument();
     expect(screen.getByText('4 words selected')).toBeInTheDocument();
