@@ -76,6 +76,7 @@ export function catalogueIndexOf(pool: VocabPool): CatalogueIndex {
               {
                 slug,
                 lemma: row.lemma,
+                lemmaKey: row.lemmaKey,
                 pos: row.pos,
                 variants: row.variants,
                 frequencyRank: row.frequencyRank,

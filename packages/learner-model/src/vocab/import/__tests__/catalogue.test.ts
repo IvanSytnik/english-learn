@@ -17,6 +17,7 @@ const { bySlug } = slugIndex(lexemes);
 const WORDS: CatalogueWord[] = [...bySlug].map(([slug, l]) => ({
   slug,
   lemma: l.lemma,
+  lemmaKey: l.lemmaKey,
   pos: l.pos,
   variants: l.variants,
   frequencyRank: null,

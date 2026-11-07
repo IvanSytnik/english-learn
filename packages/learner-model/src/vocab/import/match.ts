@@ -1,4 +1,5 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
+import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
 import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
 
@@ -19,7 +20,9 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * primary exact hit if there is one, else the primary when every hit is the
  * same lemma (`went` → go, `works` → work), else nothing (the learner picks).
  * After a dropped `to` the primary is a verb when there is one (`to run` →
- * run verb, #39).
+ * run verb, #39). A closed-class word (closed POS or function adverb) is
+ * never preselected (#33): offered unchecked, the learner may still tick it
+ * (`to`, `and`, `next to`; `like` preselects the verb, not the preposition).
  */
 
 export const MULTIWORD_MAX_TOKENS = 4;
@@ -27,6 +30,8 @@ export const MULTIWORD_MAX_TOKENS = 4;
 export type CatalogueWord = {
   slug: string;
   lemma: string;
+  /** Lexeme.lemmaKey: the closed-class check (FUNCTION_ADVERBS). */
+  lemmaKey: string;
   pos: PartOfSpeechValue;
   variants: readonly string[];
   frequencyRank: number | null;
@@ -88,8 +93,12 @@ const VERB_POS: ReadonlySet<PartOfSpeechValue> = new Set(['VERB', 'PHRASAL_VERB'
 
 type Prefer = { verb: boolean };
 
-/** The best by frequency; with `verb`, the best verb when there is one. */
-function primary(words: readonly CatalogueWord[], prefer: Prefer): CatalogueWord | null {
+/**
+ * The word to preselect: the best open-class word by frequency; with `verb`,
+ * the best verb when there is one. Null when every word is closed-class.
+ */
+function primary(all: readonly CatalogueWord[], prefer: Prefer): CatalogueWord | null {
+  const words = all.filter((w) => !isClosedClass(w));
   const verbs = prefer.verb ? words.filter((w) => VERB_POS.has(w.pos)) : [];
   return [...(verbs.length > 0 ? verbs : words)].sort(byFrequency)[0] ?? null;
 }

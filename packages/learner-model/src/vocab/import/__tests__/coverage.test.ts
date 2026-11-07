@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { loadCefrJDataset } from '@englishlearn/db/vocab/dataset';
 import { slugIndex } from '@englishlearn/db/vocab/slug';
 import { describe, expect, it } from 'vitest';
@@ -13,27 +14,34 @@ import { tokenizePaste } from '../tokenize';
  */
 
 const { lexemes } = loadCefrJDataset();
+const { bySlug } = slugIndex(lexemes);
 const INDEX = buildCatalogueIndex(
-  [...slugIndex(lexemes).bySlug].map(([slug, l]) => ({
+  [...bySlug].map(([slug, l]) => ({
     slug,
     lemma: l.lemma,
+    lemmaKey: l.lemmaKey,
     pos: l.pos,
     variants: l.variants,
     frequencyRank: null,
   })),
 );
 
-function coverage(file: string) {
+function matchFile(file: string) {
   const text = readFileSync(new URL(`./fixtures/${file}`, import.meta.url), 'utf8');
   const tokens = tokenizePaste(text);
   if (!tokens.ok) throw new Error(tokens.error);
-  const m = matchCandidates(tokens.candidates, INDEX);
+  return { tokens, m: matchCandidates(tokens.candidates, INDEX) };
+}
+
+function coverage(file: string) {
+  const { tokens, m } = matchFile(file);
   return {
     candidates: tokens.candidates.length,
     skipped: tokens.skipped,
     matched: m.matched.length,
     lemmatized: m.lemmatized.length,
     chooseYourself: m.lemmatized.filter((e) => e.preselected === null).length,
+    unchecked: [...m.matched, ...m.lemmatized].filter((e) => e.preselected === null).length,
     notFound: m.notFound,
     notProcessed: tokens.notProcessed + m.notProcessed,
   };
@@ -53,6 +61,7 @@ describe('C5: matcher coverage on committed texts', () => {
         ],
         "notProcessed": 0,
         "skipped": 0,
+        "unchecked": 2,
       }
     `);
   });
@@ -73,6 +82,7 @@ describe('C5: matcher coverage on committed texts', () => {
         ],
         "notProcessed": 0,
         "skipped": 0,
+        "unchecked": 12,
       }
     `);
   });
@@ -90,7 +100,39 @@ describe('C5: matcher coverage on committed texts', () => {
         ],
         "notProcessed": 0,
         "skipped": 1,
+        "unchecked": 4,
       }
     `);
+  });
+
+  it('#33: the A2 prose offers its closed-class words unchecked; every preselected word is open-class', () => {
+    const { m } = matchFile('a2-prose.txt');
+    const entries = [...m.matched, ...m.lemmatized];
+    const closed = (slug: string) => {
+      const l = bySlug.get(slug);
+      if (!l) throw new Error(slug);
+      return isClosedClass(l);
+    };
+    // Still offered (visible, the learner may tick them), only not preselected.
+    expect(entries.filter((e) => e.slugs.every(closed)).map((e) => e.term)).toEqual([
+      'to',
+      'we',
+      'in',
+      'and',
+      'i',
+      'but',
+      'one',
+      'so',
+      'next to',
+      'some',
+      'for',
+      'of',
+    ]);
+    expect(entries.filter((e) => e.preselected === null)).toEqual(
+      entries.filter((e) => e.slugs.every(closed)),
+    );
+    expect(
+      entries.flatMap((e) => (e.preselected && closed(e.preselected) ? [e.term] : [])),
+    ).toEqual([]);
   });
 });

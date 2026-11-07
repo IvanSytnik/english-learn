@@ -7,6 +7,7 @@ import { tokenizePaste } from '../tokenize';
 const w = (lemma: string, pos: PartOfSpeechValue, rank: number | null = null): CatalogueWord => ({
   slug: lexemeSlug({ lemmaKey: lemma, pos }),
   lemma,
+  lemmaKey: lemma,
   pos,
   variants: [],
   frequencyRank: rank,
@@ -41,6 +42,15 @@ const INDEX = buildCatalogueIndex([
   w('part-time', 'ADJECTIVE', 1800),
   w('full-time', 'ADJECTIVE', 1700),
   w('make-up', 'NOUN', 2500),
+  // Closed class (#33): ranked like the real catalogue (after content words), but
+  // `like` the preposition outranks the verb here, so only the class rule picks the verb.
+  w('to', 'PREPOSITION', 3000),
+  w('and', 'CONJUNCTION', 3001),
+  w('next to', 'PREPOSITION', 3002),
+  w('not', 'ADVERB', 3003),
+  w('like', 'PREPOSITION', 65),
+  w('like', 'VERB', 70),
+  w('always', 'ADVERB', 80),
 ]);
 
 const match = (text: string, limit?: number) => {
@@ -91,6 +101,17 @@ describe('matchCandidates (B6-SPEC §5)', () => {
     expect(show('run').matched).toEqual(['run → run-noun (run-verb)']);
     expect(show('to the run').matched).toEqual(['run → run-noun (run-verb)']);
     expect(show('to get up').matched).toEqual(['get up → get-up-phrasal-verb (get-up-noun)']);
+  });
+
+  it('closed-class words are offered unchecked, never preselected (#33)', () => {
+    expect(show('to, and, next to, not, like, always').matched).toEqual([
+      'to → ?',
+      'and → ?',
+      'next to → ?',
+      'not → ?',
+      'like → like-verb (like-preposition)',
+      'always → always-adverb',
+    ]);
   });
 
   it('work: matched, the primary part of speech (best frequency rank) preselected', () => {

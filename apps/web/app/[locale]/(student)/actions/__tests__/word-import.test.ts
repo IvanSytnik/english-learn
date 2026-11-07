@@ -45,7 +45,7 @@ const { slugIndex } = await import('@englishlearn/db/vocab/slug');
 const USER = 'user_1';
 const LIST = 'clist000000000000000000001';
 const TX = { tag: 'tx' };
-const lex = (lemma: string, pos: 'NOUN' | 'VERB', ru: string) => ({
+const lex = (lemma: string, pos: 'NOUN' | 'VERB' | 'ADVERB' | 'CONJUNCTION', ru: string) => ({
   itemId: `item-${lemma}`,
   id: `lex-${lemma}`,
   lemma,
@@ -69,6 +69,9 @@ const ROWS = [
   lex('bus stop', 'NOUN', 'остановка'),
   lex('run', 'VERB', 'бежать'),
   lex('apple', 'NOUN', 'яблоко'),
+  lex('not', 'ADVERB', 'не'),
+  lex('and', 'CONJUNCTION', 'и'),
+  lex('always', 'ADVERB', 'всегда'),
 ];
 const { bySlug } = slugIndex(ROWS);
 const POOL = {
@@ -154,6 +157,19 @@ describe('previewImportAction', () => {
         ],
         lemmatized: [{ term: 'went', preselected: null }],
         capacityLeft: 498,
+      }),
+    );
+  });
+
+  it('closed-class words are offered unchecked: a closed POS, a function adverb by lemmaKey (#33)', async () => {
+    const res = await actions.previewImportAction({ text: 'not, and, always' });
+    expect(res).toMatchObject(
+      ok({
+        matched: [
+          { term: 'not', preselected: null, options: [{ slug: 'not-adverb' }] },
+          { term: 'and', preselected: null, options: [{ slug: 'and-conjunction' }] },
+          { term: 'always', preselected: 'always-adverb' },
+        ],
       }),
     );
   });
