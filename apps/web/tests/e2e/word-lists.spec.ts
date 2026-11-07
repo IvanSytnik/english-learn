@@ -1,14 +1,18 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import { AFTER_SUBMIT, registerFreshLearner } from './helpers/auth';
 import { closeDb, wordLists } from './helpers/db';
 
-// B6.7: a word list end to end — create, paste import (preview in three
+// B6.7: a word list end to end — create, paste import (preview in its
 // groups → confirm), keyboard reorder, add from the catalogue search,
 // "Practise this list" (the first new word is the list's), archive, restore.
+// B6.7a: `to run` preselects the verb (#39), `was` is a function word (V2-18c),
+// and axe finds nothing serious or critical on the lists, a list and the
+// paste dialog, light and dark (#37).
 
 test.afterAll(closeDb);
 
-const PASTE = 'went, children, bus stop, to run, apple - яблоко, qwerty';
+const PASTE = 'went, children, bus stop, to run, apple - яблоко, was, qwerty';
 
 const slugs = (rows: Locator) =>
   rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-row')));
@@ -41,7 +45,7 @@ test('a list: paste → five words → reorder by keyboard → search → practi
   const listUrl = page.url();
   const listId = listUrl.split('/').at(-1) ?? '';
 
-  // Paste: three groups, five words preselected, nothing of "qwerty" kept.
+  // Paste: the groups, five words preselected, nothing of "qwerty" kept.
   await page.getByRole('button', { name: 'Добавить слова в этот список из текста' }).click();
   const dialog = page.locator('[data-paste-dialog]');
   await dialog.getByRole('textbox', { name: 'Слова или текст' }).fill(PASTE);
@@ -51,6 +55,9 @@ test('a list: paste → five words → reorder by keyboard → search → practi
   expect(await termsOf(group('matched'))).toEqual(['bus stop', 'run', 'apple']);
   expect(await termsOf(group('lemmatized'))).toEqual(['went', 'children']);
   await expect(group('notFound').getByRole('listitem')).toHaveText(['qwerty']);
+  await expect(group('functionWords').getByRole('listitem')).toHaveText(['was']);
+  await expect(dialog.locator('[data-option="run-verb"]')).toBeChecked();
+  await expect(dialog.locator('[data-option="run-noun"]')).not.toBeChecked();
   await expect(dialog.locator('[data-option="go-verb"]')).toBeChecked();
   await expect(dialog.locator('[data-option="child-noun"]')).toBeChecked();
   await expect(dialog.locator('[data-selected]')).toHaveAttribute('data-selected', '5');
@@ -128,4 +135,59 @@ test('another learner’s list is a 404, also as a practice scope', async ({ pag
     expect(res?.status(), path).toBe(404);
   }
   await other.close();
+});
+
+/** axe, every rule: what is serious or critical, one line per node. */
+async function seriousOrCritical(page: Page, where: string) {
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  return violations
+    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    .flatMap((v) => v.nodes.map((n) => `${where} ${v.id} ${n.target.join(' ')}: ${v.help}`));
+}
+
+test('axe: the lists, a list and the paste dialog — nothing serious or critical, light and dark', async ({
+  page,
+}) => {
+  await registerFreshLearner(page, 'lists-axe');
+  // Reduced motion from the start: axe must never measure transition-colors mid-way.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // An archived list (the collapsed section) and a list with words (rows, badges).
+  await page.goto('/ru/words/lists');
+  await page.getByRole('textbox', { name: 'Новый список' }).fill('Работа');
+  await page.getByRole('button', { name: 'Создать список' }).click();
+  await expect(page).toHaveURL(/\/ru\/words\/lists\/[a-z0-9]{20,40}$/, AFTER_SUBMIT);
+  await page.getByRole('button', { name: 'В архив' }).click();
+  await expect(page).toHaveURL(/\/ru\/words\/lists$/, AFTER_SUBMIT);
+  await page.getByRole('textbox', { name: 'Новый список' }).fill('Поездка');
+  await page.getByRole('button', { name: 'Создать список' }).click();
+  await expect(page).toHaveURL(/\/ru\/words\/lists\/[a-z0-9]{20,40}$/, AFTER_SUBMIT);
+  const listUrl = page.url();
+  const dialog = page.locator('[data-paste-dialog]');
+  const preview = async () => {
+    await page.getByRole('button', { name: 'Добавить слова в этот список из текста' }).click();
+    await dialog.getByRole('textbox', { name: 'Слова или текст' }).fill(PASTE);
+    await dialog.getByRole('button', { name: 'Показать совпадения' }).click();
+    await expect(dialog.locator('[data-import-group="functionWords"]')).toBeVisible(AFTER_SUBMIT);
+  };
+  await preview();
+  await dialog.getByRole('button', { name: 'Добавить 5 слов' }).click();
+  await expect(dialog.locator('[data-import-done]')).toBeVisible(AFTER_SUBMIT);
+  await dialog.getByRole('button', { name: 'Закрыть' }).click();
+  await expect(page.locator('[data-row]')).toHaveCount(5, AFTER_SUBMIT);
+
+  const report: string[] = [];
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
+    await page.goto('/ru/words/lists');
+    await page.locator('details[data-lists="archived"] summary').click();
+    await expect(page.getByRole('button', { name: 'Вернуть «Работа»' })).toBeVisible();
+    report.push(...(await seriousOrCritical(page, `${colorScheme} /words/lists`)));
+    await page.goto(listUrl);
+    await expect(page.locator('[data-row]')).toHaveCount(5);
+    report.push(...(await seriousOrCritical(page, `${colorScheme} /words/lists/[id]`)));
+    // The dialog over the list: every group, the words already in it disabled.
+    await preview();
+    report.push(...(await seriousOrCritical(page, `${colorScheme} paste dialog`)));
+  }
+  expect(report, report.join('\n')).toEqual([]);
 });
