@@ -58,6 +58,10 @@ const INDEX = buildCatalogueIndex([
   w('half', 'NOUN', 300),
   w('it', 'NOUN', 800),
   w('it', 'PRONOUN', 3004),
+  // Apostrophes in the catalogue (#41): `o'clock` is real; `let's` is a headword in other
+  // wordlists and also in the contraction table — the catalogue must win.
+  w("o'clock", 'ADVERB', 1000),
+  w("let's", 'VERB', 1100),
 ]);
 
 const match = (text: string, limit?: number) => {
@@ -130,6 +134,24 @@ describe('matchCandidates (B6-SPEC §5)', () => {
       ['it', null, ['it-noun', 'it-pronoun']],
       ['apple', 'apple-noun', ['apple-noun']],
     ]);
+  });
+
+  it('the catalogue comes before the contraction table (#41): a catalogue word stays a word', () => {
+    const m = match("let's, o'clock, don't, it's");
+    expect(m.matched.map((e) => [e.term, e.preselected])).toEqual([
+      ["let's", 'lets-verb'],
+      ["o'clock", 'oclock-adverb'],
+    ]);
+    expect(m.functionWords).toEqual(["don't", "it's"]);
+    expect(m.notFound).toEqual([]);
+    // Inside prose too, where a term is matched window by window, not whole.
+    const prose = match("we said let's run, it's nine o'clock");
+    expect([...prose.matched, ...prose.lemmatized].map((e) => e.term)).toEqual([
+      "let's",
+      'run',
+      "o'clock",
+    ]);
+    expect(prose.functionWords).toEqual(["it's"]);
   });
 
   it('work: matched, the primary part of speech (best frequency rank) preselected', () => {

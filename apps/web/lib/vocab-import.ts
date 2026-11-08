@@ -54,7 +54,10 @@ export type ImportPreviewView = {
   glossLang: string;
   matched: ImportEntryView[];
   lemmatized: ImportEntryView[];
-  /** Function words the catalogue leaves out (`was`, `the`): shown, not practised, never "not found". */
+  /**
+   * Function words the catalogue leaves out (`was`, `the`) and contractions (`don't`, V2-19):
+   * shown, not practised, never "not found".
+   */
   functionWords: string[];
   notFound: string[];
   notProcessed: number;

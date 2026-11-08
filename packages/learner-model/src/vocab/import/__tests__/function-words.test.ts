@@ -3,15 +3,17 @@ import { loadCefrJDataset } from '@englishlearn/db/vocab/dataset';
 import { EXCLUDED_HEADWORDS } from '@englishlearn/db/vocab/excluded';
 import { slugIndex } from '@englishlearn/db/vocab/slug';
 import { describe, expect, it } from 'vitest';
+import { CONTRACTIONS } from '../contractions';
 import { normalizeTerm } from '../forms';
 import { buildCatalogueIndex, matchCandidates } from '../match';
 import { tokenizePaste } from '../tokenize';
 
 /**
- * V2-18c (B6.7a): a function word the catalogue leaves out is never "not
- * found" — not alone, not inside a not-found term. Not-found terms are the
- * only material a later step may generate words from (B6.10), so this is the
- * guarantee that no function word ever reaches a generation payload.
+ * V2-18c (B6.7a), V2-19 (B6.7b): a function word the catalogue leaves out,
+ * or a contraction of the committed table, is never "not found" — not alone,
+ * not inside a not-found term. Not-found terms are the only material a later
+ * step may generate words from (B6.10), so this is the guarantee that no
+ * function word ever reaches a generation payload.
  */
 
 const { lexemes } = loadCefrJDataset();
@@ -26,7 +28,9 @@ const INDEX = buildCatalogueIndex(
   })),
 );
 const WORDS = [...new Set([...EXCLUDED_HEADWORDS].map(normalizeTerm))].filter((w) => w !== '');
-const FUNCTION = new Set(WORDS);
+const SHORT = [...CONTRACTIONS.keys()];
+/** Never "not found": the 80 excluded headwords and the contractions (#41). */
+const FUNCTION = new Set([...WORDS, ...SHORT]);
 
 function match(text: string) {
   const tokens = tokenizePaste(text);
@@ -63,6 +67,32 @@ describe('function words never reach "not found" (V2-18c)', () => {
   it('every pair around an unknown word: the unknown word alone is not found', () => {
     for (const a of WORDS) {
       for (const b of WORDS) expect(leaks(`${a} qwerty ${b}`), `${a} qwerty ${b}`).toEqual([]);
+    }
+  });
+
+  it('each contraction (#41): alone, in a list, after to / the, inside prose — a function word', () => {
+    expect(SHORT.length).toBe(CONTRACTIONS.size);
+    for (const c of SHORT) {
+      for (const text of [
+        c,
+        `apple, ${c}, qwerty`,
+        `to ${c}`,
+        `the ${c}`,
+        `${c} qwerty`,
+        `I think ${c} zzyzx went home yesterday`,
+      ]) {
+        expect(leaks(text), text).toEqual([]);
+        expect(match(text).functionWords, text).toContain(c);
+      }
+    }
+  });
+
+  it('every pair of a contraction and a function word around an unknown word', () => {
+    for (const a of SHORT) {
+      for (const b of [...WORDS, ...SHORT]) {
+        expect(leaks(`${a} qwerty ${b}`), `${a} qwerty ${b}`).toEqual([]);
+        expect(leaks(`${b} qwerty ${a}`), `${b} qwerty ${a}`).toEqual([]);
+      }
     }
   });
 

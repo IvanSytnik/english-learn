@@ -1,6 +1,7 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { EXCLUDED_HEADWORDS, isShadowedLexeme } from '@englishlearn/db/vocab/excluded';
+import { CONTRACTIONS } from './contractions';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
 import { PASTE_NO_PRESELECT } from './no-preselect';
 import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
@@ -30,10 +31,11 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * PASTE_NO_PRESELECT (`IT`) — in pasted text the form is the function word.
  *
  * Function words the catalogue leaves out (`was`, `the`, `can`'s modal, `have
- * to`: @englishlearn/db/vocab/excluded) are their own group, checked per
- * window after the catalogue: they are never "not found", and no not-found
- * term ever contains one (V2-18c) — not-found terms are what a later step may
- * generate words from (B6.10).
+ * to`: @englishlearn/db/vocab/excluded) and contractions (`i'm`, `don't`:
+ * ./contractions.ts, #41) are their own group, checked per window after the
+ * catalogue (`o'clock` stays a word): they are never "not found", and no
+ * not-found term ever contains one (V2-18c, V2-19) — not-found terms are what
+ * a later step may generate words from (B6.10).
  */
 
 export const MULTIWORD_MAX_TOKENS = 4;
@@ -68,7 +70,7 @@ export type ImportEntry = {
 export type ImportMatch = {
   matched: ImportEntry[];
   lemmatized: ImportEntry[];
-  /** Function words the catalogue leaves out, as pasted: shown, never practised. */
+  /** Function words the catalogue leaves out and contractions, as pasted: shown, never practised. */
   functionWords: string[];
   /** Shown to the learner only; never stored (V2-17). */
   notFound: string[];
@@ -159,6 +161,19 @@ const FUNCTION_WORDS: ReadonlySet<string> = new Set(
 );
 
 type Matched = { entries: ImportEntry[]; functionWords: string[]; notFound: string[] };
+type Window = { entry: ImportEntry } | { functionWord: string } | null;
+
+/**
+ * One window of a term: the catalogue first (`o'clock`, `driver's license`
+ * are words), then the function words and the contraction table (`was`,
+ * `have to`, `don't`, #41) — shown as pasted.
+ */
+function matchWindow(index: CatalogueIndex, key: string): Window {
+  const hit = lookup(index, key);
+  if (hit) return { entry: hit };
+  if (FUNCTION_WORDS.has(key) || CONTRACTIONS.has(key)) return { functionWord: key };
+  return null;
+}
 
 /** One candidate: its entries, its function words, and what of it was not found. */
 function matchOne(index: CatalogueIndex, c: PasteCandidate): Matched {
@@ -174,11 +189,11 @@ function matchOne(index: CatalogueIndex, c: PasteCandidate): Matched {
   for (let i = 0; i < tokens.length; ) {
     let step = 0;
     for (let n = Math.min(MULTIWORD_MAX_TOKENS, tokens.length - i); n >= 1 && step === 0; n--) {
-      const key = tokens.slice(i, i + n).join(' ');
-      const hit = lookup(index, key);
-      if (hit) entries.push(hit);
-      else if (FUNCTION_WORDS.has(key)) functionWords.push(key);
-      if (hit || FUNCTION_WORDS.has(key)) step = n;
+      const found = matchWindow(index, tokens.slice(i, i + n).join(' '));
+      if (found === null) continue;
+      if ('entry' in found) entries.push(found.entry);
+      else functionWords.push(found.functionWord);
+      step = n;
     }
     if (step === 0) {
       if (!stretch) {
