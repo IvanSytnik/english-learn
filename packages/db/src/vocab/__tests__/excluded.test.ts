@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import DATA from '../../../data/cefr-j-v1.5-excluded.json';
-import { EXCLUDED_BY_POS, EXCLUDED_HEADWORDS } from '../excluded';
+import { loadCefrJDataset } from '../dataset';
+import { EXCLUDED_BY_POS, EXCLUDED_HEADWORDS, isShadowedLexeme } from '../excluded';
 import { CefrJDatasetSchema, mapCefrJPos } from '../normalize';
 import { isShadowedByExcludedPos } from '../shadowed';
 
@@ -59,6 +60,13 @@ describe('the excluded headwords (function words)', () => {
     const flagged = RAW.entries.filter((e) => isShadowedByExcludedPos(e, EXCLUDED_HEADWORDS));
     expect(flagged.length).toBe(58);
     expect(flagged).toEqual(RAW.entries.filter((e) => e.shadowedByExcludedPos));
+  });
+
+  it('isShadowedLexeme is the flag on the catalogue’s own lemmaKeys, entry by entry (V2-19 #40)', () => {
+    const { lexemes } = loadCefrJDataset();
+    const flagged = lexemes.filter((l) => l.shadowedByExcludedPos === true);
+    expect(flagged.length).toBe(58);
+    expect(lexemes.filter(isShadowedLexeme)).toEqual(flagged);
   });
 
   it('keys are lower case, trimmed, sorted and unique per tag', () => {

@@ -30,3 +30,13 @@ export const EXCLUDED_BY_POS: Readonly<Record<string, readonly string[]>> =
 export const EXCLUDED_HEADWORDS: ReadonlySet<string> = new Set(
   Object.values(EXCLUDED_BY_POS).flat(),
 );
+
+/**
+ * The dataset flag `shadowedByExcludedPos` (./shadowed.ts) on a catalogue
+ * lexeme, which the Lexeme table has no column for: its lemmaKey is an
+ * excluded headword (`can` noun, `May`, `half`) — the flag's own derivation,
+ * tied to the flag entry by entry by test. The paste import never preselects
+ * one (B6.7b, V2-19 #40).
+ */
+export const isShadowedLexeme = (lexeme: { lemmaKey: string }): boolean =>
+  EXCLUDED_HEADWORDS.has(lexeme.lemmaKey);
