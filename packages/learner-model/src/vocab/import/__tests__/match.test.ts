@@ -154,6 +154,29 @@ describe('matchCandidates (B6-SPEC §5)', () => {
     expect(prose.functionWords).toEqual(["it's"]);
   });
 
+  it('a possessive is matched without its `s (#41): as pasted, in the usual groups', () => {
+    expect(show("children's")).toEqual({
+      matched: [],
+      lemmatized: ["children's → child-noun"],
+      notFound: [],
+    });
+    expect(show("dog's").matched).toEqual(["dog's → dog-noun"]);
+    // The plural possessive: the trailing apostrophe is trimmed, `dogs` is a form.
+    expect(show("dogs'").lemmatized).toEqual(['dogs → dog-noun']);
+    // Framing quotes go first: `'dog's'` is `dog's`, `'apple'` is `apple`.
+    expect(show("'dog's', 'apple'").matched).toEqual(["dog's → dog-noun", 'apple → apple-noun']);
+    // A multiword owner, inside prose; not found stays not found, without its `s.
+    const prose = match("my friend tom's bus stop's sign");
+    expect(prose.matched.map((e) => e.term)).toEqual(["bus stop's"]);
+    expect(prose.notFound).toEqual(['friend', 'tom', 'sign']);
+    expect(show("tom's").notFound).toEqual(['tom']);
+    // A lone `'s` is the excluded headword (`s`); so is the owner of `s's`.
+    expect(match("qwerty's, 's, s's")).toMatchObject({
+      notFound: ['qwerty'],
+      functionWords: ['s', "s's"],
+    });
+  });
+
   it('work: matched, the primary part of speech (best frequency rank) preselected', () => {
     expect(show('work').matched).toEqual(['work → work-verb (work-noun)']);
   });

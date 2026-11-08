@@ -12,7 +12,9 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * candidates against it. Words are named by slug only.
  *
  * Order: the whole term → the term without `to` / article → inside the
- * term, longest window first (≤ 4 words: `bus stop` before `bus`). A key is
+ * term, longest window first (≤ 4 words: `bus stop` before `bus`). A window
+ * is a catalogue word, else a function word or contraction, else a
+ * possessive matched without its `'s` (#41, `matchWindow`). A key is
  * looked up as a lemma or spelling variant (exact) and as a generated form
  * (regular rules, WordNet exceptions). An exact hit beats the regular forms
  * of other lemmas (`building` is the noun, not `build`); irregular forms
@@ -163,16 +165,32 @@ const FUNCTION_WORDS: ReadonlySet<string> = new Set(
 type Matched = { entries: ImportEntry[]; functionWords: string[]; notFound: string[] };
 type Window = { entry: ImportEntry } | { functionWord: string } | null;
 
+const POSSESSIVE = /^(.*[\p{L}\p{N}])'s$/u;
+
 /**
- * One window of a term: the catalogue first (`o'clock`, `driver's license`
- * are words), then the function words and the contraction table (`was`,
- * `have to`, `don't`, #41) — shown as pasted.
+ * A key without its possessive `'s` (`tom's` → `tom`, `bus stop's` → `bus
+ * stop`); null when it has none. A plural possessive needs no rule:
+ * normalizeTerm trims the trailing apostrophe (`dogs'` → `dogs` → dog).
+ */
+function withoutPossessive(key: string): string | null {
+  return POSSESSIVE.exec(key)?.[1] ?? null;
+}
+
+/**
+ * One window of a term (#41): the catalogue first (`o'clock`, `driver's
+ * license` are words), then the function words and the contraction table
+ * (`was`, `have to`, `don't`) — shown as pasted —, then the window without a
+ * possessive `'s`, matched again (`children's` → child, as pasted).
  */
 function matchWindow(index: CatalogueIndex, key: string): Window {
   const hit = lookup(index, key);
   if (hit) return { entry: hit };
   if (FUNCTION_WORDS.has(key) || CONTRACTIONS.has(key)) return { functionWord: key };
-  return null;
+  const base = withoutPossessive(key);
+  if (base === null) return null;
+  const owner = lookup(index, base);
+  if (owner) return { entry: { ...owner, term: key } };
+  return FUNCTION_WORDS.has(base) ? { functionWord: key } : null;
 }
 
 /** One candidate: its entries, its function words, and what of it was not found. */
@@ -183,7 +201,10 @@ function matchOne(index: CatalogueIndex, c: PasteCandidate): Matched {
   const tokens = c.bare.split(' ');
   const entries: ImportEntry[] = [];
   const functionWords: string[] = [];
-  /** Stretches of consecutive unknown words; a found word or a function word ends one. */
+  /**
+   * Stretches of consecutive unknown words, a possessive without its `'s`
+   * (`tom's` → `tom`); a found word or a function word ends one.
+   */
   const unknown: string[][] = [];
   let stretch: string[] | null = null;
   for (let i = 0; i < tokens.length; ) {
@@ -200,7 +221,8 @@ function matchOne(index: CatalogueIndex, c: PasteCandidate): Matched {
         stretch = [];
         unknown.push(stretch);
       }
-      stretch.push(tokens[i] ?? '');
+      const token = tokens[i] ?? '';
+      stretch.push(withoutPossessive(token) ?? token);
       step = 1;
     } else stretch = null;
     i += step;

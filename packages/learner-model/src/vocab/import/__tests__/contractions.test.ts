@@ -118,6 +118,16 @@ describe('the contraction table (V2-19 #41)', () => {
     expect(m.notFound).toEqual([]);
   });
 
+  it('the e2e paste: contractions are function words, possessives match without their `s', () => {
+    const m = match("I'm sure it's Tom's, and don't forget the children's toys");
+    expect(m.functionWords).toEqual(["i'm", "it's", "don't", 'the']);
+    expect(m.notFound).toEqual(['tom']);
+    expect(m.lemmatized.map((e) => [e.term, e.preselected])).toEqual([
+      ["children's", 'child-noun'],
+      ['toys', 'toy-noun'],
+    ]);
+  });
+
   it('a space inside a contraction is no contraction; a lone apostrophe is nothing', () => {
     expect(match("don 't")).toMatchObject({ functionWords: [], notFound: ['don t'] });
     expect(tokenizePaste("'")).toEqual({ ok: false, error: 'EMPTY' });

@@ -58,6 +58,7 @@ describe('function words never reach "not found" (V2-18c)', () => {
         `the ${w}`,
         `${w} qwerty`,
         `I think ${w} zzyzx went home yesterday`,
+        `${w}'s qwerty`,
       ]) {
         expect(leaks(text), text).toEqual([]);
       }
