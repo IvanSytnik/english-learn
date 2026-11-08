@@ -8,7 +8,15 @@
 // source's tag. The paste import shows them as "function words — not
 // practised", never as "not found" (src/vocab/excluded.ts).
 //
-// Usage (from packages/db; the CSV is not in the repo):
+// The input CSV is not in the repo: the CEFR-J Wordlist 1.5 from the Open
+// Language Profiles repository — `source.url` of data/cefr-j-v1.5.json
+// (https://github.com/openlanguageprofiles/olp-en-cefrj/blob/master/cefrj-vocabulary-profile-1.5.csv).
+// Fetch the raw file (7 799 lines, header `headword,pos,CEFR,CoreInventory 1,…`):
+//   curl -fsSL -o /tmp/cefrj-vocabulary-profile-1.5.csv \
+//     https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/master/cefrj-vocabulary-profile-1.5.csv
+// Re-running on that file reproduces the committed JSON byte for byte (checked B6.7b).
+//
+// Usage (from packages/db):
 //   pnpm exec tsx scripts/build-cefr-j-excluded.ts path/to/cefrj-vocabulary-profile-1.5.csv
 
 import { readFileSync, writeFileSync } from 'node:fs';
