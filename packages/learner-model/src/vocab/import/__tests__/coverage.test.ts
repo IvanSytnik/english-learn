@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { loadCefrJDataset } from '@englishlearn/db/vocab/dataset';
+import { isShadowedLexeme } from '@englishlearn/db/vocab/excluded';
 import { slugIndex } from '@englishlearn/db/vocab/slug';
 import { describe, expect, it } from 'vitest';
 import { buildCatalogueIndex, matchCandidates } from '../match';
+import { PASTE_NO_PRESELECT } from '../no-preselect';
 import { tokenizePaste } from '../tokenize';
 
 /**
@@ -87,7 +89,7 @@ describe('C5: matcher coverage on committed texts', () => {
         "notFound": [],
         "notProcessed": 0,
         "skipped": 0,
-        "unchecked": 12,
+        "unchecked": 14,
       }
     `);
   });
@@ -106,19 +108,22 @@ describe('C5: matcher coverage on committed texts', () => {
         ],
         "notProcessed": 0,
         "skipped": 1,
-        "unchecked": 4,
+        "unchecked": 5,
       }
     `);
   });
 
-  it('#33: the A2 prose offers its closed-class words unchecked; every preselected word is open-class', () => {
+  it('#33, #40: the A2 prose offers closed-class words and function-word homographs unchecked; nothing else', () => {
     const { m } = matchFile('a2-prose.txt');
     const entries = [...m.matched, ...m.lemmatized];
-    const closed = (slug: string) => {
+    const word = (slug: string) => {
       const l = bySlug.get(slug);
       if (!l) throw new Error(slug);
-      return isClosedClass(l);
+      return l;
     };
+    const closed = (slug: string) => isClosedClass(word(slug));
+    const never = (slug: string) =>
+      closed(slug) || isShadowedLexeme(word(slug)) || PASTE_NO_PRESELECT.has(slug);
     // Still offered (visible, the learner may tick them), only not preselected.
     expect(entries.filter((e) => e.slugs.every(closed)).map((e) => e.term)).toEqual([
       'to',
@@ -134,11 +139,28 @@ describe('C5: matcher coverage on committed texts', () => {
       'for',
       'of',
     ]);
+    // `Last summer` (`last` adverb / verb: shadowed by the determiner), `it` (IT: listed).
+    expect(entries.filter((e) => e.preselected === null).map((e) => e.term)).toEqual([
+      'last',
+      'to',
+      'we',
+      'in',
+      'and',
+      'i',
+      'but',
+      'one',
+      'it',
+      'so',
+      'next to',
+      'some',
+      'for',
+      'of',
+    ]);
     expect(entries.filter((e) => e.preselected === null)).toEqual(
-      entries.filter((e) => e.slugs.every(closed)),
+      entries.filter((e) => e.slugs.every(never)),
     );
-    expect(
-      entries.flatMap((e) => (e.preselected && closed(e.preselected) ? [e.term] : [])),
-    ).toEqual([]);
+    expect(entries.flatMap((e) => (e.preselected && never(e.preselected) ? [e.term] : []))).toEqual(
+      [],
+    );
   });
 });

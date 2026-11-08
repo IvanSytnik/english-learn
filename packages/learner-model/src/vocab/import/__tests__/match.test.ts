@@ -51,6 +51,13 @@ const INDEX = buildCatalogueIndex([
   w('like', 'PREPOSITION', 65),
   w('like', 'VERB', 70),
   w('always', 'ADVERB', 80),
+  // Homographs of function words (#40): `can`, `May`, `half` share a lemmaKey with an
+  // excluded headword (the shadowed flag); `IT` is listed in PASTE_NO_PRESELECT.
+  w('can', 'NOUN', 400),
+  { ...w('may', 'NOUN', 450), lemma: 'May' },
+  w('half', 'NOUN', 300),
+  w('it', 'NOUN', 800),
+  w('it', 'PRONOUN', 3004),
 ]);
 
 const match = (text: string, limit?: number) => {
@@ -111,6 +118,17 @@ describe('matchCandidates (B6-SPEC §5)', () => {
       'not → ?',
       'like → like-verb (like-preposition)',
       'always → always-adverb',
+    ]);
+  });
+
+  it('homographs of a function word are offered unchecked: the shadowed flag and PASTE_NO_PRESELECT (#40)', () => {
+    const entries = match('can, May, half, it, apple').matched;
+    expect(entries.map((e) => [e.term, e.preselected, e.slugs])).toEqual([
+      ['can', null, ['can-noun']],
+      ['may', null, ['may-noun']],
+      ['half', null, ['half-noun']],
+      ['it', null, ['it-noun', 'it-pronoun']],
+      ['apple', 'apple-noun', ['apple-noun']],
     ]);
   });
 

@@ -1,7 +1,8 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
-import { EXCLUDED_HEADWORDS } from '@englishlearn/db/vocab/excluded';
+import { EXCLUDED_HEADWORDS, isShadowedLexeme } from '@englishlearn/db/vocab/excluded';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
+import { PASTE_NO_PRESELECT } from './no-preselect';
 import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
 
 /**
@@ -24,6 +25,9 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * run verb, #39). A closed-class word (closed POS or function adverb) is
  * never preselected (#33): offered unchecked, the learner may still tick it
  * (`to`, `and`, `next to`; `like` preselects the verb, not the preposition).
+ * Neither is a homograph of a function word (#40, V2-19): an entry flagged
+ * `shadowedByExcludedPos` (`can` noun, `May`, `half`) or listed in
+ * PASTE_NO_PRESELECT (`IT`) — in pasted text the form is the function word.
  *
  * Function words the catalogue leaves out (`was`, `the`, `can`'s modal, `have
  * to`: @englishlearn/db/vocab/excluded) are their own group, checked per
@@ -103,11 +107,19 @@ const VERB_POS: ReadonlySet<PartOfSpeechValue> = new Set(['VERB', 'PHRASAL_VERB'
 type Prefer = { verb: boolean };
 
 /**
- * The word to preselect: the best open-class word by frequency; with `verb`,
- * the best verb when there is one. Null when every word is closed-class.
+ * Never preselected, only offered: a closed-class word (#33), a word
+ * shadowed by a function word the catalogue leaves out (`can` noun, `May`:
+ * the dataset flag, #40), a word in PASTE_NO_PRESELECT (`IT`, #40).
+ */
+const preselectable = (w: CatalogueWord) =>
+  !isClosedClass(w) && !isShadowedLexeme(w) && !PASTE_NO_PRESELECT.has(w.slug);
+
+/**
+ * The word to preselect: the best preselectable word by frequency; with
+ * `verb`, the best verb when there is one. Null when there is none.
  */
 function primary(all: readonly CatalogueWord[], prefer: Prefer): CatalogueWord | null {
-  const words = all.filter((w) => !isClosedClass(w));
+  const words = all.filter(preselectable);
   const verbs = prefer.verb ? words.filter((w) => VERB_POS.has(w.pos)) : [];
   return [...(verbs.length > 0 ? verbs : words)].sort(byFrequency)[0] ?? null;
 }

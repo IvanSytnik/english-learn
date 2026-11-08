@@ -1,0 +1,10 @@
+{
+  "note": "Paste import (B6.7b, V2-19 #40): catalogue words never preselected although open-class and not flagged shadowedByExcludedPos — homographs of a function word the flag does not cover. Listed only when the B6.7b candidate script (catalogue entries sharing a lemmaKey with an excluded headword or a pronoun) shows them; offered unchecked, the learner may tick them. Data, never a heuristic (V2-10).",
+  "entries": [
+    {
+      "slug": "it-noun",
+      "lemma": "IT",
+      "reason": "IT (information technology) shares its lemmaKey with the pronoun it, which the catalogue keeps as a closed class: in pasted text it is the pronoun."
+    }
+  ]
+}
