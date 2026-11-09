@@ -10,11 +10,15 @@ import { closeDb, wordLists } from './helpers/db';
 // and axe finds nothing serious or critical on the lists, a list and the
 // paste dialog, light and dark (#37). B6.7b (V2-19 #41): contractions are
 // function words, a possessive matches without its 's — also scanned by axe.
+// B6.7c: the generated contraction table (V2-20 #43: that'll, who'd, ain't,
+// y'all are function words) and need (verb) / little (adjective) preselected
+// again (V2-19a #42) — also scanned by axe.
 
 test.afterAll(closeDb);
 
 const PASTE = 'went, children, bus stop, to run, apple - яблоко, was, qwerty';
 const PASTE_SHORT = "I'm sure it's Tom's, and don't forget the children's toys";
+const PASTE_GENERATED = "That'll work, who'd guess, ain't it funny, y'all need a little help";
 
 const slugs = (rows: Locator) =>
   rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-row')));
@@ -148,6 +152,37 @@ test('paste: contractions are function words, a possessive matches without its �
   await expect(childrens.locator('[data-option="child-noun"]')).toBeChecked();
 });
 
+test('paste: generated contractions are function words; need and little are preselected (#42, #43)', async ({
+  page,
+}) => {
+  await registerFreshLearner(page, 'lists-gen');
+  await page.goto('/ru/words/lists');
+  await page.getByRole('textbox', { name: 'Новый список' }).fill('Фразы');
+  await page.getByRole('button', { name: 'Создать список' }).click();
+  await expect(page).toHaveURL(/\/ru\/words\/lists\/[a-z0-9]{20,40}$/, AFTER_SUBMIT);
+  await page.getByRole('button', { name: 'Добавить слова в этот список из текста' }).click();
+  const dialog = page.locator('[data-paste-dialog]');
+  await dialog.getByRole('textbox', { name: 'Слова или текст' }).fill(PASTE_GENERATED);
+  await dialog.getByRole('button', { name: 'Показать совпадения' }).click();
+  const group = (name: string) => dialog.locator(`[data-import-group="${name}"]`);
+  await expect(group('functionWords')).toBeVisible(AFTER_SUBMIT);
+  await expect(group('functionWords').getByRole('listitem')).toHaveText([
+    "that'll",
+    "who'd",
+    "ain't",
+    "y'all",
+    'a',
+  ]);
+  await expect(group('notFound')).toHaveCount(0);
+  const option = (term: string, slug: string) =>
+    group('matched').locator(`[data-import-term="${term}"] [data-option="${slug}"]`);
+  await expect(option('need', 'need-verb')).toBeChecked();
+  await expect(option('little', 'little-adjective')).toBeChecked();
+  await expect(option('little', 'little-adverb')).not.toBeChecked();
+  // `it` (IT, PASTE_NO_PRESELECT) stays offered unchecked (#40).
+  await expect(option('it', 'it-noun')).not.toBeChecked();
+});
+
 test('another learner’s list is a 404, also as a practice scope', async ({ page, browser }) => {
   await registerFreshLearner(page, 'lists-owner');
   await page.goto('/ru/words/lists');
@@ -222,6 +257,14 @@ test('axe: the lists, a list and the paste dialog — nothing serious or critica
     await preview(PASTE_SHORT);
     await expect(dialog.locator('[data-import-term="children\'s"]')).toBeVisible();
     report.push(...(await seriousOrCritical(page, `${colorScheme} paste dialog, contractions`)));
+    // B6.7c: generated contractions, need / little preselected.
+    await page.goto(listUrl);
+    await expect(page.locator('[data-row]')).toHaveCount(5);
+    await preview(PASTE_GENERATED);
+    await expect(dialog.locator('[data-option="need-verb"]')).toBeChecked();
+    report.push(
+      ...(await seriousOrCritical(page, `${colorScheme} paste dialog, generated contractions`)),
+    );
   }
   expect(report, report.join('\n')).toEqual([]);
 });
