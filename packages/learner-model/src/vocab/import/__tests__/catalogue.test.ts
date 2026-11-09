@@ -19,6 +19,7 @@ const WORDS: CatalogueWord[] = [...bySlug].map(([slug, l]) => ({
   lemma: l.lemma,
   lemmaKey: l.lemmaKey,
   pos: l.pos,
+  sense: l.sense,
   variants: l.variants,
   frequencyRank: null,
 }));

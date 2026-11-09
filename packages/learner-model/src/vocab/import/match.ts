@@ -1,6 +1,7 @@
 import type { PartOfSpeechValue } from '@englishlearn/db/schemas';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { EXCLUDED_HEADWORDS, isShadowedLexeme } from '@englishlearn/db/vocab/excluded';
+import { isEffectivelySecondary } from '@englishlearn/db/vocab/secondary-sense';
 import { CONTRACTIONS } from './contractions';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
 import { PASTE_NO_PRESELECT } from './no-preselect';
@@ -28,9 +29,12 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * run verb, #39). A closed-class word (closed POS or function adverb) is
  * never preselected (#33): offered unchecked, the learner may still tick it
  * (`to`, `and`, `next to`; `like` preselects the verb, not the preposition).
- * Neither is a homograph of a function word (#40, V2-19): an entry flagged
- * `shadowedByExcludedPos` (`can` noun, `May`, `half`) or listed in
- * PASTE_NO_PRESELECT (`IT`) — in pasted text the form is the function word.
+ * Neither is a homograph of a function word (#40, V2-19): an entry that is
+ * effectively secondary — flagged `shadowedByExcludedPos` (`can` noun, `May`,
+ * `half`) and not made primary by SECONDARY_SENSE_OVERRIDES (`need` verb,
+ * `little` adjective stay preselectable: the rank's own predicate, V2-19a,
+ * #42) — or listed in PASTE_NO_PRESELECT (`IT`): in pasted text the form is
+ * the function word.
  *
  * Function words the catalogue leaves out (`was`, `the`, `can`'s modal, `have
  * to`: @englishlearn/db/vocab/excluded) and contractions (`i'm`, `don't`:
@@ -48,6 +52,8 @@ export type CatalogueWord = {
   /** Lexeme.lemmaKey: the closed-class check (FUNCTION_ADVERBS). */
   lemmaKey: string;
   pos: PartOfSpeechValue;
+  /** Lexeme.sense: with lemmaKey and pos, the identity SECONDARY_SENSE_OVERRIDES names. */
+  sense: string;
   variants: readonly string[];
   frequencyRank: number | null;
 };
@@ -111,12 +117,20 @@ const VERB_POS: ReadonlySet<PartOfSpeechValue> = new Set(['VERB', 'PHRASAL_VERB'
 type Prefer = { verb: boolean };
 
 /**
- * Never preselected, only offered: a closed-class word (#33), a word
- * shadowed by a function word the catalogue leaves out (`can` noun, `May`:
- * the dataset flag, #40), a word in PASTE_NO_PRESELECT (`IT`, #40).
+ * A word shadowed by a function word the catalogue leaves out (`can` noun,
+ * `May`: the dataset flag, #40) unless SECONDARY_SENSE_OVERRIDES makes it
+ * primary (`need` verb, `little` adjective, #42): the rank's predicate
+ * `isEffectivelySecondary` (V2-19a), fed the flag by `isShadowedLexeme`.
+ */
+export const isSecondaryInPaste = (w: { lemmaKey: string; pos: string; sense: string }) =>
+  isEffectivelySecondary(w, { shadowed: isShadowedLexeme(w) });
+
+/**
+ * Never preselected, only offered: a closed-class word (#33), an effectively
+ * secondary word (#40, #42), a word in PASTE_NO_PRESELECT (`IT`, #40).
  */
 const preselectable = (w: CatalogueWord) =>
-  !isClosedClass(w) && !isShadowedLexeme(w) && !PASTE_NO_PRESELECT.has(w.slug);
+  !isClosedClass(w) && !isSecondaryInPaste(w) && !PASTE_NO_PRESELECT.has(w.slug);
 
 /**
  * The word to preselect: the best preselectable word by frequency; with

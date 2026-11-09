@@ -1,10 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { isClosedClass } from '@englishlearn/db/vocab/closed-class';
 import { loadCefrJDataset } from '@englishlearn/db/vocab/dataset';
-import { isShadowedLexeme } from '@englishlearn/db/vocab/excluded';
 import { slugIndex } from '@englishlearn/db/vocab/slug';
 import { describe, expect, it } from 'vitest';
-import { buildCatalogueIndex, matchCandidates } from '../match';
+import { buildCatalogueIndex, isSecondaryInPaste, matchCandidates } from '../match';
 import { PASTE_NO_PRESELECT } from '../no-preselect';
 import { tokenizePaste } from '../tokenize';
 
@@ -23,6 +22,7 @@ const INDEX = buildCatalogueIndex(
     lemma: l.lemma,
     lemmaKey: l.lemmaKey,
     pos: l.pos,
+    sense: l.sense,
     variants: l.variants,
     frequencyRank: null,
   })),
@@ -123,7 +123,7 @@ describe('C5: matcher coverage on committed texts', () => {
     };
     const closed = (slug: string) => isClosedClass(word(slug));
     const never = (slug: string) =>
-      closed(slug) || isShadowedLexeme(word(slug)) || PASTE_NO_PRESELECT.has(slug);
+      closed(slug) || isSecondaryInPaste(word(slug)) || PASTE_NO_PRESELECT.has(slug);
     // Still offered (visible, the learner may tick them), only not preselected.
     expect(entries.filter((e) => e.slugs.every(closed)).map((e) => e.term)).toEqual([
       'to',

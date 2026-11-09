@@ -9,6 +9,7 @@ const w = (lemma: string, pos: PartOfSpeechValue, rank: number | null = null): C
   lemma,
   lemmaKey: lemma,
   pos,
+  sense: '',
   variants: [],
   frequencyRank: rank,
 });

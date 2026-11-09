@@ -5,6 +5,7 @@ import type { CefrLevelValue } from '../schemas/learner-events';
 import type { PartOfSpeechValue } from '../schemas/lexeme';
 import { isClosedClass } from './closed-class';
 import { lexemeIdentity } from './dataset';
+import { isEffectivelySecondary } from './secondary-sense';
 
 /**
  * vocab:sync-frequency (B6.2): wordfreq Zipf frequency onto Lexeme.
@@ -88,37 +89,7 @@ export function shadowedIdentities(
   return new Set(lexemes.filter((l) => l.shadowedByExcludedPos).map(lexemeIdentity));
 }
 
-/**
- * Entries the secondary-sense rule gets wrong, made primary by name (V2-10,
- * Ivan's review of the 58 shadowed entries, 2026-11-05): data with a reason
- * each, never a heuristic. Applied after the shadowed flag — an entry listed
- * here is primary whatever (a) and (b) say.
- */
-export const SECONDARY_SENSE_OVERRIDES: readonly {
-  readonly lemmaKey: string;
-  readonly pos: PartOfSpeechValue;
-  readonly sense: string;
-  readonly reason: string;
-}[] = Object.freeze([
-  {
-    lemmaKey: 'need',
-    pos: 'VERB',
-    sense: '',
-    reason:
-      'Shadowed by the modal `need` (`need not`), which is rare in modern English; the main verb (`I need help`) carries the form.',
-  },
-  {
-    lemmaKey: 'little',
-    pos: 'ADJECTIVE',
-    sense: '',
-    reason:
-      'Shadowed by the determiner (`a little milk`), but the adjective (`a little house`) is a core A1 sense of the form, not a second one.',
-  },
-]);
-
-const OVERRIDDEN_PRIMARY: ReadonlySet<string> = new Set(
-  SECONDARY_SENSE_OVERRIDES.map(lexemeIdentity),
-);
+export { SECONDARY_SENSE_OVERRIDES } from './secondary-sense';
 
 /**
  * The secondary senses among the PUBLISHED rows (B6-SPEC §2, revised in
@@ -128,8 +99,10 @@ const OVERRIDDEN_PRIMARY: ReadonlySet<string> = new Set(
  * (b) its identity is in `shadowed`: the source lists the headword under a
  *     left-out POS, so the form's frequency belongs to an entry the catalogue
  *     doesn't have (`can` noun, `being` noun);
- * and it is not in SECONDARY_SENSE_OVERRIDES (`need` verb, `little` adjective).
- * Only PUBLISHED rows are compared (a DRAFT/REVIEW neighbour changes nothing).
+ * and it is not in SECONDARY_SENSE_OVERRIDES (`need` verb, `little` adjective):
+ * `isEffectivelySecondary` (./secondary-sense.ts), the predicate the paste
+ * import's preselection shares (V2-19a). Only PUBLISHED rows are compared
+ * (a DRAFT/REVIEW neighbour changes nothing).
  */
 export function secondarySenseIds(
   rows: readonly FrequencyRow[],
@@ -143,11 +116,11 @@ export function secondarySenseIds(
   }
   return new Set(
     published
-      .filter(
-        (r) =>
-          (CEFR_ORDER.indexOf(r.cefrLevel) > (lowest.get(r.lemmaKey) as number) ||
-            shadowed.has(lexemeIdentity(r))) &&
-          !OVERRIDDEN_PRIMARY.has(lexemeIdentity(r)),
+      .filter((r) =>
+        isEffectivelySecondary(r, {
+          shadowed: shadowed.has(lexemeIdentity(r)),
+          lowerLevel: CEFR_ORDER.indexOf(r.cefrLevel) > (lowest.get(r.lemmaKey) as number),
+        }),
       )
       .map((r) => r.id),
   );

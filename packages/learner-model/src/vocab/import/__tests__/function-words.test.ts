@@ -23,6 +23,7 @@ const INDEX = buildCatalogueIndex(
     lemma: l.lemma,
     lemmaKey: l.lemmaKey,
     pos: l.pos,
+    sense: l.sense,
     variants: l.variants,
     frequencyRank: null,
   })),
