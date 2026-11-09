@@ -8,7 +8,7 @@ import { buildCatalogueIndex, matchCandidates } from '../match';
 import { tokenizePaste } from '../tokenize';
 
 /**
- * The contraction table (B6.7b, V2-19 #41) over the real catalogue: every
+ * The contraction table (B6.7b, V2-19 #41; generated, V2-20) over the real catalogue: every
  * contraction is made of function words, and pasted it lands in the
  * function-words group — after the catalogue, which keeps `o'clock`.
  */
@@ -68,9 +68,8 @@ const MINIMUM = [
 ];
 
 describe('the contraction table (V2-19 #41)', () => {
-  it('holds the minimum, 49 entries in all, sorted', () => {
+  it('holds the minimum, sorted (the full table: contraction-table.test.ts)', () => {
     for (const c of MINIMUM) expect(CONTRACTIONS.has(c), c).toBe(true);
-    expect(CONTRACTIONS.size).toBe(49);
     const keys = [...CONTRACTIONS.keys()];
     expect(keys).toEqual([...keys].sort());
   });
@@ -117,6 +116,23 @@ describe('the contraction table (V2-19 #41)', () => {
     const m = match("I'm sure it's fine, and they'll say we can't");
     expect(m.functionWords).toEqual(["i'm", "it's", "they'll", "can't"]);
     expect(m.notFound).toEqual([]);
+  });
+
+  it('#43 inside prose (the B6.7c e2e paste): that’ll, who’d, ain’t, y’all are function words', () => {
+    const m = match("That'll work, who'd guess, ain't it funny, y'all need a little help");
+    expect(m.functionWords).toEqual(["that'll", "who'd", "ain't", "y'all", 'a']);
+    expect(m.notFound).toEqual([]);
+    expect(m.lemmatized).toEqual([]);
+    // need (verb) and little (adjective) are preselected (#42); `it` stays unchecked (#40).
+    expect(m.matched.map((e) => [e.term, e.preselected])).toEqual([
+      ['work', 'work-noun'],
+      ['guess', 'guess-noun'],
+      ['it', null],
+      ['funny', 'funny-adjective'],
+      ['need', 'need-verb'],
+      ['little', 'little-adjective'],
+      ['help', 'help-noun'],
+    ]);
   });
 
   it('the e2e paste: contractions are function words, possessives match without their `s', () => {
