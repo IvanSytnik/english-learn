@@ -176,6 +176,13 @@ const FUNCTION_WORDS: ReadonlySet<string> = new Set(
   [...EXCLUDED_HEADWORDS].map(normalizeTerm).filter((k) => k !== ''),
 );
 
+/** A normalized key that is one of the 80 excluded headwords (`was`, `have to`, `s`). */
+export const isFunctionWordTerm = (key: string): boolean => FUNCTION_WORDS.has(key);
+
+/** A normalized key the catalogue knows: a lemma or variant, or a generated or irregular form. */
+export const isCatalogueTerm = (index: CatalogueIndex, key: string): boolean =>
+  (index.exact.get(key)?.length ?? 0) > 0 || (index.forms.get(key)?.length ?? 0) > 0;
+
 type Matched = { entries: ImportEntry[]; functionWords: string[]; notFound: string[] };
 type Window = { entry: ImportEntry } | { functionWord: string } | null;
 

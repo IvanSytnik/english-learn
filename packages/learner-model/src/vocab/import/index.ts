@@ -1,5 +1,12 @@
 export { irregularForms, normalizeTerm, regularForms } from './forms';
 export {
+  GENERATION_GATE_REASONS,
+  type GenerationGateReason,
+  GenerationGateReasonSchema,
+  type GenerationGateResult,
+  isGenerationCandidateAllowed,
+} from './generation-gate';
+export {
   buildCatalogueIndex,
   type CatalogueIndex,
   type CatalogueWord,
