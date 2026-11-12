@@ -12,7 +12,7 @@ Adaptive English learning platform built around an explicit, testable model of w
 
 Most language apps schedule content with a single heuristic — a review queue, or a fixed syllabus. EnglishLearn separates the problem into three layers (prerequisite graph, per-concept mastery, per-item memory) and puts a bandit policy on top to decide what to show next. The learner model is implemented as a standalone, side-effect-free package with property-based tests, independent of the web app.
 
-**Status:** pre-launch (MVP-1 in progress). The learner model, database schema, authentication and i18n routing are implemented and tested. The web app is deployed to Vercel and the production deployment is live — health check, registration and login work — but it is not publicly launched and has no users. The adaptive exercise UI is not yet wired to the selection policy. Sections below mark what is implemented and what is not.
+**Status:** pre-launch (MVP-1 in progress). The learner model, database schema, authentication and i18n routing are implemented and tested. The web app is deployed to Vercel and the production deployment is live — health check, registration and login work — but it is not publicly launched and has no users. The diagnostic (`/diagnostic`) and the adaptive exercise player (`/exercises`) run on the learner model: the player asks `selectNext` for every question and records every answer through `recordOutcome`. Sections below mark what is implemented and what is not.
 
 ## Contents
 
@@ -43,7 +43,7 @@ Most language apps schedule content with a single heuristic — a review queue, 
 **Approach.** Model the learner explicitly, then let a selection policy read that model:
 
 - **Layer 3 — Knowledge Graph.** Concepts and typed edges (`PREREQUISITE`, `RELATED`, `CONTRASTS_WITH`, `PART_OF`). Prerequisite edges must form a DAG, enforced by the graph builder.
-- **Layer 2 — BKT+.** Bayesian Knowledge Tracing per concept, augmented with an IRT 2PL item-response term and exponential forgetting.
+- **Layer 2 — BKT+.** Bayesian Knowledge Tracing per concept, augmented with an IRT item-response term (`σ(a·(θ − b))`, bounded by the guess and slip rates) in the observation model. The stored update applies no time decay — forgetting is Layer 1's job; exponential forgetting survives only as a read-time forecast (`predictCorrect`).
 - **Layer 1 — FSRS.** Per-item memory state (stability, difficulty, due date) via `ts-fsrs`.
 - **Selection policy.** Concept-level Thompson Sampling over the graph, gated by prerequisite mastery, with review-due items taking priority.
 
@@ -77,20 +77,24 @@ Captured from a local `next dev` against a throwaway Postgres 16 seeded the way 
 
 ### Implemented
 
-- **Three-layer learner model** (`@englishlearn/learner-model`) — knowledge graph, BKT+ with IRT, FSRS wrapper. Pure functions, no I/O, 158 passing tests.
+- **Three-layer learner model** (`@englishlearn/learner-model`) — knowledge graph, BKT+ with IRT, FSRS wrapper. Pure functions, no I/O in the core; 796 tests in 76 files (36 of them need a real Postgres and run in CI).
 - **Thompson Sampling selection policy** — concept-level bandit with an informative cold-start prior derived from IRT difficulty, hard prerequisite gating on new concepts, and a three-tier fallback (`REVIEW_DUE` → `NEW_INTRODUCTION` → `EXPLORATION_FLOOR`) that guarantees a non-empty result.
 - **Event-sourced learner state** — `LearnerEvent` append-only log, single pure `apply` fold shared by the live write path and replay, one transaction and one timestamp per outcome for bit-exact reproducibility.
 - **Diagnostic bootstrap** — a completed diagnostic emits `LEARNER_BOOTSTRAPPED`, mapping per-axis ability estimates to initial concept mastery. Guarded strictly-once inside the writing transaction.
 - **Deterministic stochastic core** — seedable RNG (mulberry32 + Marsaglia–Tsang Beta sampler) injected at the policy boundary; `Math.random` is banned in policy code so tests and future offline evaluation are reproducible.
 - **Authentication and role-based routing** — Auth.js v5, JWT sessions, credentials provider, edge-safe authorization callback protecting `/admin` and `/tutor` route prefixes.
-- **Content schema layer** — Zod-validated JSON payloads for vocabulary, grammar, listening and diagnostic content, with a source/localized split and an editorial lifecycle (`DRAFT → REVIEW → PUBLISHED → ARCHIVED → REJECTED`).
+- **Content schema layer** — Zod-validated JSON payloads for practice items, diagnostic items and vocabulary lexemes, with a source/localized split and an editorial lifecycle (`DRAFT → REVIEW → PUBLISHED → ARCHIVED`, or `REJECTED`); student-facing reads serve only `PUBLISHED` content.
 - **Internationalization** — four locales (EN/RU/UK/DE) with `localePrefix: 'as-needed'` routing.
+- **Placement diagnostic** — `/diagnostic`: native-language step, then 16 questions alternating grammar and vocabulary on a per-axis ladder over A2–C1. The answer key and question levels never reach the client; the result sets the learner's assessed level and the first concept to practise.
+- **Adaptive exercise player** — `/exercises`: session length picker, rule cards for new grammar topics, multiple-choice and typed gap-fill (cloze) questions, a hint and "I don't know" as first-class answers, and feedback that names the concept's new stage (never a probability).
+- **Vocabulary** — `/words`: 4,944 CEFR-J lexemes, localized and with examples (IPA for 4,801), imported from committed snapshots; topic collections, personal word lists and practice scheduled on FSRS card states.
+- **Dashboard** — assessed level, weekly practice rhythm, vocabulary overview, and every concept with its CEFR level and mastery stage or the prerequisite that still locks it.
+- **Admin** — `/admin`: content moderation, users, learner feedback; every page and action is role-checked on the server.
 
 ### Not yet implemented
 
-- Adaptive exercise UI — `exercises/page.tsx` is a placeholder; `@englishlearn/learner-model` is not currently a dependency of the web app.
-- AI layer — `@englishlearn/ai` exists as a package boundary only; no provider SDK is installed and no prompts are wired.
-- Progress analytics dashboards, tutoring platform, payments.
+- AI features in the product — `@englishlearn/ai` contains offline batch scripts only (vocabulary localization and example generation through the Anthropic SDK, run by hand, output committed as snapshots); nothing in the web app calls an AI provider at runtime.
+- Progress analytics dashboards, tutoring platform (the `/tutor` route prefix is reserved in the access rules, no pages exist), payments.
 
 ---
 
