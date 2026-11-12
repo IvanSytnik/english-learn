@@ -1,0 +1,24 @@
+Copyright (c) 2026 Ivan Sytnik. All rights reserved.
+
+This repository is published so that its source code can be read and
+evaluated, for example as part of a job application or a technical review.
+
+No license is granted. Without the prior written permission of the copyright
+holder you may not use, copy, modify, merge, publish, distribute, sublicense,
+sell or deploy this software or any part of it, in source or compiled form,
+for any purpose. Viewing the code on GitHub and forking it within GitHub as
+required by GitHub's Terms of Service is permitted; any further use is not.
+
+Third-party packages listed in the package.json files are subject to their
+own licenses. Third-party data shipped in this repository keeps its original
+terms: WordNet data in packages/learner-model/data is covered by
+packages/learner-model/data/WORDNET-LICENSE, and the CEFR-J vocabulary data
+in packages/db/data is credited on the app's /credits page.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF
+OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+Licensing enquiries: https://github.com/IvanSytnik

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in the app, the learner model or the build does not work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** paste database URLs, API keys, `.env` contents
+        or other people's personal data. Security issues go through a private advisory instead (see SECURITY.md).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Exercises or lessons
+        - Vocabulary or spaced repetition
+        - Learner model (mastery, scheduling, next-item selection)
+        - Sign-up, login or account
+        - Translations or locale switching
+        - Build, tests or CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did and what the app did.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Interface language
+      options:
+        - en
+        - de
+        - uk
+        - ru
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 131 on macOS, Safari on iPhone
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or output
+      description: Console errors, test output or the failing CI step. Remove tokens and IDs first.
+      render: shell
