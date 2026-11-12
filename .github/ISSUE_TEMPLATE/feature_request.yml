@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening, check the README's [Roadmap](https://github.com/IvanSytnik/english-learn/blob/main/README.md#roadmap) and [Not yet implemented](https://github.com/IvanSytnik/english-learn/blob/main/README.md#not-yet-implemented) — it may already be planned.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or impossible today, and for whom (learner, admin, developer)?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Fits the project's invariants
+      description: Proposals that break one of these need an explicit design decision first.
+      options:
+        - label: Learner state changes only through `LearnerEvent` (no direct writes to mastery or review rows)
+        - label: Learners see semantic stages, never raw probabilities
+        - label: Answer keys stay on the server

@@ -1,0 +1,87 @@
+name: Bug report
+description: Something in EnglishLearn does not work as expected.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+        **Security problems go to a private report, not here** — see [SECURITY.md](https://github.com/IvanSytnik/english-learn/blob/main/SECURITY.md).
+        Do not paste passwords, tokens, `.env` contents or personal data.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Diagnostic (/diagnostic)
+        - Exercises (/exercises)
+        - Vocabulary (/words)
+        - Dashboard
+        - Sign-up, sign-in, password reset
+        - Admin (/admin)
+        - Landing / legal pages
+        - Learner model (packages/learner-model)
+        - Database, seeds, migrations (packages/db)
+        - Build, CI, deployment
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Live deployment
+        - Local dev (pnpm dev)
+        - Local production build (pnpm build && pnpm start)
+        - CI
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, including any error text.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as the seeded student
+        2. Open /exercises, choose 5 min
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: locale
+    attributes:
+      label: UI language and browser
+      placeholder: "e.g. RU, Firefox 140 on macOS"
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit (for local runs)
+      description: Output of `git rev-parse --short HEAD`.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Server log lines, browser console output, or a screenshot. Redact anything sensitive.
+      render: text
