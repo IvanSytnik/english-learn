@@ -93,7 +93,7 @@ Captured from a local `next dev` against a throwaway Postgres 16 seeded the way 
 
 ### Not yet implemented
 
-- AI features in the product — `@englishlearn/ai` contains offline batch scripts only (vocabulary localization and example generation through the Anthropic SDK, run by hand, output committed as snapshots); nothing in the web app calls an AI provider at runtime.
+- AI features in the product — `@englishlearn/ai` contains offline batch scripts only (vocabulary localization and example generation through the Anthropic SDK, run by hand); nothing in the web app calls an AI provider at runtime.
 - Progress analytics dashboards, tutoring platform (the `/tutor` route prefix is reserved in the access rules, no pages exist), payments.
 
 ---
@@ -116,6 +116,8 @@ Versions are pinned centrally in `pnpm-workspace.yaml` via pnpm catalogs and ref
 | Client state | TanStack Query 5, Zustand 5 | Server-state cache and local UI state |
 | Forms | React Hook Form 7.80 + `@hookform/resolvers` | Form handling with Zod resolvers |
 | Env | `@t3-oss/env-nextjs` | Typed, validated environment access |
+| Monitoring | Sentry (`@sentry/nextjs` 11.7) | Error tracking on server, edge and client; off without a DSN |
+| LLM (offline) | Anthropic SDK (`@anthropic-ai/sdk`) | Batch vocabulary localization and example generation in `@englishlearn/ai`; not called at request time |
 | Testing | Vitest 4.1.9, fast-check 3.23.2, Playwright 1.61 | Unit, property-based and end-to-end tests |
 | Tooling | Turborepo 2.10, pnpm 10 (catalogs), Biome 2.5 | Task orchestration, dependency pinning, lint + format |
 | CI | GitHub Actions | Lint, typecheck, test, build, and a separate Playwright job against a Postgres service container |
@@ -132,7 +134,7 @@ flowchart TB
     Browser["Browser"] --> Proxy["proxy.ts<br/>next-intl locale + Auth.js authorized()"]
     Proxy --> App["Next.js App Router<br/>app/[locale]/(marketing|auth|student|admin)"]
     App --> AuthRoute["/api/auth/[...nextauth]"]
-    App --> Actions["Server Actions<br/>register/actions.ts"]
+    App --> Actions["Server Actions<br/>actions.ts per route segment"]
 
     AuthRoute --> AuthLib["lib/auth.ts<br/>Credentials + PrismaAdapter"]
     Actions --> DB
@@ -142,16 +144,17 @@ flowchart TB
         DB["@englishlearn/db<br/>Prisma client, Zod schemas, queries"]
         LM["@englishlearn/learner-model<br/>graph · BKT+ · FSRS · policy · services"]
         UI["@englishlearn/ui"]
-        AI["@englishlearn/ai<br/>package boundary only"]
+        AI["@englishlearn/ai<br/>offline batch scripts"]
     end
 
     App --> UI
-    App -.->|"not yet wired"| LM
+    Actions --> LM
     LM --> DB
+    AI -.->|"batch scripts, run by hand"| DB
     DB --> PG[("Neon PostgreSQL")]
 ```
 
-The dashed edge is deliberate: the learner model is complete and tested at the package level, but the web app does not import it yet. See [Known Limitations](#known-limitations).
+The web app constructs the learner-model services in exactly one place, `lib/learner.ts`; server actions call them, never the projection tables directly. `@englishlearn/ai` is not imported by the web app — its batch scripts write vocabulary localization to the database or examples to a committed snapshot that `vocab:sync-examples` imports. See [Known Limitations](#known-limitations).
 
 ### Learner model data flow
 
@@ -239,11 +242,12 @@ englishlearn/
 │       │   ├── [locale]/
 │       │   │   ├── (marketing)/       # public landing
 │       │   │   ├── (auth)/            # login, register (+ server action)
-│       │   │   ├── (student)/         # dashboard, diagnostic, exercises
-│       │   │   └── admin/             # /admin/* — content moderation, users, ai-review
-│       │   └── api/                   # auth/[...nextauth], health
+│       │   │   ├── (student)/         # dashboard, diagnostic, exercises, words, settings
+│       │   │   └── admin/             # /admin/* — content moderation, users, ai-review, feedback
+│       │   ├── api/                   # auth/[...nextauth], health
+│       │   └── _components/           # top bar controls, locale switcher, theme toggle, footer
 │       ├── i18n/                      # routing, request config, navigation
-│       ├── lib/                       # auth.ts, auth.config.ts, env.ts
+│       ├── lib/                       # auth.ts, auth.config.ts, env.ts, learner.ts (service wiring), diagnostic.ts, exercise/
 │       ├── messages/                  # en.json, ru.json, uk.json, de.json
 │       ├── scripts/                   # check-vercel-bundle.ts (pnpm check:bundle)
 │       ├── tests/                     # unit (vitest) + e2e (playwright)
@@ -251,7 +255,7 @@ englishlearn/
 │       └── vercel.json                # Vercel project config (Root Directory = apps/web)
 ├── packages/
 │   ├── db/
-│   │   ├── prisma/                    # schema.prisma + 7 migrations
+│   │   ├── prisma/                    # schema.prisma + 24 migrations
 │   │   └── src/
 │   │       ├── schemas/               # Zod: exercises, items, learner-events
 │   │       ├── queries/
@@ -260,12 +264,14 @@ englishlearn/
 │   │   ├── src/
 │   │   │   ├── core/{graph,bkt,fsrs}/ # pure layers 3, 2, 1
 │   │   │   ├── policy/                # Thompson Sampling, curriculum gating, RNG
-│   │   │   ├── diagnostic/            # theta estimation, bootstrap mapping
+│   │   │   ├── diagnostic/            # ladder, theta estimation, bootstrap mapping, start concept
+│   │   │   ├── mastery/               # displayStage with hysteresis
+│   │   │   ├── vocab/                 # vocabulary selection, exercise variants, paste import
 │   │   │   ├── adapters/              # pure state <-> DB row
 │   │   │   └── service/               # event store, apply fold, services, replay
-│   │   └── seed/                      # concepts, edges, items
-│   ├── ui/                            # button, card, input
-│   ├── ai/                            # package boundary, not implemented
+│   │   └── seed/                      # concepts, edges, items, diagnostic bank
+│   ├── ui/                            # button, card, input, key hint, stage label, progress, tokens.css
+│   ├── ai/                            # offline LLM batch scripts: vocab localization, examples
 │   └── config/                        # shared tsconfig presets
 ├── .github/workflows/ci.yml
 ├── turbo.json
@@ -339,8 +345,16 @@ printf 'DATABASE_URL="..."\nDIRECT_URL="..."\n' > packages/db/.env
 | `AUTH_TRUST_HOST` | No | Set to `true` when running `next start` locally or self-hosting; not needed on Vercel (Auth.js trusts the host automatically there). |
 | `AUTH_GOOGLE_ID` | No | Reserved. Google OAuth is not wired — only the credentials provider is registered. |
 | `AUTH_GOOGLE_SECRET` | No | Reserved, as above. |
-| `ANTHROPIC_API_KEY` | No | Reserved for the AI layer; not consumed by any code yet. |
-| `OPENAI_API_KEY` | No | Reserved, as above. |
+| `ANTHROPIC_API_KEY` | No | Read by the Anthropic SDK in the offline `@englishlearn/ai` batch scripts (`vocab:localize`, `vocab:examples`); the web app never uses it. |
+| `VOCAB_LLM_MODEL` | No | Model override for those batch scripts; a `--model` flag wins over it. |
+| `OPENAI_API_KEY` | No | Reserved; declared in the env schema, not consumed by any code. |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | No | Enables Sentry on the server/edge and in the browser; without a DSN the SDK stays disabled. |
+| `RESEND_API_KEY` | No | Sends password-reset email through Resend; without it the reset link is logged instead (dev, tests). |
+| `EMAIL_FROM` | No | Sender address for that email; has a default. |
+| `APP_URL` | No | Origin used for links in emails (never taken from the request `Host`); defaults to `http://localhost:3000`. |
+| `HEALTH_TOKEN` | No | When set, the database readiness probe `/api/health?ready=1` requires it. |
+| `DISABLE_RATE_LIMIT` | No | `true` turns auth rate limiting off for local e2e runs; ignored on Vercel. |
+| `DIAG_DB_TEST_URL` | Tests only | Postgres for the `*.db.test.ts` suites. Point it at a throwaway database only — the tests rewrite seed rows. |
 | `SKIP_ENV_VALIDATION` | No | Bypasses env schema validation. Used in CI, where a real database is not configured. |
 
 No secrets are committed. `.env` files are gitignored; only `apps/web/.env.example` is tracked.
@@ -350,10 +364,27 @@ No secrets are committed. `.env` files are gitignored; only `apps/web/.env.examp
 ```bash
 pnpm db:generate                                    # generate the Prisma client
 pnpm --filter @englishlearn/db migrate:deploy       # apply migrations
-pnpm db:seed                                        # users, skill tags, exercises
-pnpm --filter @englishlearn/learner-model seed:concepts
-pnpm --filter @englishlearn/learner-model seed:items
+pnpm db:seed                                        # dev accounts admin@ / student@englishlearn.dev
+pnpm --filter @englishlearn/learner-model seed:concepts    # 23 concepts, 18 prerequisite edges
+pnpm --filter @englishlearn/learner-model seed:items       # 176 items with practice questions
+pnpm --filter @englishlearn/learner-model seed:diagnostic  # 52-question diagnostic bank
 ```
+
+All seeds are idempotent. The dev account passwords are in `apps/web/tests/e2e/helpers/auth.ts`.
+
+Vocabulary for `/words`, loaded the way CI loads it — from data committed to the repository, with no API calls:
+
+```bash
+pnpm --filter @englishlearn/db vocab:import             # CEFR-J word list
+pnpm --filter @englishlearn/db vocab:sync-localization
+pnpm --filter @englishlearn/db vocab:publish
+pnpm --filter @englishlearn/db vocab:sync-frequency
+pnpm --filter @englishlearn/db vocab:sync-collections
+pnpm --filter @englishlearn/db vocab:sync-examples
+pnpm --filter @englishlearn/db vocab:sync-ipa
+```
+
+For a quick local run without a cloud database, a throwaway container works: `docker run --rm -d -p 55432:5432 -e POSTGRES_PASSWORD=postgres postgres:16`, then export `DATABASE_URL` and `DIRECT_URL` pointing at it before the commands above and `pnpm dev` — variables already set in the shell take precedence over the `.env` files.
 
 Migrations are generated with `prisma migrate diff` rather than `migrate dev`, because Neon provides no shadow database:
 
@@ -387,6 +418,7 @@ pnpm check        # Biome lint + format, applying fixes
 | --- | --- |
 | `pnpm dev` | Run the dev server via Turborepo |
 | `pnpm build` | Build all workspaces (generates the Prisma client first) |
+| `pnpm start` | Serve the production build (`next start`) |
 | `pnpm lint` | Biome lint |
 | `pnpm format` | Biome format, writing changes |
 | `pnpm check` | Biome lint + format + import organization, writing changes |
@@ -396,7 +428,7 @@ pnpm check        # Biome lint + format, applying fixes
 | `pnpm db:generate` | Generate the Prisma client |
 | `pnpm db:migrate` | `prisma migrate dev` |
 | `pnpm db:push` | `prisma db push` (local prototyping only; CI applies migrations) |
-| `pnpm db:seed` | Seed users, skill tags and exercises |
+| `pnpm db:seed` | Seed the dev accounts (admin, student); idempotent |
 | `pnpm db:studio` | Prisma Studio |
 | `pnpm clean` | Remove build artifacts and `node_modules` |
 
@@ -406,12 +438,24 @@ pnpm check        # Biome lint + format, applying fixes
 
 Vitest for unit and property-based tests, Playwright for end-to-end. Every package defines its own `vitest.config.ts`; Turborepo runs them together.
 
-`@englishlearn/learner-model` — **158 tests across 15 files**, the substantive suite:
+Current counts from `vitest run` per package (tests marked *DB* need `DIAG_DB_TEST_URL` pointing at a real Postgres; CI sets it, a plain local run skips them):
+
+| Package | Test files | Tests |
+| --- | ---: | ---: |
+| `@englishlearn/learner-model` | 76 | 796 (36 DB) |
+| `@englishlearn/db` | 51 | 547 (170 DB) |
+| `@englishlearn/web` (unit) | 73 | 1,374 |
+| `@englishlearn/ai` | 8 | 70 (2 DB) |
+| `@englishlearn/ui` | 7 | 24 |
+
+Plus 19 Playwright specs in `apps/web/tests/e2e`, including a golden path from the landing page through sign-up, the diagnostic and the first exercise.
+
+`@englishlearn/learner-model` is the substantive suite:
 
 | Area | Files | What is covered |
 | --- | --- | --- |
 | Knowledge graph | `core/graph/__tests__/` | Graph construction, traversal, and property-based invariants (DAG validity, prerequisite closure) via fast-check |
-| BKT+ | `core/bkt/__tests__/` | Posterior updates, IRT 2PL response term, exponential forgetting, boundary behaviour |
+| BKT+ | `core/bkt/__tests__/` | Posterior updates, IRT response term, read-time forgetting forecast, boundary behaviour |
 | FSRS | `core/fsrs/__tests__/` | Scheduling wrapper, grade mapping, determinism with fuzz disabled |
 | Adapters | `adapters/__tests__/` | Round-trip between pure state and database row shapes |
 | Policy | `policy/__tests__/` | Seeded RNG distribution, reward strategy dispatch and calibration gating, prerequisite gating, and the no-starvation invariant of `selectNext` |
@@ -420,9 +464,9 @@ Vitest for unit and property-based tests, Playwright for end-to-end. Every packa
 
 `@englishlearn/db` — Zod schema tests for exercise content, item content and locale handling, including fast-check property tests.
 
-`@englishlearn/ui` — component test for `Button` (Testing Library + jsdom).
+`@englishlearn/ui` — component tests (Testing Library + jsdom) for `Button`, key hints, stage labels, segmented progress, the session length picker and reason chips.
 
-`@englishlearn/web` — unit tests for the Auth.js `authorized` callback covering guest, student and admin access to public, student and admin routes; plus one Playwright smoke spec.
+`@englishlearn/web` — unit tests including the Auth.js `authorized` callback covering guest, student and admin access to public, student and admin routes; plus the Playwright specs above, with axe accessibility scans in light and dark themes.
 
 The database port abstraction is what makes the service layer testable without a database: `LearnerModelDb` is an interface, `prisma-db.ts` is the only implementation used in production, and the test suite substitutes an in-memory fake.
 
@@ -465,8 +509,9 @@ pnpm --filter @englishlearn/web check:bundle
 
 There is no separate API service. The backend consists of:
 
-- **`/api/auth/[...nextauth]`** — the only route handler, mounting the Auth.js handlers.
-- **Server Actions** — `app/[locale]/(auth)/register/actions.ts` handles registration.
+- **`/api/auth/[...nextauth]`** — mounts the Auth.js handlers.
+- **`/api/health`** — health check.
+- **Server Actions** — one `actions.ts` per route segment that mutates: `register`, `login`, `forgot-password`, `reset-password`, `settings`, `diagnostic`, `exercises` and `admin/feedback`. The diagnostic and exercise actions are where the learner-model services are called.
 - **Server Components** — pages read through `@englishlearn/db` directly on the server.
 
 Adding a general-purpose API layer was deliberately deferred: with a single Next.js consumer, server actions and server components cover the surface without an extra abstraction.
@@ -522,16 +567,16 @@ Content localization uses a different mechanism. Exercise and item content is st
 
 Stated plainly, since they are design consequences rather than oversights:
 
-- **The learner model is not connected to the UI.** `@englishlearn/learner-model` is not a dependency of `apps/web`; `exercises/page.tsx` is a placeholder. The model is verified at the package level and against a live database via throwaway scripts, but no user-facing flow reads it yet. This is the top item on the roadmap.
-- **Diagnostic bootstrap does not reach the bandit.** `LEARNER_BOOTSTRAPPED` writes `ConceptMastery.pKnown`, but `betaParamsForConcept` in `policy/posterior.ts` reads only event counts and mean item difficulty — the bootstrap signal never enters the Thompson prior. A statistical check over 2,000 samples confirmed no significant shift in selection (z ≈ −0.02). Separately, the bootstrap ceiling (0.60) sits below the prerequisite threshold (0.70), so a diagnostic alone can never open a curriculum gate. Both are documented and deferred deliberately: the weighting between diagnostic signal and observed outcomes should be tuned against real usage, not guessed.
+- **Resolved — the learner model was not connected to the UI.** It now is: `@englishlearn/learner-model` is a dependency of `apps/web`, the services are constructed in `lib/learner.ts`, and the diagnostic and exercise server actions call them. Kept here so the history of this list stays readable.
+- **Diagnostic bootstrap does not reach the bandit.** `LEARNER_BOOTSTRAPPED` writes `ConceptMastery.pKnown`, but `betaParamsForConcept` in `policy/posterior.ts` reads only event counts and mean item difficulty — the bootstrap signal never enters the Thompson prior. A statistical check over 2,000 samples confirmed no significant shift in selection (z ≈ −0.02). Separately, the bootstrap ceiling (0.60) sits below the prerequisite threshold (0.70), so a diagnostic alone can never open a curriculum gate. Both are documented and deferred deliberately: the weighting between diagnostic signal and observed outcomes should be tuned against real usage, not guessed. Since then the diagnostic reaches selection by a different route: the assessed level picks the start concept and, through the level guard, steers the level-aware (V6b) Thompson score — the Beta posterior itself still reads only counts and difficulty.
 - **IRT parameters are uncalibrated.** All items carry neutral defaults. Meaningful calibration needs on the order of 500 outcomes per item.
-- **Content is demo-scale.** 15 concepts, 10 edges, 60 items. Enough to exercise the model, not enough for a real learner.
+- **Grammar content is demo-scale.** 23 concepts, 18 prerequisite edges, 176 practice items and a 52-question diagnostic bank. Enough to exercise the model, not enough for a real learner. (Vocabulary is larger: 4,944 CEFR-J lexemes.)
 - **Per-user BKT parameters are placeholders.** `pLearn`, `pSlip` and `pGuess` use shared defaults pending calibration data.
 - **Prerequisite gating checks direct parents only.** Transitivity is implicit through the recursive structure rather than computed as a closure.
 - **The listening axis is inert.** Ability is estimated for it, but no seed concept carries the `LISTENING` category, so the signal currently has nowhere to go. It activates when listening concepts are added, with no code change.
 - **Pinned to Prisma 6.16.2.** Prisma 7 changes `datasource.url` handling; the upgrade is deferred.
-- **`@englishlearn/ai` is an empty boundary.** No provider is integrated.
-- **No observability.** Error tracking and product analytics are not set up.
+- **`@englishlearn/ai` is offline only.** It holds batch scripts on the Anthropic SDK for vocabulary localization and examples; no AI call happens at request time.
+- **Observability is minimal.** The Sentry SDK (`@sentry/nextjs`) is wired for server, edge and client and stays disabled unless `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` is set. Product analytics are not set up.
 
 ---
 
@@ -539,17 +584,21 @@ Stated plainly, since they are design consequences rather than oversights:
 
 Near term:
 
-1. Adaptive exercise UI reading `selectNext`, closing the gap between the model and the application.
+1. ~~Adaptive exercise UI reading `selectNext`, closing the gap between the model and the application.~~ Shipped — `/exercises`.
 2. Connect the bootstrap signal to the bandit prior — extend `betaParamsForConcept` to accept mastery input, with the weighting tuned against real usage.
 3. Progress dashboard presenting CEFR-level semantics rather than raw probabilities.
-4. End-to-end learner flow: guest → registration → diagnostic → exercises.
+4. ~~End-to-end learner flow: guest → registration → diagnostic → exercises.~~ Shipped — covered by `tests/e2e/golden-path.spec.ts`.
 5. Expand the content pool beyond demo scale.
-6. Error tracking and product analytics.
+6. Error tracking and product analytics — the Sentry SDK is in place (enabled by a DSN); product analytics are not.
 
 Later: AI tutor (requires the provider strategy to be settled), offline evaluation harness for the selection policy, tutoring platform with video and a shared whiteboard, payments and subscriptions.
+
+Where things stand today: [Implemented](#implemented) · [Not yet implemented](#not-yet-implemented) · [Known Limitations](#known-limitations).
 
 ---
 
 ## License
 
 All rights reserved. This repository is published for review; no license to use, copy, modify or distribute is granted.
+
+License: proprietary, view-only — see [LICENSE](LICENSE). Security reports: see [SECURITY.md](SECURITY.md).
