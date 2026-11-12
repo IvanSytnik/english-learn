@@ -51,6 +51,26 @@ All learner state derives from an append-only event log (`LearnerEvent`). `Conce
 
 **Audience.** B2C adult learners. Tutor marketplace and payments are planned, not built.
 
+### Screenshots
+
+Captured from a local `next dev` against a throwaway Postgres 16 seeded the way CI seeds it, after the seeded student account took the diagnostic and one five-minute session.
+
+| Landing | Dashboard |
+| --- | --- |
+| ![Landing page with a sample skill map](docs/screenshots/landing.png) | ![Student dashboard: assessed level, weekly rhythm, vocabulary overview](docs/screenshots/dashboard.png) |
+
+**Exercise player.** A grammar item after a correct answer: the explanation is shown in the learner's native language, and the line under it is the learner model's semantic stage for the concept (`displayStage`), never a raw probability.
+
+![Exercise player showing feedback after a correct answer](docs/screenshots/exercise.png)
+
+**Learner model on the dashboard.** Each grammar concept with its CEFR level and mastery stage; concepts behind an unmet `PREREQUISITE` edge show which topic unlocks them — the curriculum gate from the selection policy.
+
+![Grammar concepts with mastery stages and prerequisite locks](docs/screenshots/skill-map.png)
+
+**Locale switching.** The same dashboard after choosing `DE` in the top bar (EN / RU / UK / DE).
+
+![Dashboard in German](docs/screenshots/dashboard-de.png)
+
 ---
 
 ## Key Features

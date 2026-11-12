@@ -70,4 +70,6 @@ docs/DECISIONS.md
 docs/ARCHITECTURE.md
 docs/LOG.md
 docs/archive/
-docs/
+docs/*
+# README screenshots are published; the rest of docs/ stays local
+!docs/screenshots/
