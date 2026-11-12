@@ -1,10 +1,23 @@
 # EnglishLearn
 
+[![CI](https://img.shields.io/github/actions/workflow/status/IvanSytnik/english-learn/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white)](https://github.com/IvanSytnik/english-learn/actions/workflows/ci.yml)
+[![License: view-only](https://img.shields.io/badge/license-view--only-lightgrey)](LICENSE)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![TypeScript 6](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Prisma 6](https://img.shields.io/badge/Prisma-6-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io)
+[![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
+
+**Live:** <https://englishlearn.sytnik-studio.com>
+
+
 Adaptive English learning platform built around an explicit, testable model of what a learner knows.
 
 Most language apps schedule content with a single heuristic — a review queue, or a fixed syllabus. EnglishLearn separates the problem into three layers (prerequisite graph, per-concept mastery, per-item memory) and puts a bandit policy on top to decide what to show next. The learner model is implemented as a standalone, side-effect-free package with property-based tests, independent of the web app.
 
 **Status:** pre-launch (MVP-1 in progress). The learner model, database schema, authentication and i18n routing are implemented and tested. The web app is deployed to Vercel and the production deployment is live — health check, registration and login work — but it is not publicly launched and has no users. The adaptive exercise UI is not yet wired to the selection policy. Sections below mark what is implemented and what is not.
+
+
+**Contents:** [Overview](#overview) · [Key Features](#key-features) · [Tech Stack](#tech-stack) · [Architecture](#architecture) · [Project Structure](#project-structure) · [How It Works](#how-it-works) · [Getting Started](#getting-started) · [Available Scripts](#available-scripts) · [Testing](#testing) · [Code Quality](#code-quality) · [API / Backend](#api--backend) · [Authentication & Authorization](#authentication--authorization) · [Internationalization](#internationalization) · [Engineering Decisions](#engineering-decisions) · [Known Limitations](#known-limitations) · [Roadmap](#roadmap) · [License](#license)
 
 ---
 
@@ -453,4 +466,4 @@ Later: AI tutor (requires the provider strategy to be settled), offline evaluati
 
 ## License
 
-All rights reserved. This repository is published for review; no license to use, copy, modify or distribute is granted.
+All rights reserved. This repository is published for review; no license to use, copy, modify or distribute is granted. See [LICENSE](LICENSE). Security issues: see [SECURITY.md](SECURITY.md).
