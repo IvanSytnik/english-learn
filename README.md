@@ -172,6 +172,53 @@ flowchart LR
 
 Two properties this buys: writes go through exactly one path (no direct `UPDATE` on projections), and any user's state can be rebuilt from the log using the same code that produced it live. Replay equivalence has been verified against the live path.
 
+#### From one answer to the next item: BKT → IRT → FSRS → selection
+
+The same flow one level down — what `applyItemAttempted` (`service/apply.ts`) does with one graded answer, and what `selectNext` (`service/selection-service.ts` → `policy/select.ts`) reads to choose the next item. Names are the functions in `packages/learner-model` and the columns in `packages/db/prisma/schema.prisma`. The write path runs under a per-user advisory lock; every random draw on the read path goes through the seeded RNG in `policy/rng.ts`.
+
+```mermaid
+flowchart TB
+    subgraph write["Write path: recordOutcome, one transaction"]
+        direction TB
+        Ans["Answer graded on the server<br/>correct · dontKnow · hinted"] --> Rate["outcomeToRating<br/>wrong → AGAIN · hinted → HARD · correct → GOOD"]
+        Rate --> Evt[("LearnerEvent ITEM_ATTEMPTED<br/>frozen: conceptId, IRT a/b, rating, flags")]
+        Evt --> Fold["applyItemAttempted<br/>(pure fold, shared with replay)"]
+
+        Fold --> HintQ{"correct<br/>and hinted?"}
+        HintQ -->|"no"| IRT["IRT observation model<br/>P(correct | known) = pGuess + (1 − pSlip − pGuess) · σ(a·(θ_K − b))"]
+        IRT --> BKT["BKT update()<br/>Bayes posterior, then learning transition<br/>no time decay"]
+        HintQ -->|"yes"| Skip["pKnown unchanged<br/>observationCount + 1"]
+        BKT --> Stage["nextDisplayStage<br/>hysteresis −0.05"]
+        Skip --> Stage
+        Fold --> FSRS["FSRS reviewCard(rating)<br/>core/fsrs/wrapper.ts · ts-fsrs"]
+
+        Stage --> CM[("ConceptMastery<br/>pKnown · observationCount · displayStage")]
+        FSRS --> IRS[("ItemReviewState<br/>stability · difficulty · dueAt")]
+    end
+
+    subgraph read["Read path: selectNext, read-only"]
+        direction TB
+        Gate["computeUnlocked<br/>new concept needs every direct PREREQUISITE parent<br/>pKnown ≥ 0.7 and ≥ 3 observations"]
+        Gate --> T1{"1 · REVIEW_DUE<br/>unlocked item with dueAt ≤ now?"}
+        T1 -->|"no"| T2{"1½ · start concept<br/>from the diagnostic, not started yet?"}
+        T2 -->|"no"| T3["2 · NEW_INTRODUCTION<br/>Thompson Sampling over concepts<br/>Beta prior from mean IRT b + correct/incorrect counts<br/>with an assessed level: V6b level score, mastered concepts sit out"]
+        T3 -->|"no concept had an item"| T4["3 · EXPLORATION_FLOOR<br/>earliest-due unlocked item"]
+        T3 --> Pick["pickItemInConcept<br/>earliest dueAt, else an unseen item"]
+        T2 -->|"yes"| Pick
+        T1 -->|"yes"| Next
+        Pick --> Next["Next item<br/>itemId · conceptId · reason · isNewConcept"]
+        T4 --> Next
+    end
+
+    CM -->|"pKnown, observationCount"| Gate
+    IRS -->|"dueAt"| T1
+    Evt -->|"per-concept counts"| T3
+    Level[("StudentProfile.assessedLevel<br/>from the diagnostic")] --> T2
+    Level -->|"θ via level-guard"| T3
+```
+
+Two details the diagram makes visible. BKT and FSRS are deliberately decoupled: BKT's `pKnown` (conceptual acquisition) drives the prerequisite gate and the stage the learner sees, while forgetting is FSRS's job — it decides *when* an item comes back, and that wins over everything else in selection. And the IRT parameters enter twice: as the item-level observation model inside the BKT update, and as the concept's mean difficulty that sets the cold-start Beta prior for Thompson Sampling.
+
 ### Request lifecycle
 
 `proxy.ts` composes two concerns in order — `next-intl` resolves the locale, then the Auth.js `authorized` callback decides access. The callback is deliberately kept in `lib/auth.config.ts` with an empty `providers` array so it stays edge-safe; the database adapter and credentials provider live in `lib/auth.ts`, which is only loaded in the Node.js runtime.
