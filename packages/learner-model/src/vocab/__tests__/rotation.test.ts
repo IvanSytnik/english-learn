@@ -1,7 +1,8 @@
 import { PRACTICE_GAP } from '@englishlearn/db/schemas';
 import { describe, expect, it } from 'vitest';
 import { seedFromString } from '../../policy/rng';
-import { buildVocabCard } from '../card';
+import { buildVocabCard, buildVocabVariant, VocabCardError } from '../card';
+import { VOCAB_VARIANTS } from '../variants';
 import { rotatedExample } from '../variants/shared';
 import { example, lex } from './fixtures';
 
@@ -68,5 +69,36 @@ describe('cloze rotation (B6.5)', () => {
       seed: 's',
     });
     expect(card.view.mode).toBe('l1_to_en');
+  });
+});
+
+describe('a word without a usable example on the cloze rung', () => {
+  const ctx = { pool: POOL, locale: 'ru' as const, seed: 'u1:i1:7' };
+  const none = { ...lamp, examples: [] };
+  const unusable = {
+    ...lamp,
+    examples: [example('A lamp is a lamp.', 'lamp'), example('The light is on.', 'lamp')],
+  };
+
+  it('cloze.eligible is false — it does not throw', () => {
+    for (const target of [none, unusable]) {
+      expect(() => VOCAB_VARIANTS.cloze.eligible(target, ctx)).not.toThrow();
+      expect(VOCAB_VARIANTS.cloze.eligible(target, ctx)).toBe(false);
+    }
+    expect(VOCAB_VARIANTS.cloze.eligible(lamp, ctx)).toBe(true);
+  });
+
+  it('the rung falls back to l1_to_en: a card is served, and it is graded as that card', () => {
+    for (const target of [none, unusable]) {
+      const card = buildVocabCard({ ...ctx, target, mode: 'cloze' });
+      expect(card.view.mode).toBe('l1_to_en');
+      expect(card.key).toMatchObject({ kind: 'choice', mode: 'l1_to_en' });
+      // The same seed, the same card: what the grader rebuilds.
+      expect(buildVocabCard({ ...ctx, target, mode: 'cloze' })).toEqual(card);
+    }
+  });
+
+  it('asking for exactly the cloze card of such a word is still a VocabCardError', () => {
+    expect(() => buildVocabVariant({ ...ctx, target: none }, 'cloze')).toThrow(VocabCardError);
   });
 });

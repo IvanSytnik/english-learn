@@ -224,8 +224,15 @@ describe('cloze', () => {
     expect(view.options).toContain('an egg');
   });
 
-  it('throws for a word without an example sentence', () => {
-    expect(() => cloze({ ...APPLE, examples: [] }, FOOD)).toThrow(VocabCardError);
+  it('a word without an example sentence is served l1_to_en, never an exception', () => {
+    const card = buildVocabCard({
+      target: { ...APPLE, examples: [] },
+      pool: FOOD,
+      mode: 'cloze',
+      locale: 'ru',
+      seed: 's',
+    });
+    expect(card.view.mode).toBe('l1_to_en');
   });
 });
 

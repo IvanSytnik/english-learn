@@ -15,8 +15,13 @@ import type { VocabBuildInput, VocabCard, VocabRungVariant } from './types';
  * Mode 3 (7 ≤ S < 21): a sentence with a gap, choose what fills it. The
  * sentence is one of the word's examples, rotated by card seed (B6.5). A
  * blank whose form no three other words share (`kind-hearted`) is no fair
- * choice: the variant is not eligible and l1_to_en is served instead — the
+ * choice, and a word without a usable example (none, or none whose
+ * clozeTarget is exactly one whole word of its sentence) has no sentence to
+ * cut: the variant is not eligible and l1_to_en is served instead — the
  * served mode is `view.mode`, and that is what the payload records.
+ * `eligible` never throws: publishing requires an example, but a word that
+ * reaches the ladder another way (AI-generated, B6.10) must degrade, not
+ * break the session.
  */
 export const cloze: VocabRungVariant<'cloze'> = {
   id: 'cloze',
@@ -34,11 +39,11 @@ export const cloze: VocabRungVariant<'cloze'> = {
   grade: gradeChoice,
 };
 
-/** Null when fewer than three other words share the blank's form. */
+/** Null when the word has no usable example, or fewer than three other words share the blank's form. */
 function clozeCard(input: VocabBuildInput): VocabCard | null {
   // Rotates over the word's examples by card seed (B6.5); one example → it.
   const example = rotatedExample(input.target, input.seed);
-  if (!example) throw new VocabCardError(`"${input.target.lemma}" has no example sentence`);
+  if (!example) return null;
   return gappedChoice(input, 'cloze', example.sentence, example.clozeTarget);
 }
 
