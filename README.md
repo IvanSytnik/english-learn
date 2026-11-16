@@ -12,7 +12,7 @@ Adaptive English learning platform built around an explicit, testable model of w
 
 Most language apps schedule content with a single heuristic — a review queue, or a fixed syllabus. EnglishLearn separates the problem into three layers (prerequisite graph, per-concept mastery, per-item memory) and puts a bandit policy on top to decide what to show next. The learner model is implemented as a standalone, side-effect-free package with property-based tests, independent of the web app.
 
-**Status:** pre-launch (MVP-1 in progress). The learner model, database schema, authentication and i18n routing are implemented and tested. The web app is deployed to Vercel and the production deployment is live — health check, registration and login work — but it is not publicly launched and has no users. The diagnostic (`/diagnostic`) and the adaptive exercise player (`/exercises`) run on the learner model: the player asks `selectNext` for every question and records every answer through `recordOutcome`. Sections below mark what is implemented and what is not.
+**Status:** pre-launch, preparing a closed beta. The beta scope is implemented and tested: placement diagnostic, adaptive grammar practice, CEFR-J vocabulary, dashboard, landing page, account self-service (password reset, data export, account deletion) and legal pages. The second iteration of the vocabulary trainer is in progress — see [Roadmap](#roadmap). The web app is deployed to Vercel and the production deployment is live, but it is not publicly launched and has no users. The diagnostic (`/diagnostic`) and the adaptive exercise player (`/exercises`) run on the learner model: the player asks `selectNext` for every question and records every answer through `recordOutcome`. Sections below mark what is implemented and what is not.
 
 ## Contents
 
@@ -582,14 +582,18 @@ Stated plainly, since they are design consequences rather than oversights:
 
 ## Roadmap
 
-Near term:
+Shipped since the first version of this list:
 
 1. ~~Adaptive exercise UI reading `selectNext`, closing the gap between the model and the application.~~ Shipped — `/exercises`.
-2. Connect the bootstrap signal to the bandit prior — extend `betaParamsForConcept` to accept mastery input, with the weighting tuned against real usage.
-3. Progress dashboard presenting CEFR-level semantics rather than raw probabilities.
+2. ~~Diagnostic signal reaching selection.~~ Shipped by a different route than first planned: the assessed level picks the start concept and steers the level-aware Thompson score. Feeding bootstrap mastery into the Beta prior itself (`betaParamsForConcept`) stays deferred until there is real usage to tune the weighting against — see [Known Limitations](#known-limitations).
+3. ~~Progress dashboard presenting semantic stages rather than raw probabilities.~~ Shipped — `/dashboard`.
 4. ~~End-to-end learner flow: guest → registration → diagnostic → exercises.~~ Shipped — covered by `tests/e2e/golden-path.spec.ts`.
-5. Expand the content pool beyond demo scale.
+5. Content beyond demo scale — partly: vocabulary is 4,944 CEFR-J lexemes; grammar is still demo-scale (see [Known Limitations](#known-limitations)).
 6. Error tracking and product analytics — the Sentry SDK is in place (enabled by a DSN); product analytics are not.
+
+In progress — vocabulary trainer, second iteration. Done: frequency-ordered new words, topic collections, three examples and IPA per word, an intro card for new words, a definition-based exercise variant, per-word preferences (prioritize, hide, "I know"), personal word lists and paste import matched against the catalogue. Still to do before the beta: word audio, a word page, a runtime AI layer with an evaluation harness, AI-generated entries for words outside the catalogue (shown as unverified until an admin reviews them), a larger lexicon (B2, C1–C2 as reference) and synonyms.
+
+Then: a closed beta, measured for two weeks before the scope of the public version is fixed.
 
 Later: AI tutor (requires the provider strategy to be settled), offline evaluation harness for the selection policy, tutoring platform with video and a shared whiteboard, payments and subscriptions.
 
