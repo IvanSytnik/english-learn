@@ -19,7 +19,8 @@
       "!**/messages",
       "!packages/db/data",
       "!packages/learner-model/data",
-      "!.claude"
+      "!.claude",
+      "!.vscode"
     ]
   },
   "formatter": {
