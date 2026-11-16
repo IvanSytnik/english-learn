@@ -4,6 +4,7 @@ import { Button, Input } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, type MouseEvent, useId, useRef, useState, useTransition } from 'react';
 import { useRouter } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { type DeleteAccountError, deleteAccountAction } from './actions';
 
 type FormError = 'invalidPassword' | 'rateLimited' | 'generic';
@@ -62,7 +63,7 @@ export function DeleteAccount() {
     setError(null);
     startTransition(async () => {
       try {
-        const res = await deleteAccountAction({ password });
+        const res = await callServerAction(() => deleteAccountAction({ password }));
         if (res.ok) {
           router.replace('/');
           router.refresh();

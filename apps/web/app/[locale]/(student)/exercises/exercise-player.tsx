@@ -13,6 +13,7 @@ import {
   useTransition,
 } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { focusKind, type PlayerPhase, resolveShortcut } from '@/lib/exercise/shortcuts';
 import { type SessionEntry, summarizeSession, toSessionEntry } from '@/lib/exercise/summary';
 import type {
@@ -139,7 +140,7 @@ export function ExercisePlayer({
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof submitExerciseAttempt>>;
         try {
-          res = await submitExerciseAttempt(request);
+          res = await callServerAction(() => submitExerciseAttempt(request));
         } catch {
           // No reply: the answer may or may not be recorded. Resending with
           // the same key is safe either way.
@@ -196,7 +197,7 @@ export function ExercisePlayer({
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof nextExercise>>;
         try {
-          res = await nextExercise(recentRefs);
+          res = await callServerAction(() => nextExercise(recentRefs));
         } catch {
           // No reply: nothing was changed on the server, loading again is safe.
           busy.current = false;

@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useEffect, useRef, useState, useTransition } from 'react';
 import { Link } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { type ForgotPasswordError, requestPasswordResetAction } from './actions';
 
 type Status = 'idle' | 'sending' | 'sent' | ForgotPasswordError;
@@ -36,7 +37,7 @@ export function ForgotPasswordForm() {
     setStatus('sending');
     startTransition(async () => {
       try {
-        const res = await requestPasswordResetAction({ email });
+        const res = await callServerAction(() => requestPasswordResetAction({ email }));
         setStatus(res.ok ? 'sent' : res.error);
       } catch {
         // No reply: the email stays in the field, and submitting tries again.

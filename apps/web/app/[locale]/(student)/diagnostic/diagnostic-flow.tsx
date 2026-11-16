@@ -14,6 +14,7 @@ import {
   useTransition,
 } from 'react';
 import { Link } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import type {
   DiagnosticPeek,
   DiagnosticQuestionView,
@@ -66,7 +67,7 @@ export function DiagnosticFlow({ initial }: { initial: View }) {
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof startDiagnosticAction>>;
       try {
-        res = await startDiagnosticAction();
+        res = await callServerAction(() => startDiagnosticAction());
       } catch {
         starting.current = false;
         setStartFailed(true);
@@ -144,7 +145,7 @@ function LanguageStep({
     startTransition(async () => {
       let res: Awaited<ReturnType<typeof saveNativeLanguageAction>>;
       try {
-        res = await saveNativeLanguageAction({ language: selected });
+        res = await callServerAction(() => saveNativeLanguageAction({ language: selected }));
       } catch {
         sending.current = false;
         setLost(true);
@@ -343,12 +344,14 @@ function Player({
       startTransition(async () => {
         let res: Awaited<ReturnType<typeof submitDiagnosticAnswerAction>>;
         try {
-          res = await submitDiagnosticAnswerAction({
-            attemptId: question.attemptId,
-            position: question.position,
-            itemRef: question.item.ref,
-            ...answer,
-          });
+          res = await callServerAction(() =>
+            submitDiagnosticAnswerAction({
+              attemptId: question.attemptId,
+              position: question.position,
+              itemRef: question.item.ref,
+              ...answer,
+            }),
+          );
         } catch {
           sending.current = false;
           setUnsent(answer);

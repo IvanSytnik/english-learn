@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { TopBarControls } from '@/app/_components/top-bar-controls';
 import { Link } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import type {
   VocabCollectionView,
   VocabOverviewView,
@@ -54,7 +55,9 @@ export function WordsOverview({ initial }: { initial: VocabOverviewView }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await vocabOverviewAction({ timeZone: browserTimeZone() });
+      const res = await callServerAction(() =>
+        vocabOverviewAction({ timeZone: browserTimeZone() }),
+      );
       if (res.ok) setOverview(res.value);
     } catch {
       // Offline: the counts already on screen stay.

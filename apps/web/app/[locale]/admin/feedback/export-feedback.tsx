@@ -4,6 +4,7 @@ import type { BetaFeedbackSort } from '@englishlearn/db/queries/feedback';
 import { Button } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { CSV_BOM } from '@/lib/feedback-csv';
 import { exportFeedbackCsvAction } from './actions';
 
@@ -34,7 +35,7 @@ export function ExportFeedback({ sort }: { sort: BetaFeedbackSort }) {
     setFailed(false);
     startTransition(async () => {
       try {
-        const res = await exportFeedbackCsvAction({ sort });
+        const res = await callServerAction(() => exportFeedbackCsvAction({ sort }));
         if (!res.ok) {
           setFailed(true);
           return;

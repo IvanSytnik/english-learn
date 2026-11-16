@@ -12,6 +12,7 @@ import {
   useState,
   useTransition,
 } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { submitBetaFeedbackAction } from '../actions/feedback';
 
 export const FEEDBACK_TEXT_MIN = 5;
@@ -93,7 +94,7 @@ export function FeedbackDialog({
     };
     startTransition(async () => {
       try {
-        const res = await submitBetaFeedbackAction(input);
+        const res = await callServerAction(() => submitBetaFeedbackAction(input));
         setStatus(res.ok ? 'sent' : res.error === 'RATE_LIMITED' ? 'limited' : 'failed');
       } catch {
         // No reply: the form stays filled in, and Send tries again.

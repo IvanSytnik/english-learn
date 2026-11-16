@@ -4,6 +4,7 @@ import type { WeekRhythm as WeekRhythmData } from '@englishlearn/learner-model';
 import { WeekRhythm } from '@englishlearn/ui';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { weekRhythm } from '../exercises/actions';
 
 /**
@@ -19,7 +20,7 @@ export function WeekRhythmPanel() {
   useEffect(() => {
     let live = true;
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    weekRhythm(timeZone)
+    callServerAction(() => weekRhythm(timeZone))
       .then((res) => {
         if (live && res.ok) setData(res.value);
       })

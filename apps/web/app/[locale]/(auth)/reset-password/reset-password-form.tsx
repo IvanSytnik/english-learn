@@ -4,6 +4,7 @@ import { Button, Input } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useRef, useState, useTransition } from 'react';
 import { Link, useRouter } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { type ResetPasswordError, resetPasswordAction } from './actions';
 
 const MIN_LENGTH = 8;
@@ -52,7 +53,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
     setBusy(true);
     startTransition(async () => {
       try {
-        const res = await resetPasswordAction({ token, email, password });
+        const res = await callServerAction(() => resetPasswordAction({ token, email, password }));
         if (res.ok) {
           router.replace({ pathname: '/login', query: { reset: '1' } });
           return;

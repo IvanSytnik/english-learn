@@ -3,6 +3,7 @@
 import { Button } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { exportUserDataAction } from './actions';
 
 /** Hand the browser a JSON file to save, without leaving the page. */
@@ -32,7 +33,7 @@ export function ExportData() {
     setFailed(false);
     startTransition(async () => {
       try {
-        const res = await exportUserDataAction();
+        const res = await callServerAction(() => exportUserDataAction());
         if (!res.ok) {
           setFailed(true);
           return;

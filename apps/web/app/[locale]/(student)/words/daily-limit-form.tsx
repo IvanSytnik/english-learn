@@ -4,6 +4,7 @@ import { DAILY_VOCAB_LIMIT_MAX, DAILY_VOCAB_LIMIT_MIN } from '@englishlearn/db/s
 import { Button, Input } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useEffect, useId, useRef, useState, useTransition } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { updateDailyVocabLimitAction } from '../actions/vocab';
 
 type Status = 'idle' | 'saved' | 'invalid' | 'failed';
@@ -48,7 +49,9 @@ export function DailyLimitForm({
     setStatus('idle');
     startTransition(async () => {
       try {
-        const res = await updateDailyVocabLimitAction({ dailyVocabLimit: limit });
+        const res = await callServerAction(() =>
+          updateDailyVocabLimitAction({ dailyVocabLimit: limit }),
+        );
         if (res.ok) {
           setStatus('saved');
           onSaved(res.value.dailyVocabLimit);

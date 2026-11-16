@@ -4,6 +4,7 @@ import type { NativeLanguage } from '@englishlearn/db/schemas';
 import { Button, cn } from '@englishlearn/ui';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useRef, useState, useTransition } from 'react';
+import { callServerAction } from '@/lib/action-skew';
 import { LANGUAGE_CHOICES } from '../_components/native-language-choices';
 import { updateNativeLanguageAction } from './actions';
 
@@ -29,7 +30,9 @@ export function LanguageForm({ initial }: { initial: NativeLanguage | null }) {
     setStatus('idle');
     startTransition(async () => {
       try {
-        const res = await updateNativeLanguageAction({ language: selected });
+        const res = await callServerAction(() =>
+          updateNativeLanguageAction({ language: selected }),
+        );
         setStatus(res.ok ? 'saved' : 'failed');
       } catch {
         // No reply: the choice stays, and Save tries again.

@@ -5,6 +5,7 @@ import { buttonVariants, Card, CardContent, CardHeader, CardTitle } from '@engli
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { Link } from '@/i18n/navigation';
+import { callServerAction } from '@/lib/action-skew';
 import { type DashboardVocab, toDashboardVocab, vocabCardCta } from '@/lib/vocab-card';
 import { vocabOverviewAction } from '../actions/vocab';
 import { browserTimeZone } from './browser-time-zone';
@@ -33,7 +34,7 @@ export function VocabDashboardCard({ initial }: { initial: DashboardVocab }) {
 
   useEffect(() => {
     let live = true;
-    vocabOverviewAction({ timeZone: browserTimeZone() })
+    callServerAction(() => vocabOverviewAction({ timeZone: browserTimeZone() }))
       .then((res) => {
         if (live && res.ok) setVocab(toDashboardVocab(res.value));
       })
