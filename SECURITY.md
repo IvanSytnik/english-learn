@@ -16,11 +16,13 @@ Helpful to include:
 - steps to reproduce, and what an attacker gains;
 - whether you tested against a local instance or the live deployment.
 
+Never paste real secrets into a report: no database URLs, auth secrets, AI provider keys or `.env` contents. If you found a leaked secret, say where it is, not what it is.
+
 Every report is acknowledged. Fixes are made on `main`; you will be told when the fix is deployed and, if you want, credited in the advisory.
 
 ## Scope
 
-In scope: the code in this repository and the deployment built from it — authentication and session handling (Auth.js), role checks on `/admin` routes and server actions, answer-key exposure (grading is server-side; keys must never reach the client), data access in `packages/db`, and secrets handling.
+In scope: the code in this repository and the deployment built from it — authentication and session handling (Auth.js), role checks on `/admin` routes and server actions, answer-key exposure (grading is server-side; keys must never reach the client), data access in `packages/db`, the GitHub Actions workflows in `.github/workflows`, and secrets handling.
 
 Out of scope: denial-of-service and volume testing, social engineering, findings in third-party services (Vercel, Neon, Sentry, Resend) that are not caused by this code, and reports from automated scanners without a demonstrated impact.
 

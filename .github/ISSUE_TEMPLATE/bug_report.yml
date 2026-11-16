@@ -22,6 +22,7 @@ body:
         - Sign-up, sign-in, password reset
         - Admin (/admin)
         - Landing / legal pages
+        - Translations or locale switching
         - Learner model (packages/learner-model)
         - Database, seeds, migrations (packages/db)
         - Build, CI, deployment
