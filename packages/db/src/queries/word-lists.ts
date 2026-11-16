@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../generated/client/client';
+import type { PartOfSpeechValue } from '../schemas/lexeme';
 import {
   MAX_ACTIVE_WORD_LISTS,
   MAX_WORD_LIST_ENTRIES,
@@ -18,6 +19,11 @@ import {
  * so two concurrent calls cannot both pass the count: <= 50 active lists per
  * owner, <= 500 entries per list. A call that would cross a limit writes
  * nothing (LIMIT). Only PUBLISHED lexemes are added.
+ *
+ * An entry whose word is no longer PUBLISHED stays in the list (it returns
+ * with its note and place if the word is published again) but the learner
+ * cannot see it, so it does not count against the 500: the cap is on the
+ * words a list shows. Such an entry can still be removed.
  */
 
 export type WordListError = 'NOT_FOUND' | 'LIMIT' | 'INVALID';
@@ -137,7 +143,8 @@ export async function restoreWordList(
  * list are skipped (`alreadyIn`), unpublished ones are not added (`notFound`).
  * Crossing 500 entries: `overflow: 'reject'` (default) adds nothing (LIMIT);
  * `'fit'` (paste import, B6.7) adds the first words that fit, in order, and
- * reports the rest in `didNotFit`.
+ * reports the rest in `didNotFit`. The 500 are the list's PUBLISHED words:
+ * an entry whose word was unpublished takes no room.
  */
 export async function addWordListEntries(
   db: WordListDb,
@@ -165,11 +172,12 @@ export async function addWordListEntries(
     );
     const existing = await tx.wordListEntry.findMany({
       where: { listId: args.listId },
-      select: { lexemeId: true, position: true },
+      select: { lexemeId: true, position: true, lexeme: { select: { status: true } } },
     });
     const inList = new Set(existing.map((e) => e.lexemeId));
     const fresh = ids.filter((id) => published.has(id) && !inList.has(id));
-    const room = Math.max(0, MAX_WORD_LIST_ENTRIES - existing.length);
+    const visible = existing.filter((e) => e.lexeme.status === 'PUBLISHED').length;
+    const room = Math.max(0, MAX_WORD_LIST_ENTRIES - visible);
     if (!fit && fresh.length > room) return fail('LIMIT');
     const added = fresh.slice(0, room);
     const start = existing.reduce((max, e) => Math.max(max, e.position + 1), 0);
@@ -372,6 +380,34 @@ export async function getWordList(
     },
   });
   return list ? ok(list) : fail('NOT_FOUND');
+}
+
+export type UnpublishedWordListEntry = {
+  lexemeId: string;
+  lemmaKey: string;
+  pos: PartOfSpeechValue;
+  sense: string;
+};
+
+/**
+ * The entries of the owner's list whose word is not PUBLISHED (any other
+ * status), with the word's natural key — what a caller needs to address one
+ * by its public slug and remove it. Empty when the list is not the owner's.
+ */
+export async function getUnpublishedWordListEntries(
+  db: Pick<WordListDb, 'wordListEntry'>,
+  args: { ownerId: string; listId: string },
+): Promise<UnpublishedWordListEntry[]> {
+  const rows = await db.wordListEntry.findMany({
+    where: {
+      listId: args.listId,
+      list: { ownerId: args.ownerId },
+      lexeme: { status: { not: 'PUBLISHED' } },
+    },
+    select: { lexemeId: true, lexeme: { select: { lemmaKey: true, pos: true, sense: true } } },
+    orderBy: [{ position: 'asc' }, { lexemeId: 'asc' }],
+  });
+  return rows.map((r) => ({ lexemeId: r.lexemeId, ...r.lexeme }));
 }
 
 /**

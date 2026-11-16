@@ -5,6 +5,7 @@ import {
   addWordListEntries,
   archiveWordList,
   createWordList,
+  getUnpublishedWordListEntries,
   getWordList,
   listWordLists,
   moveWordListEntry,
@@ -23,6 +24,7 @@ import {
   type PartOfSpeechValue,
   type WordListSourceValue,
 } from '@englishlearn/db/schemas';
+import { lexemeSlug } from '@englishlearn/db/vocab/slug';
 import {
   glossOf,
   STAGE_BADGES,
@@ -217,6 +219,7 @@ export async function loadWordListPage(args: {
     })),
     prevSlug: neighbour(start - 1),
     nextSlug: neighbour(start + LIST_PAGE_SIZE),
+    // Kept in the list, not shown, and not counted against the capacity.
     unavailable: list.value.entries.length - words.length,
     capacity: MAX_WORD_LIST_ENTRIES,
   };
@@ -369,8 +372,30 @@ async function lexemeOf(slug: string): Promise<string | null> {
   return (await getVocabPool()).bySlug.get(slug)?.id ?? null;
 }
 
+/**
+ * The word `slug` names for a removal: a published word (the pool), else an
+ * entry of this list whose word is no longer published — the learner may
+ * always take a word out of their own list (a page loaded before the word
+ * was unpublished still shows it). Only this list's own entries are looked
+ * at, and a slug two of them share names neither.
+ */
+async function removableLexemeOf(args: {
+  userId: string;
+  listId: string;
+  slug: string;
+}): Promise<string | null> {
+  const published = await lexemeOf(args.slug);
+  if (published) return published;
+  const gone = await getUnpublishedWordListEntries(prisma, {
+    ownerId: args.userId,
+    listId: args.listId,
+  });
+  const [only, ...others] = gone.filter((e) => lexemeSlug(e) === args.slug);
+  return only && others.length === 0 ? only.lexemeId : null;
+}
+
 export async function removeWord(args: { userId: string; listId: string; slug: string }) {
-  const lexemeId = await lexemeOf(args.slug);
+  const lexemeId = await removableLexemeOf(args);
   if (!lexemeId) return { ok: false, error: 'NOT_FOUND' } as const;
   return metered(
     args.userId,
@@ -485,7 +510,8 @@ export async function listMenu(args: {
       lists: active.map((l) => ({
         id: l.id,
         title: l.title,
-        count: l.lexemeIds.length,
+        // The words the learner can see, as on the list's card and page.
+        count: wordsOfList(pool, l.lexemeIds).length,
         hasWord: l.lexemeIds.includes(word.id),
       })),
       atLimit: active.length >= MAX_ACTIVE_WORD_LISTS,

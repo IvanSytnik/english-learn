@@ -145,7 +145,14 @@ export async function previewImport(args: {
       notFound: match.notFound,
       notProcessed: tokens.notProcessed + match.notProcessed,
       skipped: tokens.skipped,
-      capacityLeft: MAX_WORD_LIST_ENTRIES - (list?.ok ? list.value.entries.length : 0),
+      // Room is counted in published words: an unpublished entry takes none.
+      capacityLeft: Math.max(
+        0,
+        MAX_WORD_LIST_ENTRIES -
+          (list?.ok
+            ? list.value.entries.filter((e) => pool.itemIdByLexemeId.has(e.lexemeId)).length
+            : 0),
+      ),
     },
   };
 }

@@ -11,6 +11,7 @@ import {
   addWordListEntries,
   archiveWordList,
   createWordList,
+  getUnpublishedWordListEntries,
   getWordList,
   getWordListItemIds,
   listWordLists,
@@ -487,6 +488,63 @@ describe.skipIf(!url)('word preferences and word lists (real Postgres)', () => {
       expect(await db.wordListEntry.count({ where: { listId } })).toBe(0);
       expect(await db.wordList.count({ where: { ownerId } })).toBe(1);
     });
+
+    it('a word unpublished after it was added: takes no room of the 500, is named for removal, can be removed', async () => {
+      const ownerId = await newUser();
+      const stranger = await newUser();
+      const created = await createWordList(db, { ownerId, title: 'Gone' });
+      if (!created.ok) throw new Error(created.error);
+      const listId = created.value.id;
+      const gone = await db.lexeme.create({
+        data: {
+          lemma: `${RUN}-gone`,
+          lemmaKey: `${RUN}-gone`,
+          pos: 'VERB',
+          sense: 'leave',
+          cefrLevel: 'A2',
+          cefrJLevel: 'A2',
+          definitions: { en: 'def' },
+          translations: { ru: 'ru' },
+          status: 'PUBLISHED',
+        },
+      });
+      const first499 = published.slice(0, MAX_WORD_LIST_ENTRIES - 1).map((p) => p.lexemeId);
+      expect(
+        await addWordListEntries(db, { ownerId, listId, lexemeIds: [gone.id, ...first499] }),
+      ).toMatchObject({ ok: true, value: { added: 500 } });
+      // Full: 500 published words.
+      expect(await addWordListEntries(db, { ownerId, listId, lexemeIds: [lx(499)] })).toEqual({
+        ok: false,
+        error: 'LIMIT',
+      });
+      expect(await getUnpublishedWordListEntries(db, { ownerId, listId })).toEqual([]);
+
+      await db.lexeme.update({ where: { id: gone.id }, data: { status: 'ARCHIVED' } });
+      // The entry stays, named by its natural key — for the owner only.
+      expect(await getUnpublishedWordListEntries(db, { ownerId, listId })).toEqual([
+        { lexemeId: gone.id, lemmaKey: `${RUN}-gone`, pos: 'VERB', sense: 'leave' },
+      ]);
+      expect(await getUnpublishedWordListEntries(db, { ownerId: stranger, listId })).toEqual([]);
+      // It takes no room: the 500th visible word fits, the 501st does not.
+      expect(await addWordListEntries(db, { ownerId, listId, lexemeIds: [lx(499)] })).toMatchObject(
+        { ok: true, value: { added: 1 } },
+      );
+      expect(await addWordListEntries(db, { ownerId, listId, lexemeIds: [lx(500)] })).toEqual({
+        ok: false,
+        error: 'LIMIT',
+      });
+      expect(await db.wordListEntry.count({ where: { listId } })).toBe(501);
+      // And it can be removed, by the owner only.
+      expect(
+        await removeWordListEntry(db, { ownerId: stranger, listId, lexemeId: gone.id }),
+      ).toEqual({ ok: false, error: 'NOT_FOUND' });
+      expect(await removeWordListEntry(db, { ownerId, listId, lexemeId: gone.id })).toEqual({
+        ok: true,
+        value: { removed: true },
+      });
+      expect(await getUnpublishedWordListEntries(db, { ownerId, listId })).toEqual([]);
+      expect(await db.wordListEntry.count({ where: { listId } })).toBe(500);
+    }, 30_000);
 
     it('reorder must name exactly the list’s words', async () => {
       const ownerId = await newUser();
