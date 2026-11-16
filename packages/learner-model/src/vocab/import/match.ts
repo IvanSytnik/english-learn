@@ -5,6 +5,7 @@ import { isEffectivelySecondary } from '@englishlearn/db/vocab/secondary-sense';
 import { CONTRACTIONS } from './contractions';
 import { irregularForms, normalizeTerm, regularForms } from './forms';
 import { PASTE_NO_PRESELECT } from './no-preselect';
+import { COLLOQUIAL_REDUCTIONS } from './reductions';
 import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
 
 /**
@@ -37,8 +38,9 @@ import { PASTE_MAX_CANDIDATES, type PasteCandidate } from './tokenize';
  * the function word.
  *
  * Function words the catalogue leaves out (`was`, `the`, `can`'s modal, `have
- * to`: @englishlearn/db/vocab/excluded) and contractions (`i'm`, `don't`:
- * ./contractions.ts, #41) are their own group, checked per window after the
+ * to`: @englishlearn/db/vocab/excluded), contractions (`i'm`, `don't`:
+ * ./contractions.ts, #41) and reductions written without an apostrophe
+ * (`gonna`, `wanna`: ./reductions.ts, #46) are their own group, checked per window after the
  * catalogue (`o'clock` stays a word): they are never "not found", and no
  * not-found term ever contains one (V2-18c, V2-19) — not-found terms are what
  * a later step may generate words from (B6.10).
@@ -200,13 +202,15 @@ function withoutPossessive(key: string): string | null {
 /**
  * One window of a term (#41): the catalogue first (`o'clock`, `driver's
  * license` are words), then the function words and the contraction table
- * (`was`, `have to`, `don't`) — shown as pasted —, then the window without a
+ * (`was`, `have to`, `don't`, `gonna`) — shown as pasted —, then the window without a
  * possessive `'s`, matched again (`children's` → child, as pasted).
  */
 function matchWindow(index: CatalogueIndex, key: string): Window {
   const hit = lookup(index, key);
   if (hit) return { entry: hit };
-  if (FUNCTION_WORDS.has(key) || CONTRACTIONS.has(key)) return { functionWord: key };
+  if (FUNCTION_WORDS.has(key) || CONTRACTIONS.has(key) || COLLOQUIAL_REDUCTIONS.has(key)) {
+    return { functionWord: key };
+  }
   const base = withoutPossessive(key);
   if (base === null) return null;
   const owner = lookup(index, base);

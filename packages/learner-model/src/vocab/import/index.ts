@@ -1,5 +1,6 @@
 export { irregularForms, normalizeTerm, regularForms } from './forms';
 export {
+  GENERATION_CANDIDATE_MAX_CHARS,
   GENERATION_GATE_REASONS,
   type GenerationGateReason,
   GenerationGateReasonSchema,
@@ -15,6 +16,7 @@ export {
   MULTIWORD_MAX_TOKENS,
   matchCandidates,
 } from './match';
+export { COLLOQUIAL_REDUCTIONS } from './reductions';
 export {
   PASTE_MAX_CANDIDATES,
   PASTE_MAX_CHARS,
