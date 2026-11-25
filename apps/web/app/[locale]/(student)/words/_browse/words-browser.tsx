@@ -361,9 +361,16 @@ function WordRow({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <p className="flex flex-wrap items-baseline gap-x-2">
-            <span lang="en" className={cn('font-medium', hidden ? 'text-ink-muted' : 'text-ink')}>
+            <Link
+              href={`/words/w/${word.slug}`}
+              lang="en"
+              className={cn(
+                'font-medium underline decoration-line underline-offset-4 hover:decoration-current',
+                hidden ? 'text-ink-muted' : 'text-ink',
+              )}
+            >
               {word.headword}
-            </span>
+            </Link>
             <span className="text-xs text-ink-muted">{posLabel}</span>
             <span className="font-mono text-xs text-ink-muted">{word.level}</span>
           </p>

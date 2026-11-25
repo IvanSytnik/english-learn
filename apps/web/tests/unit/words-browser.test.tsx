@@ -142,7 +142,7 @@ describe('rows', () => {
         .getAllByRole('button')
         .map((el) => el.textContent),
     ).toEqual([b.actions.hide, en.student.words.addToList.button]);
-    expect(inRow('dates-noun').queryByRole('link')).toBeNull();
+    expect(inRow('dates-noun').queryByRole('link', { name: /^I know/ })).toBeNull();
     expect(inRow('cake-noun').getByText(b.prioritized)).toBeVisible();
     expect(button('cake-noun', 'Unprioritize “cake”')).toBeVisible();
   });
@@ -157,7 +157,21 @@ describe('rows', () => {
         .getAllByRole('button')
         .map((el) => el.textContent),
     ).toEqual([b.actions.unhide]);
-    expect(inRow('eggs-noun').queryByRole('link')).toBeNull();
+    expect(inRow('eggs-noun').queryByRole('link', { name: /^I know/ })).toBeNull();
+  });
+
+  it('every headword links to its word page by slug (B6.8)', () => {
+    renderBrowser();
+    for (const [slug, word] of [
+      ['apple-noun', 'apple'],
+      ['dates-noun', 'dates'],
+      ['eggs-noun', 'eggs'],
+    ] as const) {
+      expect(inRow(slug).getByRole('link', { name: word })).toHaveAttribute(
+        'href',
+        `/words/w/${slug}`,
+      );
+    }
   });
 
   it('every visible word offers "Add to list…", named by its slug (B6.7)', async () => {
@@ -174,7 +188,7 @@ describe('rows', () => {
       { ...VIEW, groups: [{ ...VIEW.groups[0], practice: { collection: 'clothes' } } as never] },
       { kind: 'collection', key: 'clothes' },
     );
-    expect(inRow('apple-noun').getByRole('link', { name: /apple/ })).toHaveAttribute(
+    expect(inRow('apple-noun').getByRole('link', { name: /^I know/ })).toHaveAttribute(
       'href',
       '/words/practice?prove=apple-noun&collection=clothes',
     );

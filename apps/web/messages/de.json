@@ -390,6 +390,19 @@
           "status": "Seite {page} von {count}"
         }
       },
+      "word": {
+        "progress": "Dein Fortschritt",
+        "review": {
+          "none": "Noch nicht geübt.",
+          "due": "Jetzt zur Wiederholung fällig.",
+          "today": "Kommt heute noch einmal.",
+          "inDays": "{days, plural, one {Nächste Wiederholung in # Tag} other {Nächste Wiederholung in # Tagen}}"
+        },
+        "examples": "Beispiele",
+        "collocations": "Häufige Verbindungen",
+        "where": "Wo du es findest",
+        "topic": "Thema: {title}"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Wähle die Übersetzung.",

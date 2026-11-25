@@ -127,7 +127,8 @@ export function wordsOf(pool: VocabPool, page: WordsPage): VocabLexemeRow[] {
     .map(({ row }) => row);
 }
 
-const preferenceOf = (states: VocabWordStates, itemId: string): WordPreference =>
+/** The learner's preference for a word — the one rule every page uses. */
+export const preferenceOf = (states: VocabWordStates, itemId: string): WordPreference =>
   states.hiddenItemIds.has(itemId)
     ? 'HIDDEN'
     : states.prioritizedItemIds.has(itemId)

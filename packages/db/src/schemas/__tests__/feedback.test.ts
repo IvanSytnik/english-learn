@@ -79,6 +79,12 @@ describe('VocabFeedbackMetadataSchema', () => {
     expect(feedback.success).toBe(true);
   });
 
+  it('accepts a word-page report: no card on screen, no mode (B6.8)', () => {
+    const { vocabMode: _, ...fromPage } = vocab;
+    expect(VocabFeedbackMetadataSchema.parse(fromPage)).toEqual(fromPage);
+    expect(parseVocabFeedbackMetadata(fromPage)).toEqual(fromPage);
+  });
+
   it.each([
     ['an unknown mode', { ...vocab, vocabMode: 'spelling' }],
     ['a missing lexeme id', { lemma: 'run', vocabMode: 'cloze' }],

@@ -390,6 +390,19 @@
           "status": "Page {page} of {count}"
         }
       },
+      "word": {
+        "progress": "Your progress",
+        "review": {
+          "none": "Not practised yet.",
+          "due": "Due for review now.",
+          "today": "Comes back later today.",
+          "inDays": "{days, plural, one {Next review in # day} other {Next review in # days}}"
+        },
+        "examples": "Examples",
+        "collocations": "Common combinations",
+        "where": "Where to find it",
+        "topic": "Topic: {title}"
+      },
       "player": {
         "instruction": {
           "en_to_l1": "Choose the translation.",

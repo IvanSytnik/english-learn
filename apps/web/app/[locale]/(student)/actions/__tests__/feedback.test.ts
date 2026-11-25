@@ -291,3 +291,87 @@ describe('submitBetaFeedbackAction: a report from the vocabulary player (vocabRe
     expect(createBetaFeedback).not.toHaveBeenCalled();
   });
 });
+
+describe('submitBetaFeedbackAction: a report from the word page (wordSlug, B6.8)', () => {
+  const report = {
+    text: 'The example is wrong',
+    url: '/en/words/w/luggage-noun',
+    kind: 'CONTENT_ERROR',
+  };
+  const ITEM = 'cm-item-luggage';
+  const word = {
+    itemId: ITEM,
+    id: 'cm-lex-luggage',
+    lemma: 'luggage',
+    conceptId: 'vocab.travel.a2',
+  };
+
+  beforeEach(() => {
+    getVocabPool.mockResolvedValue({
+      lexemes: [word],
+      byItemId: new Map([[ITEM, word]]),
+      itemIdByLexemeId: new Map([[word.id, ITEM]]),
+      bySlug: new Map([['luggage-noun', word]]),
+      slugByItemId: new Map([[ITEM, 'luggage-noun']]),
+    });
+  });
+
+  it('stores the word the slug names, its concept and a context without a mode', async () => {
+    const result = await submitBetaFeedbackAction({ ...report, wordSlug: 'luggage-noun' });
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      {
+        ...report,
+        itemId: ITEM,
+        conceptId: 'vocab.travel.a2',
+        metadata: { lexemeId: 'cm-lex-luggage', lemma: 'luggage' },
+        userId: 'user-1',
+      },
+    );
+  });
+
+  it('client ids and metadata never override the slug', async () => {
+    await submitBetaFeedbackAction({
+      ...report,
+      wordSlug: 'luggage-noun',
+      itemId: 'other',
+      conceptId: 'other',
+      metadata: { lexemeId: 'forged', lemma: 'x' },
+    });
+    expect(createBetaFeedback).toHaveBeenCalledWith(
+      { tag: 'prisma' },
+      expect.objectContaining({
+        itemId: ITEM,
+        conceptId: 'vocab.travel.a2',
+        metadata: { lexemeId: 'cm-lex-luggage', lemma: 'luggage' },
+      }),
+    );
+  });
+
+  it('refuses an unknown or malformed slug, and a slug with another reference, at no cost', async () => {
+    for (const wordSlug of ['suitcase-noun', 'Luggage Noun', '', 'x'.repeat(161)]) {
+      expect(await submitBetaFeedbackAction({ ...report, wordSlug })).toEqual({
+        ok: false,
+        error: 'VALIDATION_ERROR',
+      });
+    }
+    const itemRef = await encryptItemRef({ itemId: ITEM, userId: 'user-1' });
+    expect(
+      await submitBetaFeedbackAction({ ...report, wordSlug: 'luggage-noun', itemRef }),
+    ).toEqual({ ok: false, error: 'VALIDATION_ERROR' });
+    expect(withinAuthLimits).not.toHaveBeenCalled();
+    expect(createBetaFeedback).not.toHaveBeenCalled();
+  });
+
+  it('a failing pool is logged and returns only INTERNAL_ERROR', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    getVocabPool.mockRejectedValue(new Error('connection to db.secret-host refused'));
+    expect(await submitBetaFeedbackAction({ ...report, wordSlug: 'luggage-noun' })).toEqual({
+      ok: false,
+      error: 'INTERNAL_ERROR',
+    });
+    expect(createBetaFeedback).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+});

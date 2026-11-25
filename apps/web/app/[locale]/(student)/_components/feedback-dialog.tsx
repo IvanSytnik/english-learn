@@ -45,6 +45,7 @@ export function FeedbackDialog({
   initialKind = 'CONTENT_ERROR',
   itemRef,
   vocabRef,
+  wordSlug,
 }: {
   open: boolean;
   onClose: () => void;
@@ -53,6 +54,8 @@ export function FeedbackDialog({
   itemRef?: string;
   /** The opaque reference of the vocabulary card the report is about. */
   vocabRef?: string;
+  /** The public slug of the word page the report is about (B6.8). */
+  wordSlug?: string;
 }) {
   const t = useTranslations('feedback');
   const ref = useRef<HTMLDialogElement>(null);
@@ -91,6 +94,7 @@ export function FeedbackDialog({
       url: `${window.location.pathname}${window.location.search}`,
       ...(itemRef ? { itemRef } : {}),
       ...(vocabRef ? { vocabRef } : {}),
+      ...(wordSlug ? { wordSlug } : {}),
     };
     startTransition(async () => {
       try {

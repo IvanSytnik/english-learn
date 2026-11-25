@@ -4,6 +4,7 @@ import { prisma } from '@englishlearn/db';
 import { getPublishedPracticeItem } from '@englishlearn/db/queries/exercises';
 import { createBetaFeedback } from '@englishlearn/db/queries/feedback';
 import { CreateBetaFeedbackSchema, type VocabFeedbackMetadata } from '@englishlearn/db/schemas';
+import { LexemeSlugSchema } from '@englishlearn/db/vocab/slug';
 import { PAYLOAD_MODE } from '@englishlearn/learner-model';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
@@ -21,15 +22,19 @@ export type FeedbackErrorCode =
 
 /**
  * A report from a player names its item by the opaque reference it was shown:
- * `itemRef` from the exercise player, `vocabRef` from the vocabulary player —
- * never both.
+ * `itemRef` from the exercise player, `vocabRef` from the vocabulary player;
+ * a report from a word page names the word by its public slug (`wordSlug`,
+ * B6.8) — at most one of the three.
  */
 const RefSchema = z
   .object({
     itemRef: z.string().min(1).max(1024).optional(),
     vocabRef: z.string().min(1).max(1024).optional(),
+    wordSlug: LexemeSlugSchema.optional(),
   })
-  .refine((r) => r.itemRef === undefined || r.vocabRef === undefined);
+  .refine(
+    (r) => [r.itemRef, r.vocabRef, r.wordSlug].filter((ref) => ref !== undefined).length <= 1,
+  );
 
 /**
  * Store a beta feedback report from the signed-in user. The author is always
@@ -38,7 +43,9 @@ const RefSchema = z
  * concept), never against ids the client names; a reference that is not the
  * user's, expired or forged is refused. A `vocabRef` report also gets the
  * word's context in `metadata` (lexeme, lemma, practice mode), built here —
- * whatever metadata the client sent is dropped. Reports are throttled per
+ * whatever metadata the client sent is dropped. A `wordSlug` report gets the
+ * same context without a mode; a slug the published pool does not know (or
+ * knows twice) is refused. Reports are throttled per
  * user (`feedback:user`); only a valid report counts against the budget.
  * Database errors are logged here and never reach the client.
  */
@@ -58,7 +65,8 @@ export async function submitBetaFeedbackAction(
     if (!decrypted.ok) return { ok: false, error: 'VALIDATION_ERROR' };
     refItemId = decrypted.value;
   }
-  let vocab: { itemId: string; mode: keyof typeof PAYLOAD_MODE } | null = null;
+  // `mode` is null for a report from the word page: no card was on screen.
+  let vocab: { itemId: string; mode: keyof typeof PAYLOAD_MODE | null } | null = null;
   if (ref.data.vocabRef !== undefined) {
     const decrypted = await decryptVocabRef(ref.data.vocabRef, userId);
     if (!decrypted.ok) return { ok: false, error: 'VALIDATION_ERROR' };
@@ -66,6 +74,12 @@ export async function submitBetaFeedbackAction(
   }
 
   try {
+    if (ref.data.wordSlug !== undefined) {
+      // Before the budget: an unknown word is not a report and costs nothing.
+      const word = (await getVocabPool()).bySlug.get(ref.data.wordSlug);
+      if (!word) return { ok: false, error: 'VALIDATION_ERROR' };
+      vocab = { itemId: word.itemId, mode: null };
+    }
     if (!(await withinAuthLimits([['feedback:user', userId]]))) {
       return { ok: false, error: 'RATE_LIMITED' };
     }
@@ -81,7 +95,11 @@ export async function submitBetaFeedbackAction(
     if (vocab !== null) {
       const word = (await getVocabPool()).byItemId.get(vocab.itemId);
       const metadata: VocabFeedbackMetadata | null = word
-        ? { lexemeId: word.id, lemma: word.lemma, vocabMode: PAYLOAD_MODE[vocab.mode] }
+        ? {
+            lexemeId: word.id,
+            lemma: word.lemma,
+            ...(vocab.mode === null ? {} : { vocabMode: PAYLOAD_MODE[vocab.mode] }),
+          }
         : null;
       data = {
         ...data,

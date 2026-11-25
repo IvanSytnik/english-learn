@@ -467,9 +467,13 @@ export function ListEditor({
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <span lang="en" className="font-medium text-ink">
+                      <Link
+                        href={`/words/w/${row.slug}`}
+                        lang="en"
+                        className="font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-current"
+                      >
                         {row.headword}
-                      </span>{' '}
+                      </Link>{' '}
                       <span className="text-xs text-ink-muted">{tp('pos', { pos: row.pos })}</span>
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-ink-muted">{row.level}</td>

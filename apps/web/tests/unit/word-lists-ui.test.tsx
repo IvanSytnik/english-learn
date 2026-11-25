@@ -139,6 +139,11 @@ describe('a list page', () => {
     const apple = inRow('apple-noun');
     expect(apple.getByText('1')).toBeVisible();
     expect(apple.getByText('apple')).toHaveAttribute('lang', 'en');
+    // The headword opens the word page, by slug (B6.8).
+    expect(apple.getByRole('link', { name: 'apple' })).toHaveAttribute(
+      'href',
+      '/words/w/apple-noun',
+    );
     expect(apple.getByText('apple-ru').closest('td')).toHaveAttribute('lang', 'ru');
     // The stage is a word, not a colour alone (V2-16).
     expect(apple.getByText(en.student.words.browse.badge.learning)).toBeVisible();

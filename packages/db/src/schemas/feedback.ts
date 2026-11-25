@@ -34,7 +34,9 @@ export type CreateBetaFeedback = z.output<typeof CreateBetaFeedbackSchema>;
 
 /**
  * BetaFeedback.metadata for a report about a word ("report error" in the
- * vocabulary player): which lexeme, as shown, in which practice mode. Lives
+ * vocabulary player, or "Report a mistake" on the word page — B6.8): which
+ * lexeme, as shown, in which practice mode (absent from the word page, where
+ * no card is on screen). Lives
  * in the free-form `metadata` (no migration); the action builds it on the
  * server, the client never supplies the lexeme id.
  */
@@ -42,7 +44,7 @@ export const VocabFeedbackMetadataSchema = z
   .object({
     lexemeId: z.string().trim().min(1),
     lemma: z.string().trim().min(1).max(100),
-    vocabMode: PracticeModeSchema,
+    vocabMode: PracticeModeSchema.optional(),
   })
   .strict();
 export type VocabFeedbackMetadata = z.infer<typeof VocabFeedbackMetadataSchema>;
