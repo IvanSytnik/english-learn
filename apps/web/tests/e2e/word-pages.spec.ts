@@ -97,7 +97,12 @@ test('a collection page: a hidden word is never served; Unhide stores it back', 
   const row = hidden.first();
   await expect(row.getByText('Скрыто')).toBeVisible();
   await expect(row.getByRole('button')).toHaveText(['Показать']);
-  await expect(row.getByRole('link')).toHaveCount(0);
+  // The only link left is the headword's, to its word page (B6.8).
+  await expect(row.getByRole('link')).toHaveCount(1);
+  await expect(row.getByRole('link', { name: first, exact: true })).toHaveAttribute(
+    'href',
+    /^\/ru\/words\/w\/[a-z0-9-]+$/,
+  );
 
   // Three new words in a row: the hidden one is never among them.
   await page.goto(SESSION);
@@ -199,7 +204,12 @@ test('a topic page from its /words card; "I know" on a row opens that word’s p
   await page.goto('/ru/words/topics/travel');
   const proven = rows(page).first();
   await expect(proven.locator('[data-badge]')).toHaveText('Выучено');
-  await expect(proven.getByRole('link')).toHaveCount(0);
+  // The only link left is the headword's, to its word page (B6.8).
+  await expect(proven.getByRole('link')).toHaveCount(1);
+  await expect(proven.getByRole('link', { name: word, exact: true })).toHaveAttribute(
+    'href',
+    /^\/ru\/words\/w\/[a-z0-9-]+$/,
+  );
   await expect(proven.getByRole('button')).toHaveText(['Скрыть', 'В список…']);
 });
 
