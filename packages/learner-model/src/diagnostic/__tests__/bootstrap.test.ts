@@ -148,15 +148,15 @@ describe('buildBootstrapSnapshots', () => {
       concepts,
       axes: fullAxis(0.2),
       assessedLevel: 'B1',
-    }).snapshots.find((s) => s.conceptId === 'grammar.present_perfect')!;
+    }).snapshots.find((s) => s.conceptId === 'grammar.present_perfect');
 
     const strong = buildBootstrapSnapshots({
       concepts,
       axes: fullAxis(0.9),
       assessedLevel: 'B1',
-    }).snapshots.find((s) => s.conceptId === 'grammar.present_perfect')!;
+    }).snapshots.find((s) => s.conceptId === 'grammar.present_perfect');
 
-    expect(strong.pKnown).toBeGreaterThan(weak.pKnown);
+    expect(strong?.pKnown).toBeGreaterThan(weak?.pKnown ?? Number.POSITIVE_INFINITY);
   });
 });
 

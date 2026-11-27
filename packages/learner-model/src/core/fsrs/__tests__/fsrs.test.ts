@@ -63,7 +63,7 @@ describe('reviewCard — first review', () => {
 });
 
 describe('reviewCard — sequences', () => {
-  function drill(ratings: FsrsRating[], stepMs: bigint): FsrsCardState {
+  function drill(ratings: FsrsRating[]): FsrsCardState {
     let state = initCardState(T0);
     let now = T0;
     for (const r of ratings) {
@@ -116,7 +116,7 @@ describe('reviewCard — sequences', () => {
   });
 
   it('drill helper sanity: mixed sequence stays schema-valid', () => {
-    const state = drill(['GOOD', 'AGAIN', 'GOOD', 'GOOD', 'EASY'], MINUTE);
+    const state = drill(['GOOD', 'AGAIN', 'GOOD', 'GOOD', 'EASY']);
     expect(FsrsCardStateSchema.safeParse(state).success).toBe(true);
   });
 });

@@ -49,8 +49,9 @@ const arbDag: fc.Arbitrary<{ concepts: Concept[]; edges: ConceptEdge[] }> = fc
         const edges: ConceptEdge[] = [];
         for (const [i, j] of pairs) {
           if (i >= j) continue; // enforce topo order -> DAG
-          const from = concepts[i]!.id;
-          const to = concepts[j]!.id;
+          const from = concepts[i]?.id;
+          const to = concepts[j]?.id;
+          if (from === undefined || to === undefined) continue; // indices are in range
           const k = `${from}>PREREQUISITE>${to}`;
           if (edgeKeys.has(k)) continue;
           edgeKeys.add(k);
@@ -77,9 +78,9 @@ describe('property: buildGraph', () => {
   it('introducing a back-edge creates a cycle and is rejected', () => {
     fc.assert(
       fc.property(arbDag, ({ concepts, edges }) => {
-        if (edges.length === 0) return; // skip empty
         // Pick any existing edge and add its reverse — must form a cycle.
-        const e = edges[0]!;
+        const e = edges[0];
+        if (!e) return; // skip empty
         const reverse: ConceptEdge = {
           from: e.to,
           to: e.from,
@@ -103,7 +104,7 @@ describe('property: topologicalOrder', () => {
         const order = topologicalOrder(g);
         const pos = new Map(order.map((id, i) => [id, i]));
         for (const e of edges) {
-          expect(pos.get(e.from)!).toBeLessThan(pos.get(e.to)!);
+          expect(pos.get(e.from)).toBeLessThan(pos.get(e.to) ?? Number.NEGATIVE_INFINITY);
         }
       }),
       { numRuns: 200 },

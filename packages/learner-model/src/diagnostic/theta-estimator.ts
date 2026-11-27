@@ -54,7 +54,7 @@ export const accuracyBasedEstimator: ThetaEstimator = {
     }
 
     return ALL_AXES.map((axis) => {
-      const t = tally.get(axis)!;
+      const t = tally.get(axis) ?? { correct: 0, total: 0 };
       return {
         axis,
         score: t.total === 0 ? 0 : t.correct / t.total,

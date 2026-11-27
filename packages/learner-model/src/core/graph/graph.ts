@@ -95,8 +95,7 @@ function reverseTopoBfs(
   const seen = new Set<ConceptId>();
   const result: ConceptId[] = [];
   const queue: ConceptId[] = [...next(start)];
-  while (queue.length > 0) {
-    const node = queue.shift()!;
+  for (let node = queue.shift(); node !== undefined; node = queue.shift()) {
     if (seen.has(node)) continue;
     seen.add(node);
     result.push(node);
@@ -142,8 +141,8 @@ export function propagationWeights(
     depth: 1,
   }));
 
-  while (queue.length > 0) {
-    const { id, depth } = queue.shift()!;
+  for (let frame = queue.shift(); frame !== undefined; frame = queue.shift()) {
+    const { id, depth } = frame;
     const w = decay ** depth;
     // Keep the largest weight (shortest path).
     const existing = weights.get(id);
@@ -180,8 +179,7 @@ export function topologicalOrder(graph: ConceptGraph): ConceptId[] {
   }
 
   const result: ConceptId[] = [];
-  while (queue.length > 0) {
-    const node = queue.shift()!;
+  for (let node = queue.shift(); node !== undefined; node = queue.shift()) {
     result.push(node);
     for (const dep of getDependents(graph, node)) {
       const d = (inDegree.get(dep) ?? 0) - 1;

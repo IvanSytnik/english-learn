@@ -64,7 +64,7 @@ async function resolve(node: ReactNode): Promise<ReactNode> {
 
 async function renderLanding(locale: Locale) {
   current.locale = locale;
-  render(<>{await resolve(<MarketingPage />)}</>);
+  render(await resolve(<MarketingPage />));
 }
 
 describe.each(Object.keys(MESSAGES) as Locale[])('landing (%s)', (locale) => {

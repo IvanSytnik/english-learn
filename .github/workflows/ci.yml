@@ -56,9 +56,9 @@ jobs:
       - name: Apply migrations to test DB
         run: pnpm --filter @englishlearn/db migrate:deploy
 
-      # `biome ci` = lint + format + import order, read-only (A1). Warnings do not fail it.
+      # `biome ci` = lint + format + import order, read-only (A1). A warning fails it too.
       - name: Lint and format
-        run: pnpm exec biome ci .
+        run: pnpm exec biome ci --error-on-warnings .
 
       - name: Typecheck
         run: pnpm typecheck

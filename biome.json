@@ -35,14 +35,14 @@
     "rules": {
       "preset": "recommended",
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "error",
         "useImportType": "error",
         "useNodejsImportProtocol": "error"
       },
       "suspicious": {
-        "noExplicitAny": "warn",
+        "noExplicitAny": "error",
         "noConsole": {
-          "level": "warn",
+          "level": "error",
           "options": { "allow": ["error", "warn", "info"] }
         }
       },

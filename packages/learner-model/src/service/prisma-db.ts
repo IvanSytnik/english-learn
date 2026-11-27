@@ -312,7 +312,7 @@ export function createPrismaLearnerDb(
       // Only an item the pool's selection could have served is recorded: a
       // draft or archived item never reaches the event log, and neither does
       // an item of the other pool (V3 for grammar; Axiom 6 both ways).
-      if (!item || item.status !== 'PUBLISHED') return null;
+      if (item?.status !== 'PUBLISHED') return null;
       const recordable =
         pool === 'grammar'
           ? item.hasPractice

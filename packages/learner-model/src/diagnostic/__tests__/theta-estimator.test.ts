@@ -32,7 +32,7 @@ describe('accuracyBasedEstimator', () => {
     const byAxis = new Map(estimateAccuracy(answers).map((e) => [e.axis, e]));
 
     expect(byAxis.get('VOCAB')).toMatchObject({ answered: 3 });
-    expect(byAxis.get('VOCAB')!.score).toBeCloseTo(2 / 3, 10);
+    expect(byAxis.get('VOCAB')?.score).toBeCloseTo(2 / 3, 10);
     expect(byAxis.get('GRAMMAR')).toMatchObject({ answered: 2, score: 0 });
     expect(byAxis.get('LISTENING')).toMatchObject({ answered: 0, score: 0 });
   });
@@ -44,7 +44,8 @@ describe('accuracyBasedEstimator', () => {
           axis: 'GRAMMAR' as const,
           correct,
         }));
-        const est = estimateAccuracy(answers).find((e) => e.axis === 'GRAMMAR')!;
+        const est = estimateAccuracy(answers).find((e) => e.axis === 'GRAMMAR');
+        if (!est) throw new Error('no GRAMMAR estimate');
 
         expect(est.score).toBeGreaterThanOrEqual(0);
         expect(est.score).toBeLessThanOrEqual(1);
@@ -66,11 +67,13 @@ describe('accuracyBasedEstimator', () => {
           const mk = (bs: boolean[]): RawFact[] =>
             bs.map((correct) => ({ axis: 'VOCAB' as const, correct }));
 
-          const before = estimateAccuracy(mk(bools)).find((e) => e.axis === 'VOCAB')!.score;
+          const before =
+            estimateAccuracy(mk(bools)).find((e) => e.axis === 'VOCAB')?.score ?? Number.NaN;
 
           const flipped = [...bools];
           flipped[idx] = true;
-          const after = estimateAccuracy(mk(flipped)).find((e) => e.axis === 'VOCAB')!.score;
+          const after =
+            estimateAccuracy(mk(flipped)).find((e) => e.axis === 'VOCAB')?.score ?? Number.NaN;
 
           expect(after).toBeGreaterThanOrEqual(before - 1e-12);
         },

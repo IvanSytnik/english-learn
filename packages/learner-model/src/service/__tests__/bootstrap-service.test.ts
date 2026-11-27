@@ -10,6 +10,11 @@ import { parseEventRow } from '../event-store';
 import { replayUser } from '../replay';
 import { createMemoryDb } from './memory-db';
 
+function present<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error('expected a value');
+  return value;
+}
+
 const CONCEPTS: BootstrapConcept[] = [
   { id: 'grammar.present_perfect', category: 'GRAMMAR', cefrLevel: 'B1' },
   { id: 'grammar.conditionals', category: 'GRAMMAR', cefrLevel: 'B2' },
@@ -85,7 +90,7 @@ describe('createBootstrapService', () => {
 
     // one bootstrap event
     expect(events).toHaveLength(1);
-    expect(events[0]!.type).toBe('LEARNER_BOOTSTRAPPED');
+    expect(events[0]?.type).toBe('LEARNER_BOOTSTRAPPED');
 
     // all three concepts bootstrapped (both axes have ≥3 answers)
     expect(res.bootstrappedConceptIds.sort()).toEqual([
@@ -96,12 +101,12 @@ describe('createBootstrapService', () => {
     expect(masteries.size).toBe(3);
 
     // grammar (strong) should start higher than vocab (weak)
-    const pp = masteries.get('u1:grammar.present_perfect')!;
-    const vt = masteries.get('u1:vocab.travel')!;
+    const pp = present(masteries.get('u1:grammar.present_perfect'));
+    const vt = present(masteries.get('u1:vocab.travel'));
     expect(pp.pKnown).toBeGreaterThan(vt.pKnown);
 
     // above-level concept (B2 grammar) discounted vs at-level (B1 grammar)
-    const cond = masteries.get('u1:grammar.conditionals')!;
+    const cond = present(masteries.get('u1:grammar.conditionals'));
     expect(cond.pKnown).toBeLessThan(pp.pKnown);
 
     // ceiling respected
@@ -182,7 +187,7 @@ describe('createBootstrapService', () => {
     });
 
     // Rebuild from the frozen event, independent of the live write path.
-    const parsed = parseEventRow(events[0]!);
+    const parsed = parseEventRow(present(events[0]));
     expect(parsed.type).toBe('LEARNER_BOOTSTRAPPED');
     if (parsed.type !== 'LEARNER_BOOTSTRAPPED') return;
 
@@ -190,7 +195,7 @@ describe('createBootstrapService', () => {
     expect(rebuilt.skipped).toEqual([]);
 
     for (const state of rebuilt.states) {
-      const live = masteries.get(`u1:${state.conceptId}`)!;
+      const live = present(masteries.get(`u1:${state.conceptId}`));
       expect(state.bkt.pKnown).toBeCloseTo(live.pKnown, 12);
       expect(state.bkt.pLearn).toBeCloseTo(live.pLearn, 12);
       expect(state.bkt.pSlip).toBeCloseTo(live.pSlip, 12);
