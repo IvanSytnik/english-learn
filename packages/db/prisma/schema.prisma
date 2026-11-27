@@ -54,7 +54,7 @@ model User {
   betaFeedbacks BetaFeedback[]
   lexemePreferences StudentLexemePreference[]
   wordLists         WordList[]
-
+  aiUsages          AiUsage[]
 
   // Content authorship
   createdDiagnosticItems     DiagnosticItem[]    @relation("DiagnosticCreatedBy")
@@ -730,4 +730,45 @@ model BetaFeedback {
   @@index([userId])
   @@index([itemId])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI runtime (B6.9)
+// ─────────────────────────────────────────────────────────────
+
+/// One row per request-path LLM call that reached the provider, ok or not
+/// (B6.9). A call refused before the provider (kill switch, budget, cap)
+/// writes no row. The daily budget and the per-user cap are sums over this
+/// table. No prompt or output text is stored — only counts and cost.
+/// userId is SET NULL on account deletion: the cost stays, the person goes.
+model AiUsage {
+  id           String   @id @default(cuid())
+  /// 'lexeme_generation' | … (kebab/snake id, never free text).
+  feature      String
+  model        String
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  inputTokens  Int
+  outputTokens Int
+  cacheRead    Int      @default(0)
+  cacheWrite   Int      @default(0)
+  costMicroUsd Int
+  latencyMs    Int
+  ok           Boolean
+  /// AiError code when ok = false (timeout, provider_error, invalid_output…).
+  errorCode    String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Runtime switches read with a 60 s in-process cache, changed without a
+/// redeploy (B6.9). Values are validated per key by Zod in
+/// `@englishlearn/db/schemas` (`APP_FLAG_SCHEMAS`); a missing or invalid row
+/// reads as the key's fail-closed default.
+model AppFlag {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
