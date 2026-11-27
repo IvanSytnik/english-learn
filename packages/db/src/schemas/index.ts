@@ -1,3 +1,15 @@
+export {
+  AI_FEATURE_ENABLED_FLAG,
+  AI_FEATURES,
+  type AiFeature,
+  AiFeatureSchema,
+  APP_FLAG_DEFAULTS,
+  APP_FLAG_KEYS,
+  APP_FLAG_SCHEMAS,
+  type AppFlagKey,
+  type AppFlagValue,
+  isAppFlagKey,
+} from './app-flag';
 export { ConceptTitleSchema, getConceptTitle } from './concept';
 export {
   DAILY_VOCAB_LIMIT_MAX,

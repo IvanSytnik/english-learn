@@ -84,6 +84,7 @@
     {
       "includes": [
         "packages/*/scripts/**",
+        "packages/ai/evals/*/run.ts",
         "apps/web/scripts/**",
         "packages/db/src/seed.ts",
         "packages/learner-model/seed/**/run.ts"

@@ -8,18 +8,22 @@
   "exports": {
     ".": "./src/index.ts",
     "./localization": "./src/localization/index.ts",
-    "./examples": "./src/examples/index.ts"
+    "./examples": "./src/examples/index.ts",
+    "./runtime": "./src/runtime/index.ts",
+    "./lexeme-gen": "./src/lexeme-gen/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "vocab:localize": "tsx --env-file-if-exists=../db/.env scripts/localize-cefr-j.ts",
     "clean": "rm -rf dist .turbo node_modules",
-    "vocab:examples": "tsx --env-file-if-exists=../db/.env scripts/generate-examples.ts"
+    "vocab:examples": "tsx --env-file-if-exists=../db/.env scripts/generate-examples.ts",
+    "eval:lexeme-gen": "tsx --env-file-if-exists=../db/.env evals/lexeme-gen/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",
     "@englishlearn/db": "workspace:*",
+    "server-only": "^0.0.1",
     "zod": "catalog:"
   },
   "devDependencies": {
